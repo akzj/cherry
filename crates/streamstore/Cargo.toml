@@ -1,0 +1,28 @@
+[package]
+name = "streamstore-rs"
+version = "0.1.0"
+edition = "2024"
+authors = ["fu.niukey@gmail.com"]
+rust-version = "1.86"
+license = "MIT"
+keywords = ["streamstore", "stream"]
+description  = "lib for storage stream programing"
+repository = "https://github.com/akzj/cherry"
+homepage  = "https://github.com/akzj/cherry"
+
+[dependencies]
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+arc-swap = "1.7.1"
+backtrace = "0.3.75"
+crc = "3.3.0"
+crossbeam-channel = "0.5.15"
+defer = "0.2.1"
+env_logger = "0.11.8"
+lazy_static = "1.5.0"
+log = "0.4.27"
+memmap2 = "0.9.5"
+prometheus-client = "0.23.1"
+rand = "0.9.1"
+thiserror = "2.0.12"
+tokio = { version = "1.45.1", features = ["full"] }
+
