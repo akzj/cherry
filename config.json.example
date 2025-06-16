@@ -1,0 +1,18 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "database": {
+    "url": "postgresql://user:pass@localhost:5432/cherryserver",
+    "max_connections": 20,
+    "min_connections": 2
+  },
+  "jwt": {
+    "secret": "production-jwt-secret-key",
+    "expiration_hours": 168
+  },
+  "logging": {
+    "level": "debug"
+  }
+} 
