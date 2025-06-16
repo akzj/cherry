@@ -19,7 +19,7 @@ use std::{
 };
 
 pub struct WalInner {
-    file: Mutex<File>,
+    file: Mutex<(File, PathBuf)>,
     dir: String,
     max_size: u64,
     file_size: atomic::AtomicU64,
@@ -49,7 +49,7 @@ impl WalInner {
         }
 
         let mut file_guard = self.file.lock().unwrap();
-        match file_guard.write_all(&buffer) {
+        match file_guard.0.write_all(&buffer) {
             Ok(_) => {
                 // Update the file size
                 let _ = self
@@ -61,7 +61,7 @@ impl WalInner {
             }
         }
         // Flush the file to ensure all data is written
-        file_guard.flush().map_err(errors::new_io_error)?;
+        file_guard.0.flush().map_err(errors::new_io_error)?;
 
         let elapsed = begin_ts.elapsed();
         metrics::wal_write_file_seconds.observe(elapsed.as_secs_f64());
@@ -78,9 +78,9 @@ impl WalInner {
 
         let mut file_guard = self.file.lock().unwrap();
 
-        file_guard.sync_all().map_err(errors::new_io_error)?;
+        file_guard.0.sync_all().map_err(errors::new_io_error)?;
 
-        let filename = filename::file_name(&*file_guard).context("get filename error")?;
+        let filename = file_guard.1.clone();
 
         self.wal_files
             .lock()
@@ -93,11 +93,14 @@ impl WalInner {
         ));
 
         // Close the current file
-        *file_guard = File::create(&filename).map_err(errors::new_io_error)?;
+        *file_guard = (
+            File::create(&filename).map_err(errors::new_io_error)?,
+            filename.clone(),
+        );
 
         self.file_size.store(0, atomic::Ordering::Relaxed);
 
-        println!("WAL file rotated to {}", filename.to_str().unwrap());
+        println!("WAL file rotated to {}", filename.display());
 
         Ok(())
     }
@@ -208,7 +211,7 @@ impl std::ops::Deref for Wal {
 
 impl Wal {
     pub fn new(
-        file: File,
+        file: (File, PathBuf),
         dir: String,
         max_size: u64,
         last_entry: u64,
@@ -217,7 +220,7 @@ impl Wal {
         err_handler: Box<dyn Fn(Error) + Send + Sync>,
     ) -> Self {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1024);
-        let file_size = file.metadata().expect("Failed to get file metadata").len();
+        let file_size = file.0.metadata().expect("Failed to get file metadata").len();
         Wal {
             inner: Arc::new(WalInner {
                 dir,
