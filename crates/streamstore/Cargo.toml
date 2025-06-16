@@ -23,6 +23,7 @@ log = "0.4.27"
 memmap2 = "0.9.5"
 prometheus-client = "0.23.1"
 rand = "0.9.1"
+refinery = "0.8.16"
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 
