@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Docker (but keep essential files)
+.dockerignore
+
+# Rust target directory
+target/
+**/.cargo/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test_data.sql
+
+# Environment files
+.env*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build artifacts
+*.o
+*.so
+*.dll
+*.exe 

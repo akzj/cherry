@@ -145,6 +145,87 @@ cargo run
 
 服务器将根据配置启动，默认在 `http://0.0.0.0:3000`。
 
+## Docker 支持 🐳
+
+CherryServer 提供完整的 Docker Compose 支持，可以快速启动开发或生产环境。
+
+### 开发环境
+
+使用 Docker 快速启动开发环境（包含 PostgreSQL 和 pgAdmin）：
+
+```bash
+# 启动开发环境
+make dev-up
+
+# 或直接使用 docker-compose
+docker-compose up -d
+```
+
+服务将在以下端口启动：
+- CherryServer API: http://localhost:3000
+- pgAdmin: http://localhost:8080 (admin@cherryserver.com / admin123)
+- PostgreSQL: localhost:5432
+
+### 生产环境
+
+1. 复制环境变量配置：
+```bash
+cp env.example .env
+# 编辑 .env 文件，设置生产环境的密码和密钥
+```
+
+2. 启动生产环境：
+```bash
+make prod-up
+
+# 或使用 docker-compose
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+### 常用 Docker 命令
+
+```bash
+# 查看帮助
+make help
+
+# 构建应用镜像
+make build
+
+# 查看日志
+make logs
+
+# 进入应用容器
+make shell
+
+# 连接数据库
+make db-shell
+
+# 重置数据库
+make db-reset
+
+# 停止所有服务
+make down
+
+# 清理所有容器和数据卷
+make clean
+```
+
+### Docker 文件结构
+
+```
+├── Dockerfile                   # 应用镜像构建文件
+├── docker-compose.yml           # 基础 Docker Compose 配置
+├── docker-compose.override.yml  # 开发环境覆盖配置
+├── docker-compose.prod.yml      # 生产环境配置
+├── config-docker.yaml           # Docker 容器配置
+├── config-prod.yaml            # 生产环境配置
+├── env.example                 # 环境变量示例
+├── Makefile                    # Docker 管理命令
+└── docker/
+    ├── init.sql               # 数据库初始化脚本
+    └── dev-data.sql           # 开发环境测试数据
+```
+
 ### 4. 插入测试数据
 
 可以使用提供的 `test_data.sql` 脚本插入测试数据：
@@ -370,6 +451,8 @@ curl http://localhost:3000/api/v1/group/list \
 - [x] 密码哈希 (使用bcrypt)
 - [x] 配置管理 (支持YAML/JSON/环境变量)
 - [x] JWT密钥环境变量配置
+- [x] Docker Compose 支持 (开发/生产环境)
+- [ ] 健康检查端点
 - [ ] 更完善的错误处理
 - [ ] API 文档生成
 - [ ] 单元测试 
