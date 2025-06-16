@@ -559,7 +559,7 @@ impl Store {
             }
         }
 
-        let (mut mem_tables, files, file) = reload::reload_wals(
+        let (mut mem_tables, files, (file, file_name)) = reload::reload_wals(
             &options.wal_path,
             last_segment_entry_index,
             options.max_table_size,
@@ -602,7 +602,7 @@ impl Store {
         let last_log_entry = mem_table.get_last_entry();
 
         let wal = Wal::new(
-            file,
+            (file, file_name),
             options.wal_path.clone(),
             options.max_wal_size,
             last_log_entry,

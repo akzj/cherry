@@ -16,7 +16,7 @@ const SEGMENT_HEADER_SIZE: u64 = std::mem::size_of::<SegmentHeader>() as u64;
 const SEGMENT_STREAM_HEADER_VERSION_V1: u64 = 1;
 const SEGMENT_HEADER_VERSION_V1: u32 = 1;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 #[repr(C)]
 pub struct SegmentStreamHeader {
     pub(crate) version: u64,
@@ -30,6 +30,19 @@ pub struct SegmentStreamHeader {
     pub(crate) size: u64,
     // checksum of the stream
     pub(crate) crc64: u64,
+}
+
+impl Default for SegmentStreamHeader {
+    fn default() -> Self {
+        SegmentStreamHeader {
+            version: SEGMENT_STREAM_HEADER_VERSION_V1,
+            stream_id: 0,
+            offset: 0,
+            file_offset: 0,
+            size: 0,
+            crc64: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -587,7 +600,7 @@ fn test_segment_header_size() {
             "header.size {}",
             header.size
         ); // 1000 entries * 10 bytes each
-        assert!(header.crc64 == 0); // checksum is not calculated in this test
+        assert!(header.crc64 > 0); // checksum is not calculated in this test
 
         file_offset += header.size;
     }

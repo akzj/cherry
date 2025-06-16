@@ -124,7 +124,7 @@ pub fn reload_wals(
     last_segment_entry_index: u64,
     max_table_size: u64,
     offset_map: &mut hash_map::HashMap<u64, u64>,
-) -> Result<(VecDeque<Rc<MemTable>>, HashMap<u64, PathBuf>, File)> {
+) -> Result<(VecDeque<Rc<MemTable>>, HashMap<u64, PathBuf>, (File, PathBuf))> {
     // Check if the WAL path exists
     if !std::path::Path::new(wal_path).exists() {
         // create the wal path if it does not exist
@@ -224,12 +224,12 @@ pub fn reload_wals(
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
-        .open(file_name)
+        .open(file_name.clone())
         .map_err(errors::new_io_error)?;
 
     // seek to the end of the file
     file.seek(std::io::SeekFrom::End(0))
         .map_err(errors::new_io_error)?;
 
-    Ok((tables, files, file))
+    Ok((tables, files, (file, file_name)))
 }
