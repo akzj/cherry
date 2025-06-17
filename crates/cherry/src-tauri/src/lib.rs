@@ -1,7 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 pub mod db;
-use crate::db::models::ChatMessage;
+use crate::db::models::*;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
