@@ -1,83 +1,318 @@
 import React, { useState } from 'react';
+import styled from 'styled-components';
+
+// ==================== Styled Components ====================
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const Section = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 40px rgba(0, 0, 0, 0.15),
+      0 6px 20px rgba(0, 0, 0, 0.1);
+    border-color: rgba(134, 239, 172, 0.3);
+  }
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(22, 57, 35, 0.9);
+  margin: 0 0 1rem 0;
+`;
+
+const SettingItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(134, 239, 172, 0.1);
+  
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+`;
+
+const SettingInfo = styled.div`
+  flex: 1;
+`;
+
+const SettingLabel = styled.label`
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(22, 57, 35, 0.8);
+  cursor: pointer;
+  display: block;
+  margin-bottom: 0.25rem;
+`;
+
+const SettingDescription = styled.p`
+  font-size: 0.8rem;
+  color: rgba(22, 57, 35, 0.6);
+  margin: 0;
+  line-height: 1.4;
+`;
+
+const ToggleSwitch = styled.label`
+  position: relative;
+  display: inline-block;
+  width: 3rem;
+  height: 1.5rem;
+  cursor: pointer;
+`;
+
+const ToggleInput = styled.input`
+  opacity: 0;
+  width: 0;
+  height: 0;
+  
+  &:checked + span {
+    background: linear-gradient(135deg, #86efac, #22c55e);
+  }
+  
+  &:checked + span:before {
+    transform: translateX(1.5rem);
+    background: white;
+  }
+`;
+
+const ToggleSlider = styled.span`
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(134, 239, 172, 0.2);
+  transition: all 0.3s ease;
+  border-radius: 1rem;
+  border: 1px solid rgba(134, 239, 172, 0.3);
+  
+  &:before {
+    position: absolute;
+    content: "";
+    height: 1.125rem;
+    width: 1.125rem;
+    left: 0.125rem;
+    bottom: 0.125rem;
+    background: rgba(134, 239, 172, 0.8);
+    transition: all 0.3s ease;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  ${ToggleInput}:checked + & {
+    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.2);
+  }
+`;
+
+const Select = styled.select`
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: rgba(22, 57, 35, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  
+  &:focus {
+    outline: none;
+    border-color: rgba(134, 239, 172, 0.4);
+    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.1);
+  }
+  
+  &:hover {
+    border-color: rgba(134, 239, 172, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+  }
+  
+  option {
+    background: rgba(255, 255, 255, 0.95);
+    color: rgba(22, 57, 35, 0.8);
+    padding: 0.5rem;
+  }
+`;
+
+const Input = styled.input`
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: rgba(22, 57, 35, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  
+  &:focus {
+    outline: none;
+    border-color: rgba(134, 239, 172, 0.4);
+    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.1);
+  }
+  
+  &:hover {
+    border-color: rgba(134, 239, 172, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+  }
+  
+  &::placeholder {
+    color: rgba(22, 57, 35, 0.5);
+  }
+`;
 
 const GeneralSettings: React.FC = () => {
   const [settings, setSettings] = useState({
-    startup: true,
+    autoSave: true,
+    notifications: true,
+    sound: false,
     language: 'zh-CN',
-    sendWithEnter: true,
+    username: 'John Doe',
+    email: 'john.doe@example.com'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    
     setSettings(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-800 dark:text-white">通用设置</h2>
-      
-      <div className="space-y-4">
-        {/* 开机启动 */}
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-          <div>
-            <h3 className="font-medium text-gray-800 dark:text-gray-200">开机自动启动</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">应用程序将在系统启动时自动运行</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input 
-              type="checkbox" 
-              name="startup"
-              checked={settings.startup}
-              onChange={handleChange}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
+    <Container>
+      {/* 基本设置 */}
+      <Section>
+        <SectionTitle>基本设置</SectionTitle>
+        
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="username">用户名</SettingLabel>
+            <SettingDescription>显示在聊天中的名称</SettingDescription>
+          </SettingInfo>
+          <Input
+            type="text"
+            id="username"
+            name="username"
+            value={settings.username}
+            onChange={handleChange}
+            placeholder="输入用户名"
+          />
+        </SettingItem>
 
-        {/* 语言设置 */}
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-          <h3 className="font-medium text-gray-800 dark:text-gray-200 mb-2">语言</h3>
-          <select 
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="email">邮箱地址</SettingLabel>
+            <SettingDescription>用于账户安全和通知</SettingDescription>
+          </SettingInfo>
+          <Input
+            type="email"
+            id="email"
+            name="email"
+            value={settings.email}
+            onChange={handleChange}
+            placeholder="输入邮箱地址"
+          />
+        </SettingItem>
+
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="language">语言</SettingLabel>
+            <SettingDescription>选择界面显示语言</SettingDescription>
+          </SettingInfo>
+          <Select
+            id="language"
             name="language"
             value={settings.language}
             onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           >
             <option value="zh-CN">简体中文</option>
             <option value="en-US">English (US)</option>
             <option value="ja-JP">日本語</option>
-          </select>
-        </div>
+          </Select>
+        </SettingItem>
+      </Section>
 
-        {/* 发送快捷键 */}
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-          <div>
-            <h3 className="font-medium text-gray-800 dark:text-gray-200">Enter键发送消息</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {settings.sendWithEnter 
-                ? "按Enter发送消息，Ctrl+Enter换行" 
-                : "按Enter换行，Ctrl+Enter发送消息"}
-            </p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input 
-              type="checkbox" 
-              name="sendWithEnter"
-              checked={settings.sendWithEnter}
+      {/* 通知设置 */}
+      <Section>
+        <SectionTitle>通知设置</SectionTitle>
+        
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="notifications">启用通知</SettingLabel>
+            <SettingDescription>接收新消息和系统通知</SettingDescription>
+          </SettingInfo>
+          <ToggleSwitch>
+            <ToggleInput
+              type="checkbox"
+              id="notifications"
+              name="notifications"
+              checked={settings.notifications}
               onChange={handleChange}
-              className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-      </div>
-    </div>
+            <ToggleSlider />
+          </ToggleSwitch>
+        </SettingItem>
+
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="sound">声音提醒</SettingLabel>
+            <SettingDescription>收到消息时播放提示音</SettingDescription>
+          </SettingInfo>
+          <ToggleSwitch>
+            <ToggleInput
+              type="checkbox"
+              id="sound"
+              name="sound"
+              checked={settings.sound}
+              onChange={handleChange}
+            />
+            <ToggleSlider />
+          </ToggleSwitch>
+        </SettingItem>
+      </Section>
+
+      {/* 数据设置 */}
+      <Section>
+        <SectionTitle>数据设置</SectionTitle>
+        
+        <SettingItem>
+          <SettingInfo>
+            <SettingLabel htmlFor="autoSave">自动保存</SettingLabel>
+            <SettingDescription>自动保存草稿和设置</SettingDescription>
+          </SettingInfo>
+          <ToggleSwitch>
+            <ToggleInput
+              type="checkbox"
+              id="autoSave"
+              name="autoSave"
+              checked={settings.autoSave}
+              onChange={handleChange}
+            />
+            <ToggleSlider />
+          </ToggleSwitch>
+        </SettingItem>
+      </Section>
+    </Container>
   );
 };
 

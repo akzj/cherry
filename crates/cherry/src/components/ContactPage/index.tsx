@@ -33,7 +33,7 @@ const Container = styled.div`
 `;
 
 const Sidebar = styled.div`
-  width: 280px;
+  width: 200px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(255, 255, 255, 0.2);
@@ -117,23 +117,12 @@ const MainContent = styled.div`
   position: relative;
   z-index: 1;
   
-  /* Custom scrollbar */
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
   &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
+    display: none;
   }
 `;
 

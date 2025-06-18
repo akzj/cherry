@@ -291,6 +291,20 @@ const ActionButton = styled.button`
   }
 `;
 
+const NavigationContainer = styled.nav`
+  flex: 1;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
 // ==================== Component Implementation ====================
 const Sidebar: React.FC<SidebarProps> = ({
     conversations,

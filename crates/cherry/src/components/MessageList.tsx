@@ -19,23 +19,12 @@ const MessageContainer = styled.div<{ $isOwn: boolean }>`
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   
-  /* Custom scrollbar */
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
   &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
+    display: none;
   }
 `;
 
