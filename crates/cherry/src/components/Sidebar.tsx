@@ -32,15 +32,17 @@ const Header = styled.div`
   padding: 1.5rem;
   border-bottom: 1px solid rgba(229, 231, 235, 0.5);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 `;
 
 const HeaderActions = styled.div`
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 1rem;
   gap: 8px;
   -webkit-app-region: no-drag;
+  flex-shrink: 0;
 `;
 
 const IconButton = styled.button`
@@ -69,7 +71,7 @@ const IconButton = styled.button`
 
 const SearchContainer = styled.div`
   position: relative;
-  margin-bottom: 1rem;
+  flex: 1;
 `;
 
 const SearchInput = styled.input`
@@ -202,11 +204,11 @@ const ContentHeader = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  color: #1f2937;
+  color:rgb(63, 149, 73);
   margin: 0;
 `;
 
