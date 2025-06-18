@@ -46,7 +46,7 @@ const Sidebar = styled.div`
 const SidebarHeader = styled.div`
   padding: 2rem 1.5rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: rgba(68, 38, 38, 0.9);
   display: flex;
@@ -133,9 +133,9 @@ const HeaderContainer = styled.div`
 `;
 
 const Header = styled.h1`
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: rgba(51, 103, 107, 0.9);
+  color: rgba(81, 17, 17, 0.35);
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
@@ -289,14 +289,6 @@ const ContactPage = () => {
       <MainContent>
         {activeTab === 'contacts' ? (
           <>
-            <HeaderContainer>
-              <Header>联系人</Header>
-              <NewGroupButton>
-                <FaPlus />
-                新建分组
-              </NewGroupButton>
-            </HeaderContainer>
-
             <SearchBar>
               <SearchInput
                 type="text"
@@ -317,14 +309,6 @@ const ContactPage = () => {
           </>
         ) : (
           <>
-            <HeaderContainer>
-              <Header>群组</Header>
-              <NewGroupButton>
-                <FaPlus />
-                创建新群
-              </NewGroupButton>
-            </HeaderContainer>
-
             <SearchBar>
               <SearchInput
                 type="text"
