@@ -323,7 +323,7 @@ const ChatArea = styled.div`
 
 // 模态窗口样式
 const ModalOverlay = styled.div`
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -333,7 +333,7 @@ const ModalOverlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 2000;
   animation: fadeIn 0.3s ease-out;
   
   @keyframes fadeIn {
