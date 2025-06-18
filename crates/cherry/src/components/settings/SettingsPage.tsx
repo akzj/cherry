@@ -48,6 +48,14 @@ const NavigationContainer = styled.nav`
   flex: 1;
   padding: 1.5rem 1rem;
   overflow-y: auto;
+  
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const NavButton = styled.button<{ $active: boolean }>`
@@ -104,6 +112,14 @@ const MainContent = styled.div`
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
+  
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const ContentContainer = styled.div`
