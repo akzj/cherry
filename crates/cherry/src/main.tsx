@@ -9,8 +9,5 @@ import ContactPage from "./components/ContactPage";
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />
-    {/* <SettingsPage /> */}
-    {/* <ContactPage /> */}
-
   </React.StrictMode>,
 );

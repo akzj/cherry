@@ -1,4 +1,5 @@
 import React from 'react';
+import styled from 'styled-components';
 import Avatar from '../UI/Avatar';
 import { Contact } from '../../types/contact';
 
@@ -7,25 +8,64 @@ interface ContactItemProps {
   onClick: () => void;
 }
 
+// ==================== Styled Components ====================
+const ContactItemContainer = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  margin: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const ContactInfo = styled.div`
+  margin-left: 1rem;
+  flex: 1;
+`;
+
+const ContactName = styled.div`
+  font-weight: 600;
+  color: rgba(11, 18, 86, 0.51);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+`;
+
+const ContactStatus = styled.div`
+  font-size: 0.75rem;
+  color: rgba(38, 91, 0, 0.66);
+  text-transform: capitalize;
+  font-weight: 500;
+`;
+
 const ContactItem: React.FC<ContactItemProps> = ({ contact, onClick }) => {
   return (
-    <div 
-      className="flex items-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
-      onClick={onClick}
-    >
+    <ContactItemContainer onClick={onClick}>
       <Avatar 
         src={contact.avatar} 
         alt={contact.name} 
         status={contact.status} 
         size="md"
       />
-      <div className="ml-3">
-        <div className="font-medium text-gray-900">{contact.name}</div>
-        <div className="text-sm text-gray-500 capitalize">
-          {contact.status}
-        </div>
-      </div>
-    </div>
+      <ContactInfo>
+        <ContactName>{contact.name}</ContactName>
+        <ContactStatus>{contact.status}</ContactStatus>
+      </ContactInfo>
+    </ContactItemContainer>
   );
 };
 

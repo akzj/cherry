@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Conversation, User } from '../types/types';
 import ContactList from './ContactList.tsx';
-import SettingsPage from './settings/SettingsPage';
+import { FaUserFriends } from 'react-icons/fa';
 
 interface SidebarProps {
     conversations: Conversation[];
     currentUser: User;
     onSelectConversation: (id: string) => void;
+    onOpenSettings: () => void;
+    onOpenContacts: () => void;
 }
 
 type TabType = 'all' | 'unread' | 'mentions' | 'direct' | 'group';
@@ -289,67 +291,16 @@ const ActionButton = styled.button`
   }
 `;
 
-const SettingsOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const SettingsPanel = styled.div`
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  width: 90%;
-  max-width: 800px;
-  height: 85vh;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  color: #6b7280;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  border-radius: 12px;
-  padding: 0.5rem;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    color: #374151;
-    background: rgba(255, 255, 255, 0.95);
-    transform: scale(1.05);
-  }
-  
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-`;
-
 // ==================== Component Implementation ====================
 const Sidebar: React.FC<SidebarProps> = ({
     conversations,
     currentUser,
-    onSelectConversation
+    onSelectConversation,
+    onOpenSettings,
+    onOpenContacts
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('all');
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // 计算各类会话数量
     const unreadCount = conversations.filter(c => c.unreadCount > 0).length;
@@ -372,13 +323,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SidebarContainer>
                 <Header>
                     <HeaderActions>
-                        <IconButton>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.333 6.667h.01M10 6.667h.01M14.667 6.667h.01M6.667 13.333H2.667a1.333 1.333 0 01-1.333-1.333V3.333a1.333 1.333 0 011.333-1.333h11.333a1.333 1.333 0 011.333 1.333v8a1.333 1.333 0 01-1.333 1.333h-4.667l-4.667 4.667v-4.667z" />
-                            </svg>
+                        <IconButton onClick={onOpenContacts}>
+                            <FaUserFriends />
                         </IconButton>
 
-                        <IconButton onClick={() => setIsSettingsOpen(true)}>
+                        <IconButton onClick={onOpenSettings}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                             </svg>
@@ -541,20 +490,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </MainContent>
                 </ContentContainer>
             </SidebarContainer>
-
-            {/* Settings Dialog */}
-            {isSettingsOpen && (
-                <SettingsOverlay>
-                    <SettingsPanel>
-                        <CloseButton onClick={() => setIsSettingsOpen(false)}>
-                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </CloseButton>
-                        <SettingsPage />
-                    </SettingsPanel>
-                </SettingsOverlay>
-            )}
         </>
     );
 };

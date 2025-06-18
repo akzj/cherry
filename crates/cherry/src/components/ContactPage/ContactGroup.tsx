@@ -16,16 +16,28 @@ const GroupContainer = styled.div`
 const GroupHeader = styled.div`
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: #ffffff;
-  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.1),
+    0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   
   &:hover {
-    background-color: #f8fafc;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 6px 25px rgba(0, 0, 0, 0.15),
+      0 3px 15px rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -34,43 +46,48 @@ const IconContainer = styled.div`
   align-items: center;
   justify-content: center;
   margin-right: 0.75rem;
-  transition: transform 0.25s ease;
+  transition: transform 0.3s ease;
+  color: rgba(23, 150, 104, 0.49);
   
   svg {
     width: 1.25rem;
     height: 1.25rem;
-    color: #94a3b8;
   }
 `;
 
 const GroupTitle = styled.h3`
   font-weight: 600;
-  color: #1e293b;
+  color: rgba(92, 41, 179, 0.43);
   margin: 0;
   flex-grow: 1;
   font-size: 1rem;
 `;
 
 const ContactCount = styled.span`
-  background-color: #e2e8f0;
-  color: #64748b;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
   font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: 9999px;
-  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 0.375rem 0.75rem;
   margin-left: 0.5rem;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 `;
 
 const ContactListContainer = styled.div<{ $expanded: boolean }>`
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 16px 16px;
   overflow: hidden;
   transition: all 0.3s ease;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   
   ${({ $expanded }) => !$expanded && css`
     max-height: 0;
     opacity: 0;
     transform: translateY(-10px);
+    margin-top: 0;
   `}
   
   ${({ $expanded }) => $expanded && css`
