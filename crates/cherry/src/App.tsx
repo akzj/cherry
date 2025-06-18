@@ -33,6 +33,16 @@ const AppContainer = styled.div`
       radial-gradient(circle at 40% 40%, rgba(167, 243, 208, 0.1) 0%, transparent 50%);
     pointer-events: none;
   }
+
+  /* 全局滚动条样式 */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
 `;
 
 const MainContent = styled.div`
@@ -336,6 +346,28 @@ const mockMessages: Message[] = [
     userId: 'user2',
     content: "Sure, I'll send them over shortly.",
     timestamp: '2023-05-15T10:36:00Z'
+  },
+  {
+    id: 'msg6',
+    userId: 'user1',
+    content: "I'll send them over shortly.",
+    timestamp: '2023-05-15T10:37:00Z',
+    isOwn: true,
+    status: 'read'
+  },
+  {
+    id: 'msg7',
+    userId: 'user2',
+    content: "I'll send them over shortly.",
+    timestamp: '2023-05-15T10:37:00Z',
+  },
+  {
+    id: 'msg8',
+    userId: 'user1',
+    content: "I'll send them over shortly.",
+    timestamp: '2023-05-15T10:37:00Z',
+    isOwn: true,
+    status: 'read'
   }
 ];
 
