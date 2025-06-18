@@ -11,7 +11,7 @@ interface ChatHeaderProps {
 const HeaderContainer = styled.div`
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(249, 250, 251, 0.95));
   backdrop-filter: blur(20px);
-  padding: 1rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,9 +22,9 @@ const HeaderContainer = styled.div`
 const UserInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
   background: rgba(255, 255, 255, 0.8);
-  padding: 0.75rem 1rem;
+  padding: 0.15rem 1rem;
   border-radius: 16px;
   border: 1px solid rgba(229, 231, 235, 0.5);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -127,8 +127,8 @@ const IconButton = styled.button`
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
   border: 1px solid rgba(99, 102, 241, 0.2);
   cursor: pointer;
-  padding: 0.75rem;
-  border-radius: 12px;
+  padding: 0.5rem;
+  border-radius: 10px;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -164,32 +164,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation }) => {
     <HeaderContainer>
       <UserInfo>
         <AvatarContainer>
-          <Avatar 
-            src={conversation.avatar} 
-            alt={conversation.name} 
+          <Avatar
+            src={conversation.avatar}
+            alt={conversation.name}
           />
           {onlineCount > 0 && <OnlineIndicator />}
         </AvatarContainer>
-        
+
         <UserDetails>
           <UserName>{conversation.name}</UserName>
           <OnlineStatus>{onlineCount} online</OnlineStatus>
         </UserDetails>
       </UserInfo>
-      
+
       <ActionButtons>
         <IconButton aria-label="Start video call">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
           </svg>
         </IconButton>
-        
+
         <IconButton aria-label="Conversation information">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
         </IconButton>
-        
+
         <IconButton aria-label="More options">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
