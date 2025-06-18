@@ -1,5 +1,6 @@
 // src/components/ContactList.tsx
 import React from 'react';
+import styled from 'styled-components';
 import { Conversation } from '../types/types';
 
 interface ContactListProps {
@@ -7,55 +8,161 @@ interface ContactListProps {
   onSelectConversation: (id: string) => void;
 }
 
-const ContactList: React.FC<ContactListProps> = ({ conversations, onSelectConversation }) => {
+// ==================== Styled Components ====================
+const ContactListContainer = styled.div`
+  border-top-width: 1px;
+  border-color: rgba(55, 65, 81, 0.5);
+`;
+
+const ContactItem = styled.div`
+  padding: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  
+  &:hover {
+    background-color: rgba(55, 65, 81, 0.5);
+  }
+`;
+
+const AvatarContainer = styled.div`
+  position: relative;
+  flex-shrink: 0;
+`;
+
+const Avatar = styled.img`
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  object-fit: cover;
+`;
+
+const OnlineIndicator = styled.div`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background-color: #10b981;
+  border: 2px solid rgba(31, 41, 55);
+`;
+
+const ContactInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ContactHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+`;
+
+const ContactName = styled.h3`
+  font-weight: 500;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const Timestamp = styled.span`
+  font-size: 0.75rem;
+  color: rgba(156, 163, 175);
+  white-space: nowrap;
+  margin-left: 0.5rem;
+`;
+
+const MessagePreviewContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+`;
+
+const LastMessage = styled.p<{ $unread: boolean }>`
+  font-size: 0.875rem;
+  color: rgba(156, 163, 175);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: ${({ $unread }) => $unread ? '500' : '400'};
+  color: ${({ $unread }) => $unread ? '#d1d5db' : 'rgba(156, 163, 175)'};
+`;
+
+const UnreadBadge = styled.span`
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+`;
+
+// ==================== Component Implementation ====================
+const ContactList: React.FC<ContactListProps> = ({
+  conversations,
+  onSelectConversation
+}) => {
   return (
-    <div className="divide-y divide-gray-700">
+    <ContactListContainer>
       {conversations.map(conversation => (
-        <div 
+        <ContactItem
           key={conversation.id}
-          className="p-4 hover:bg-gray-700 cursor-pointer transition-colors flex items-center space-x-3"
           onClick={() => onSelectConversation(conversation.id)}
         >
-          <div className="relative">
-            <img 
-              src={conversation.avatar} 
-              alt={conversation.name} 
-              className="w-12 h-12 rounded-full"
+          <AvatarContainer>
+            <Avatar
+              src={conversation.avatar}
+              alt={conversation.name}
             />
             {conversation.participants.some(p => p.status === 'online') && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-gray-800"></div>
+              <OnlineIndicator />
             )}
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-baseline">
-              <h3 className="font-medium truncate">{conversation.name}</h3>
+          </AvatarContainer>
+
+          <ContactInfo>
+            <ContactHeader>
+              <ContactName>{conversation.name}</ContactName>
               {conversation.lastMessage && (
-                <span className="text-xs text-gray-400 whitespace-nowrap">
-                  {new Date(conversation.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <Timestamp>
+                  {new Date(conversation.lastMessage.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </Timestamp>
               )}
-            </div>
-            
-            <div className="flex justify-between items-baseline">
+            </ContactHeader>
+
+            <MessagePreviewContainer>
               {conversation.lastMessage ? (
-                <p className="text-sm text-gray-400 truncate">
+                <LastMessage $unread={conversation.unreadCount > 0}>
                   {conversation.lastMessage.content}
-                </p>
+                </LastMessage>
               ) : (
-                <p className="text-sm text-gray-400">Start a conversation</p>
+                <LastMessage $unread={false}>
+                  Start a conversation
+                </LastMessage>
               )}
-              
+
               {conversation.unreadCount > 0 && (
-                <span className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <UnreadBadge>
                   {conversation.unreadCount}
-                </span>
+                </UnreadBadge>
               )}
-            </div>
-          </div>
-        </div>
+            </MessagePreviewContainer>
+          </ContactInfo>
+        </ContactItem>
       ))}
-    </div>
+    </ContactListContainer>
   );
 };
 

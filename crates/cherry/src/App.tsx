@@ -94,7 +94,7 @@ const mockUsers: User[] = [
   {
     id: 'user3',
     name: 'Alex Johnson',
-    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+    avatar: 'https://cdn3.iconfinder.com/data/icons/diversity-avatars/64/doctor-man-asian-128.png',
     status: 'away'
   },
   {
