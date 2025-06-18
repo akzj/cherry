@@ -9,7 +9,7 @@ interface MessageInputProps {
 // ==================== Styled Components ====================
 const Container = styled.div`
   padding: 1.25rem 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(38, 116, 22, 0.1);
   backdrop-filter: blur(15px);
   border-top: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0 0 20px 20px;
@@ -55,12 +55,12 @@ const InputField = styled.input`
   width: 100%;
   padding: 1rem 1.25rem 1rem 3.5rem;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(129, 250, 95, 0);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
   font-size: 1rem;
-  color: white;
+  color: rgb(38, 72, 66);
   font-weight: 400;
   
   &::placeholder {
@@ -94,9 +94,9 @@ const EmojiButton = styled(IconButton)`
 const SendButton = styled.button<{ $disabled: boolean }>`
   padding: 1rem 1.25rem;
   border-radius: 20px;
-  background: ${({ $disabled }) => 
-    $disabled 
-      ? 'rgba(255, 255, 255, 0.1)' 
+  background: ${({ $disabled }) =>
+    $disabled
+      ? 'rgba(255, 255, 255, 0.1)'
       : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
   };
   color: white;
@@ -107,9 +107,9 @@ const SendButton = styled.button<{ $disabled: boolean }>`
   border: none;
   cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
   font-weight: 600;
-  box-shadow: ${({ $disabled }) => 
-    $disabled 
-      ? 'none' 
+  box-shadow: ${({ $disabled }) =>
+    $disabled
+      ? 'none'
       : '0 4px 20px rgba(99, 102, 241, 0.3), 0 2px 10px rgba(139, 92, 246, 0.2)'
   };
   
