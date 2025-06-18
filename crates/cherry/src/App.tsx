@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar';
 import ChatHeader from './components/ChatHeader';
 import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
-import StatusBar from './components/StatusBar';
+import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
 import { Conversation, Message, User } from './types/types';
@@ -43,6 +43,249 @@ const AppContainer = styled.div`
   *::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
+
+  /* 移除默认焦点样式 */
+  *:focus {
+    outline: none !important;
+  }
+
+  /* 移除按钮和输入框的默认边框 */
+  button:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none !important;
+    border-color: rgba(134, 239, 172, 0.3) !important;
+  }
+
+  /* 移除链接的默认焦点样式 */
+  a:focus {
+    outline: none !important;
+  }
+`;
+
+const TitleBar = styled.div`
+  height: 64px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(249, 250, 251, 0.95));
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(134, 239, 172, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  -webkit-app-region: drag;
+  user-select: none;
+  position: relative;
+  z-index: 1000;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  
+  /* 确保按钮不可拖拽 */
+  button, input, select, textarea {
+    -webkit-app-region: no-drag;
+  }
+`;
+
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  -webkit-app-region: no-drag;
+`;
+
+const AvatarContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const AvatarWrapper = styled.div`
+  position: relative;
+  width: 36px;
+  height: 36px;
+`;
+
+const Avatar = styled.img`
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+    border-color: rgba(134, 239, 172, 0.3);
+  }
+`;
+
+const StatusIndicator = styled.div<{ status: string }>`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: ${({ status }) => {
+    const colors: Record<string, string> = {
+      online: 'linear-gradient(135deg, #10b981, #059669)',
+      offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
+      away: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    };
+    return colors[status] || colors.offline;
+  }};
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+`;
+
+const UserName = styled.p`
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin: 0;
+  letter-spacing: 0.025em;
+  color: #1f2937;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+`;
+
+const UserStatus = styled.p<{ status: string }>`
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #6b7280;
+  font-weight: 500;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: ${({ status }) => {
+    const colors: Record<string, string> = {
+      online: 'linear-gradient(135deg, #10b981, #059669)',
+      offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
+      away: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    };
+    return colors[status] || colors.offline;
+  }};
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const CenterSection = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  -webkit-app-region: drag;
+`;
+
+const TitleText = styled.div`
+  color: rgba(34, 197, 94, 0.8);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+`;
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  -webkit-app-region: no-drag;
+`;
+
+const ActionContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-right: 0.5rem;
+`;
+
+const ActionButton = styled.button`
+  background: linear-gradient(135deg, rgba(134, 239, 172, 0.1), rgba(147, 197, 253, 0.1));
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  
+  &:hover {
+    background: linear-gradient(135deg, rgba(134, 239, 172, 0.2), rgba(147, 197, 253, 0.2));
+    transform: translateY(-1px) scale(1.05);
+    box-shadow: 0 4px 12px rgba(134, 239, 172, 0.3);
+    
+    svg {
+      transform: scale(1.1);
+      fill: #22c55e;
+    }
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  
+  &.has-notification::after {
+    opacity: 1;
+  }
+`;
+
+const ActionIcon = styled.svg`
+  width: 16px;
+  height: 16px;
+  fill: #6b7280;
+  transition: all 0.3s ease;
 `;
 
 const MainContent = styled.div`
@@ -159,36 +402,6 @@ const ContactModalContainer = styled.div`
   }
 `;
 
-const CloseButton = styled.button`
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: rgba(134, 239, 172, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(134, 239, 172, 0.2);
-  color: rgba(34, 197, 94, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 10;
-  
-  &:hover {
-    background: rgba(134, 239, 172, 0.2);
-    transform: scale(1.1);
-    color: rgb(34, 197, 94);
-  }
-  
-  svg {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-`;
-
 const App: React.FC = () => {
   const { width } = useWindowSize();
   const isMobile = width < 768;
@@ -242,7 +455,47 @@ const App: React.FC = () => {
 
   return (
     <AppContainer>
-      <StatusBar currentUser={currentUser} />
+      <TitleBar>
+        <LeftSection>
+          <AvatarContainer>
+            <AvatarWrapper>
+              <Avatar src={currentUser.avatar} alt={currentUser.name} />
+              <StatusIndicator status={currentUser.status} />
+            </AvatarWrapper>
+            <UserInfo>
+              <UserName>{currentUser.name}</UserName>
+              <UserStatus status={currentUser.status}>{currentUser.status}</UserStatus>
+            </UserInfo>
+          </AvatarContainer>
+        </LeftSection>
+
+        <CenterSection>
+          <TitleText>Cherry Chat</TitleText>
+        </CenterSection>
+
+        <RightSection>
+          <ActionContainer>
+            <ActionButton className="has-notification">
+              <ActionIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+              </ActionIcon>
+            </ActionButton>
+
+            <ActionButton>
+              <ActionIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
+              </ActionIcon>
+            </ActionButton>
+
+            <ActionButton>
+              <ActionIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </ActionIcon>
+            </ActionButton>
+          </ActionContainer>
+          <WindowControls />
+        </RightSection>
+      </TitleBar>
 
       <MainContent>
         {(isMobile && !selectedConversation) || !isMobile ? (
@@ -280,7 +533,6 @@ const App: React.FC = () => {
       {isContactModalOpen && (
         <ModalOverlay onClick={() => setIsContactModalOpen(false)}>
           <ContactModalContainer onClick={(e) => e.stopPropagation()}>
-
             <ContactPage />
           </ContactModalContainer>
         </ModalOverlay>
