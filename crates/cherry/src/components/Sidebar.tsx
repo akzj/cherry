@@ -36,9 +36,11 @@ const Header = styled.div`
 
 const HeaderActions = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 1rem;
+  gap: 8px;
+  -webkit-app-region: no-drag;
 `;
 
 const IconButton = styled.button`
@@ -291,20 +293,6 @@ const ActionButton = styled.button`
   }
 `;
 
-const NavigationContainer = styled.nav`
-  flex: 1;
-  padding: 1.5rem 1rem;
-  overflow-y: auto;
-  
-  /* 隐藏滚动条 */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  
-  &::-webkit-scrollbar {
-    display: none;
-  }
-`;
-
 // ==================== Component Implementation ====================
 const Sidebar: React.FC<SidebarProps> = ({
     conversations,
@@ -313,8 +301,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     onOpenSettings,
     onOpenContacts
 }) => {
-    const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // 计算各类会话数量
     const unreadCount = conversations.filter(c => c.unreadCount > 0).length;
@@ -323,13 +311,21 @@ const Sidebar: React.FC<SidebarProps> = ({
     const groupCount = conversations.filter(c => c.type === 'group').length;
 
     // 根据当前标签过滤会话
-    const filteredConversations = conversations.filter(convo => {
-        if (activeTab === 'all') return true;
-        if (activeTab === 'unread') return convo.unreadCount > 0;
-        if (activeTab === 'mentions') return convo.mentions > 0;
-        if (activeTab === 'direct') return convo.type === 'direct';
-        if (activeTab === 'group') return convo.type === 'group';
-        return true;
+    const filteredConversations = conversations.filter(conversation => {
+        const matchesSearch = conversation.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+        switch (activeTab) {
+            case 'unread':
+                return matchesSearch && conversation.unreadCount > 0;
+            case 'mentions':
+                return matchesSearch && conversation.mentions > 0;
+            case 'direct':
+                return matchesSearch && conversation.type === 'direct';
+            case 'group':
+                return matchesSearch && conversation.type === 'group';
+            default:
+                return matchesSearch;
+        }
     });
 
     return (
@@ -340,26 +336,25 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <IconButton onClick={onOpenContacts}>
                             <FaUserFriends />
                         </IconButton>
-
                         <IconButton onClick={onOpenSettings}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <svg fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                             </svg>
                         </IconButton>
                     </HeaderActions>
 
                     <SearchContainer>
-                        <SearchInput
-                            type="text"
-                            placeholder="搜索联系人..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
                         <SearchIcon>
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                             </svg>
                         </SearchIcon>
+                        <SearchInput
+                            type="text"
+                            placeholder="搜索对话..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </SearchContainer>
                 </Header>
 

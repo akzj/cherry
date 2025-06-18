@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import styled, { css } from 'styled-components';
 import ContactGroup from './ContactGroup';
 import GroupSection from './GroupSection';
-import type { Group } from '../../types/contact';
 import { mockContactGroups, mockOwnedGroups, mockJoinedGroups } from '../../data/mockContacts';
-import styled, { css } from 'styled-components';
 import { FaUserFriends, FaUsers, FaPlus, FaSearch } from 'react-icons/fa';
 
 interface SidebarButtonProps {

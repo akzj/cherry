@@ -11,23 +11,23 @@ type SettingCategory = 'general' | 'privacy' | 'notifications' | 'appearance';
 const SettingsContainer = styled.div`
   display: flex;
   height: 100%;
-  background: linear-gradient(135deg, rgba(134, 239, 172, 0.05) 0%, rgba(147, 197, 253, 0.02) 100%);
+  background: linear-gradient(135deg, rgb(190, 216, 199) 0%, rgba(240, 221, 242, 0.83) 100%);
 `;
 
 const Sidebar = styled.div`
   width: 280px;
-  background: rgba(255, 255, 255, 0.1);
+  // background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(134, 239, 172, 0.2);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(89, 220, 209, 0.1);
 `;
 
 const SidebarHeader = styled.div`
   padding: 2rem 1.5rem 1.5rem;
   border-bottom: 1px solid rgba(134, 239, 172, 0.2);
-  background: linear-gradient(135deg, rgba(134, 239, 172, 0.1), rgba(147, 197, 253, 0.05));
+  // background: linear-gradient(135deg, rgba(134, 239, 172, 0.1), rgba(147, 197, 253, 0.05));
 `;
 
 const SidebarTitle = styled.h1`
@@ -67,11 +67,11 @@ const NavButton = styled.button<{ $active: boolean }>`
   border-radius: 16px;
   border: 1px solid ${props => props.$active ? 'rgba(134, 239, 172, 0.3)' : 'transparent'};
   background: ${props => props.$active
-    ? 'rgba(134, 239, 172, 0.15)'
+    ? 'rgba(96, 222, 140, 0.15)'
     : 'rgba(255, 255, 255, 0.05)'};
   color: ${props => props.$active
     ? 'rgba(10, 40, 21, 0.9)'
-    : 'rgba(16, 69, 49, 0.7)'};
+    : 'rgba(92, 193, 155, 0.7)'};
   font-weight: ${props => props.$active ? '600' : '500'};
   font-size: 0.95rem;
   cursor: pointer;
@@ -89,6 +89,12 @@ const NavButton = styled.button<{ $active: boolean }>`
   
   &:active {
     transform: translateY(0);
+  }
+
+  &:focus {
+    outline: none !important;
+    border-color: rgba(134, 239, 172, 0.4) !important;
+    box-shadow: 0 0 0 2px rgba(134, 239, 172, 0.2) !important;
   }
 `;
 
@@ -110,7 +116,7 @@ const MainContent = styled.div`
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.05);
+  // background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   
   /* 隐藏滚动条 */

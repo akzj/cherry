@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styled, { css } from 'styled-components';
+import styled from 'styled-components';
 import { Group } from '../../types/contact';
 import Avatar from '../UI/Avatar';
 import { FaCrown, FaChevronDown, FaChevronRight } from 'react-icons/fa';
