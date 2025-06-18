@@ -8,32 +8,41 @@ interface MessageInputProps {
 
 // ==================== Styled Components ====================
 const Container = styled.div`
-  padding: 0.75rem 1rem;
-  border-top: 1px solid #e5e7eb;
-  
-  @media (prefers-color-scheme: dark) {
-    border-top-color: #374151;
-  }
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0 0 20px 20px;
 `;
 
 const Form = styled.form`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 `;
 
 const IconButton = styled.button`
-  padding: 0.5rem;
-  color: #6b7280;
-  transition: color 0.2s;
-  border-radius: 50%;
+  padding: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   
   &:hover {
-    color: #4b5563;
-    
-    @media (prefers-color-scheme: dark) {
-      color: #d1d5db;
-    }
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -44,26 +53,28 @@ const InputContainer = styled.div`
 
 const InputField = styled.input`
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  border-radius: 9999px;
-  background-color: #f3f4f6;
-  transition: all 0.2s;
-  border: none;
+  padding: 1rem 1.25rem 1rem 3.5rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
   font-size: 1rem;
+  color: white;
+  font-weight: 400;
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
   
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #3b82f6;
-    background-color: #fff;
-  }
-  
-  @media (prefers-color-scheme: dark) {
-    background-color: #4b5563;
-    color: white;
-    
-    &:focus {
-      background-color: #1f2937;
-    }
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 
+      0 0 0 3px rgba(99, 102, 241, 0.1),
+      0 4px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
   }
 `;
 
@@ -72,30 +83,51 @@ const EmojiButton = styled(IconButton)`
   right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
+  padding: 0.5rem;
+  border-radius: 12px;
+  
+  &:hover {
+    transform: translateY(-50%) scale(1.1);
+  }
 `;
 
 const SendButton = styled.button<{ $disabled: boolean }>`
-  padding: 0.75rem;
-  border-radius: 9999px;
-  background-color: #3b82f6;
+  padding: 1rem 1.25rem;
+  border-radius: 20px;
+  background: ${({ $disabled }) => 
+    $disabled 
+      ? 'rgba(255, 255, 255, 0.1)' 
+      : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+  };
   color: white;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
+  cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
+  font-weight: 600;
+  box-shadow: ${({ $disabled }) => 
+    $disabled 
+      ? 'none' 
+      : '0 4px 20px rgba(99, 102, 241, 0.3), 0 2px 10px rgba(139, 92, 246, 0.2)'
+  };
   
   &:hover {
-    background-color: ${({ $disabled }) => $disabled ? '#93c5fd' : '#2563eb'};
+    ${({ $disabled }) => !$disabled && `
+      transform: translateY(-2px);
+      box-shadow: 
+        0 6px 25px rgba(99, 102, 241, 0.4),
+        0 3px 15px rgba(139, 92, 246, 0.3);
+    `}
   }
   
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px #93c5fd;
+  &:active {
+    transform: translateY(0);
   }
   
   ${({ $disabled }) => $disabled && `
-    background-color: #93c5fd;
+    opacity: 0.5;
     cursor: not-allowed;
   `}
 `;
@@ -116,7 +148,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
     <Container>
       <Form onSubmit={handleSubmit}>
         <IconButton type="button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
         </IconButton>
@@ -129,7 +161,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
             onChange={(e) => setMessage(e.target.value)}
           />
           <EmojiButton type="button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm3-1a1 1 0 11-2 0 1 1 0 012 0zm3 1a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
           </EmojiButton>
@@ -139,7 +171,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
           type="submit"
           $disabled={!message.trim()}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </SendButton>

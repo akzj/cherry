@@ -9,18 +9,31 @@ interface ChatHeaderProps {
 
 // ==================== Styled Components ====================
 const HeaderContainer = styled.div`
-  background-color: #1f2937;
-  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(249, 250, 251, 0.95));
+  backdrop-filter: blur(20px);
+  padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const UserInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const AvatarContainer = styled.div`
@@ -28,61 +41,118 @@ const AvatarContainer = styled.div`
 `;
 
 const Avatar = styled.img`
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 9999px;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
   object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
 `;
 
 const OnlineIndicator = styled.div`
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 9999px;
-  background-color: #10b981;
-  border: 2px solid #1f2937;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 `;
 
 const UserDetails = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
 `;
 
 const UserName = styled.h2`
-  font-weight: 500;
-  font-size: 1rem;
+  font-weight: 700;
+  font-size: 1.125rem;
   margin: 0;
-  color: #f9fafb;
+  color: #1f2937;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.025em;
 `;
 
 const OnlineStatus = styled.p`
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   margin: 0;
-  color: #9ca3af;
+  color: #6b7280;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const IconButton = styled.button`
-  color: #9ca3af;
-  background: none;
-  border: none;
+  color: #6b7280;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.2);
   cursor: pointer;
-  padding: 0.25rem;
-  transition: color 0.2s;
+  padding: 0.75rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   &:hover {
-    color: #f3f4f6;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+    
+    svg {
+      transform: scale(1.1);
+    }
+  }
+  
+  &:active {
+    transform: scale(0.95);
   }
   
   svg {
     width: 1.25rem;
     height: 1.25rem;
+    transition: all 0.3s ease;
   }
 `;
 

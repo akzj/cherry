@@ -10,20 +10,35 @@ interface ContactListProps {
 
 // ==================== Styled Components ====================
 const ContactListContainer = styled.div`
-  border-top-width: 1px;
-  border-color: rgba(55, 65, 81, 0.5);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 `;
 
 const ContactItem = styled.div`
   padding: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   
   &:hover {
-    background-color: rgba(55, 65, 81, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.1),
+      0 2px 10px rgba(0, 0, 0, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -35,19 +50,39 @@ const AvatarContainer = styled.div`
 const Avatar = styled.img`
   width: 3rem;
   height: 3rem;
-  border-radius: 9999px;
+  border-radius: 16px;
   object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  
+  ${ContactItem}:hover & {
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
 `;
 
 const OnlineIndicator = styled.div`
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 9999px;
-  background-color: #10b981;
-  border: 2px solid rgba(31, 41, 55);
+  bottom: -2px;
+  right: -2px;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
 `;
 
 const ContactInfo = styled.div`
@@ -59,52 +94,69 @@ const ContactHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
 `;
 
 const ContactName = styled.h3`
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
 `;
 
 const Timestamp = styled.span`
   font-size: 0.75rem;
-  color: rgba(156, 163, 175);
+  color: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
   margin-left: 0.5rem;
+  font-weight: 500;
 `;
 
 const MessagePreviewContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 0.5rem;
 `;
 
 const LastMessage = styled.p<{ $unread: boolean }>`
   font-size: 0.875rem;
-  color: rgba(156, 163, 175);
+  color: ${({ $unread }) => $unread ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.6)'};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: ${({ $unread }) => $unread ? '500' : '400'};
-  color: ${({ $unread }) => $unread ? '#d1d5db' : 'rgba(156, 163, 175)'};
+  font-weight: ${({ $unread }) => $unread ? '600' : '400'};
+  margin: 0;
+  flex: 1;
 `;
 
 const UnreadBadge = styled.span`
-  background-color: #3b82f6;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   font-size: 0.75rem;
-  border-radius: 9999px;
+  border-radius: 12px;
   height: 1.25rem;
   min-width: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.25rem;
+  padding: 0 0.375rem;
   flex-shrink: 0;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  animation: bounce 1s infinite;
+  
+  @keyframes bounce {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+  }
 `;
 
 // ==================== Component Implementation ====================
