@@ -1,5 +1,6 @@
 // src/App.tsx
 import React, { useState } from 'react';
+import styled from 'styled-components';
 import Sidebar from './components/Sidebar';
 import ChatHeader from './components/ChatHeader';
 import MessageList from './components/MessageList';
@@ -7,6 +8,62 @@ import MessageInput from './components/MessageInput';
 import StatusBar from './components/StatusBar';
 import { Conversation, Message, User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
+
+// ==================== Styled Components ====================
+const AppContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+`;
+
+const MainContent = styled.div`
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+`;
+
+const ChatArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  margin: 16px;
+  margin-left: 8px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 40px rgba(0, 0, 0, 0.15),
+      0 6px 20px rgba(0, 0, 0, 0.1);
+  }
+`;
 
 const App: React.FC = () => {
   const { width } = useWindowSize();
@@ -56,10 +113,10 @@ const App: React.FC = () => {
   const selectedConvo = conversations.find(c => c.id === selectedConversation) || conversations[0];
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-gray-900 dark:text-gray-100">
+    <AppContainer>
       <StatusBar currentUser={currentUser} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <MainContent>
         {(isMobile && !selectedConversation) || !isMobile ? (
           <Sidebar
             conversations={conversations}
@@ -69,17 +126,17 @@ const App: React.FC = () => {
         ) : null}
 
         {(selectedConversation || !isMobile) && (
-          <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
+          <ChatArea>
             <ChatHeader conversation={selectedConvo} />
             <MessageList
               messages={messages}
               currentUser={currentUser}
             />
             <MessageInput onSend={handleSendMessage} />
-          </div>
+          </ChatArea>
         )}
-      </div>
-    </div>
+      </MainContent>
+    </AppContainer>
   );
 };
 
@@ -164,7 +221,7 @@ const mockConversations: Conversation[] = [
   {
     id: 'convo2',
     name: 'Group Chat',
-    avatar: '',
+    avatar: 'https://cdn.dribbble.com/users/7179533/avatars/normal/f422e09d77e62217dc67c457f3cf1807.jpg',
     mentions: 1,
     type: 'group',
     messages: mockMessages,

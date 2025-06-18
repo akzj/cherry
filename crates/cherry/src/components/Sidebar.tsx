@@ -15,19 +15,21 @@ type TabType = 'all' | 'unread' | 'mentions' | 'direct' | 'group';
 
 // ==================== Styled Components ====================
 const SidebarContainer = styled.div`
-  width: 320px;
-  background-color: rgba(31, 41, 55, 0.75);
-  backdrop-filter: blur(12px);
-  color: white;
+  width: 420px;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  color: #1f2937;
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid rgba(55, 65, 81, 0.5);
+  border-right: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 `;
 
 const Header = styled.div`
-  padding: 1rem;
-  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
 `;
 
 const HeaderActions = styled.div`
@@ -38,15 +40,26 @@ const HeaderActions = styled.div`
 `;
 
 const IconButton = styled.button`
-  padding: 0.5rem;
-  border-radius: 9999px;
-  transition: background-color 0.2s;
+  padding: 0.75rem;
+  border-radius: 12px;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    background-color: rgba(55, 65, 81, 0.5);
+    background-color: rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
+    color: #6b7280;
   }
 `;
 
@@ -57,52 +70,75 @@ const SearchContainer = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
-  padding: 0.5rem 0.5rem 0.5rem 2.5rem;
-  border-radius: 0.5rem;
-  background-color: rgba(55, 65, 81, 0.5);
-  transition: background-color 0.2s;
-  color: white;
+  padding: 0.75rem 0.75rem 0.75rem 3rem;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.8);
+  transition: all 0.2s ease;
+  color: #1f2937;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   
   &:focus {
-    background-color: rgba(75, 85, 99, 0.5);
+    background-color: rgba(255, 255, 255, 0.95);
     outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+  
+  &::placeholder {
+    color: #9ca3af;
   }
 `;
 
 const SearchIcon = styled.div`
   position: absolute;
-  left: 0.75rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(156, 163, 175);
+  color: #9ca3af;
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
 `;
 
 const ContentContainer = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
+  padding: 1rem;
 `;
 
 const VerticalNav = styled.div`
-  width: 4rem;
-  background-color: rgba(17, 24, 39);
+  width: 80px;
+  background-color: rgba(249, 250, 251, 0.8);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  padding: 1rem 0.5rem;
+  margin-right: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const NavButton = styled.button<{ $active?: boolean }>`
-  padding: 1rem;
+  padding: 1rem 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: background-color 0.2s;
-  background-color: ${props => props.$active ? 'rgba(31, 41, 55)' : 'transparent'};
+  transition: all 0.2s ease;
+  background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.1)' : 'transparent'};
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+  border: 1px solid ${props => props.$active ? 'rgba(99, 102, 241, 0.2)' : 'transparent'};
   
   &:hover {
-    background-color: ${props => props.$active ? 'rgba(31, 41, 55)' : 'rgba(31, 41, 55, 0.5)'};
+    background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.05)'};
+    transform: translateY(-1px);
   }
 `;
 
@@ -115,54 +151,70 @@ const NavIconWrapper = styled.div`
 
 const Badge = styled.span<{ $color?: string; $bgColor?: string }>`
   position: absolute;
-  top: -0.25rem;
-  right: -0.25rem;
-  background-color: ${props => props.$bgColor || props.$color || '#3b82f6'};
+  top: -0.5rem;
+  right: -0.5rem;
+  background-color: ${props => props.$bgColor || props.$color || '#ef4444'};
   color: white;
   font-size: 0.65rem;
   border-radius: 9999px;
-  height: 1rem;
-  width: 1rem;
+  height: 1.25rem;
+  width: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid white;
 `;
 
-const NavLabel = styled.span`
+const NavLabel = styled.span<{ $active?: boolean }>`
   font-size: 0.75rem;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
+  color: ${props => props.$active ? '#6366f1' : '#6b7280'};
+  font-weight: ${props => props.$active ? '600' : '500'};
 `;
 
 const NavSpacer = styled.div`
   flex: 1;
-  border-top: 1px solid rgba(55, 65, 81, 0.5);
-  padding-top: 0.5rem;
+  border-top: 1px solid rgba(229, 231, 235, 0.5);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
 `;
 
 const MainContent = styled.div`
   flex: 1;
   overflow-y: auto;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const ContentHeader = styled.div`
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.8), rgba(243, 244, 246, 0.8));
+  border-radius: 16px 16px 0 0;
 `;
 
 const Title = styled.h2`
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
+  color: #1f2937;
+  margin: 0;
 `;
 
 const StatusBadge = styled.span<{ $color?: string, $bgColor?: string }>`
-  margin-left: 0.5rem;
-  background-color: ${props => props.$bgColor || '#3b82f6'};
+  margin-left: 0.75rem;
+  background-color: ${props => props.$bgColor || '#6366f1'};
   color: ${props => props.$color || 'white'};
   font-size: 0.75rem;
   border-radius: 9999px;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const EmptyState = styled.div`
@@ -170,41 +222,70 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: rgba(156, 163, 175);
-  padding: 1.5rem;
+  height: calc(100% - 80px);
+  padding: 2rem;
   text-align: center;
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.5), rgba(243, 244, 246, 0.5));
 `;
 
 const EmptyIcon = styled.div`
-  background-color: rgba(55, 65, 81, 0.5);
-  border-radius: 9999px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  border-radius: 50%;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  color: #6366f1;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  
+  svg {
+    width: 48px;
+    height: 48px;
+  }
 `;
 
 const EmptyText = styled.p`
   font-size: 1.125rem;
   margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #1f2937;
 `;
 
 const EmptySubtext = styled.p`
   font-size: 0.875rem;
-  margin-bottom: 1rem;
-  color: rgba(156, 163, 175);
+  margin-bottom: 1.5rem;
+  color: #6b7280;
+  line-height: 1.5;
+  max-width: 320px;
 `;
 
 const ActionButton = styled.button`
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
+  margin-top: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
-  border-radius: 0.5rem;
+  border-radius: 12px;
   font-size: 0.875rem;
-  transition: background-color 0.2s;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
   
   &:hover {
-    background-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(99, 102, 241, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -215,7 +296,7 @@ const SettingsOverlay = styled.div`
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   z-index: 50;
   display: flex;
   align-items: center;
@@ -223,34 +304,40 @@ const SettingsOverlay = styled.div`
 `;
 
 const SettingsPanel = styled.div`
-  background-color: rgba(255, 255, 255, 0.9);
-  @media (prefers-color-scheme: dark) {
-    background-color: rgba(31, 41, 55, 0.9);
-  }
-  backdrop-filter: blur(12px);
-  border-radius: 0.5rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 100%;
-  max-width: 56rem;
-  height: 90vh;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 90%;
+  max-width: 800px;
+  height: 85vh;
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(229, 231, 235, 0.5);
 `;
 
 const CloseButton = styled.button`
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 1.5rem;
+  right: 1.5rem;
   color: #6b7280;
-  @media (prefers-color-scheme: dark) {
-    color: #9ca3af;
-  }
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 12px;
+  padding: 0.5rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
   
   &:hover {
-    color: #4b5563;
-    @media (prefers-color-scheme: dark) {
-      color: #d1d5db;
-    }
+    color: #374151;
+    background: rgba(255, 255, 255, 0.95);
+    transform: scale(1.05);
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -328,7 +415,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 {mentionCount > 0 && (
                                     <Badge $color="#f59e0b" $bgColor="#fef3c7">{mentionCount}</Badge>
                                 )}
-                                <NavLabel>@我</NavLabel>
+                                <NavLabel $active={activeTab === 'mentions'}>@我</NavLabel>
                             </NavIconWrapper>
                         </NavButton>
 
@@ -338,13 +425,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => setActiveTab('unread')}
                         >
                             <NavIconWrapper>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'unread' ? '#60a5fa' : '#9ca3af'}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'unread' ? '#6366f1' : '#9ca3af'}>
                                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
                                 </svg>
                                 {unreadCount > 0 && (
                                     <Badge $color="#ef4444">{unreadCount}</Badge>
                                 )}
-                                <NavLabel>未读</NavLabel>
+                                <NavLabel $active={activeTab === 'unread'}>未读</NavLabel>
                             </NavIconWrapper>
                         </NavButton>
 
@@ -354,13 +441,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => setActiveTab('all')}
                         >
                             <NavIconWrapper>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'all' ? '#60a5fa' : '#9ca3af'}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'all' ? '#6366f1' : '#9ca3af'}>
                                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                 </svg>
                                 {conversations.length > 0 && (
                                     <Badge>{conversations.length}</Badge>
                                 )}
-                                <NavLabel>会话</NavLabel>
+                                <NavLabel $active={activeTab === 'all'}>会话</NavLabel>
                             </NavIconWrapper>
                         </NavButton>
 
@@ -372,10 +459,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => setActiveTab('direct')}
                         >
                             <NavIconWrapper>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'direct' ? '#60a5fa' : '#9ca3af'}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'direct' ? '#6366f1' : '#9ca3af'}>
                                     <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
                                 </svg>
-                                <NavLabel>单聊</NavLabel>
+                                <NavLabel $active={activeTab === 'direct'}>单聊</NavLabel>
                             </NavIconWrapper>
                         </NavButton>
 
@@ -384,10 +471,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => setActiveTab('group')}
                         >
                             <NavIconWrapper>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'group' ? '#60a5fa' : '#9ca3af'}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'group' ? '#6366f1' : '#9ca3af'}>
                                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
                                 </svg>
-                                <NavLabel>群聊</NavLabel>
+                                <NavLabel $active={activeTab === 'group'}>群聊</NavLabel>
                             </NavIconWrapper>
                         </NavButton>
 
