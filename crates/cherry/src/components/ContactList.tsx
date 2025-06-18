@@ -24,7 +24,7 @@ const ContactItem = styled.div`
   align-items: center;
   gap: 0.75rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(102, 162, 172, 0.15);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   
@@ -103,13 +103,13 @@ const ContactName = styled.h3`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(17, 9, 75, 0.9);
   margin: 0;
 `;
 
 const Timestamp = styled.span`
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(63, 1, 46, 0.6);
   white-space: nowrap;
   margin-left: 0.5rem;
   font-weight: 500;
@@ -124,7 +124,7 @@ const MessagePreviewContainer = styled.div`
 
 const LastMessage = styled.p<{ $unread: boolean }>`
   font-size: 0.875rem;
-  color: ${({ $unread }) => $unread ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.6)'};
+  color: ${({ $unread }) => $unread ? 'rgba(159, 120, 120, 0.8)' : 'rgba(84, 158, 122, 0.6)'};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
