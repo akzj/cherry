@@ -124,8 +124,8 @@ const SettingsModalContainer = styled.div`
 const ContactModalContainer = styled.div`
   width: 90vw;
   height: 90vh;
-  max-width: 1200px;
-  max-height: 800px;
+  max-width: 1000px;
+  max-height: 1000px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border-radius: 24px;
