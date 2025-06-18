@@ -22,8 +22,8 @@ const ContactItem = styled.div`
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  border-radius: 16px;
+  gap: 0.65rem;
+  border-radius: 10px;
   background: rgba(102, 162, 172, 0.15);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -48,11 +48,11 @@ const AvatarContainer = styled.div`
 `;
 
 const Avatar = styled.img`
-  width: 3rem;
-  height: 3rem;
-  border-radius: 16px;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
   object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
   
   ${ContactItem}:hover & {
@@ -94,12 +94,12 @@ const ContactHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0rem;
 `;
 
 const ContactName = styled.h3`
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: 700;
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -119,7 +119,7 @@ const MessagePreviewContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: 0.2rem;
 `;
 
 const LastMessage = styled.p<{ $unread: boolean }>`
