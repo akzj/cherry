@@ -24,6 +24,7 @@ diesel::table! {
         user_id -> Integer,
         other_user_id -> Nullable<Integer>,
         group_id -> Nullable<Integer>,
+        stream_id -> Nullable<Integer>,
         last_message_id -> Nullable<Integer>,
         unread_count -> Nullable<Integer>,
         is_pinned -> Nullable<Bool>,
