@@ -5,7 +5,8 @@ use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::models::*, types::*, CherryClient, Options};
+use crate::{db::models::*, CherryClient, Options};
+use cherrycore::types::*;
 
 struct CherryClientImpl {
     options: CherryClientOptions,

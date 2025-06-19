@@ -1,0 +1,27 @@
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cherryserver-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cherryserver
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+
+  # Optional: PostgreSQL Admin (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cherryserver-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cherryserver.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_LISTEN_PORT: 8099
+    ports:
+      - "8099:80"
+    depends_on:
+      - postgres

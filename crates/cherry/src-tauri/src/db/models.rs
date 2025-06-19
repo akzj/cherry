@@ -1,9 +1,4 @@
-use crate::db::schema::{
-    contacts, conversations, files, friend_requests, group_members, group_requests, groups,
-    messages, notifications, offline_messages, settings, users,
-};
-use diesel::prelude::*;
-use diesel::{Associations, Identifiable, Insertable, Queryable};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 // CREATE TABLE messages (
@@ -22,14 +17,12 @@ use serde::{Deserialize, Serialize};
 //     FOREIGN KEY (reply_to) REFERENCES messages(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = messages)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
     pub id: i32,
     pub conversation_id: i32,
     pub sender_id: i32,
     pub content: String,
-    #[diesel(column_name = "type")]
     pub type_: String,
     pub status: String,
     pub timestamp: chrono::NaiveDateTime,
@@ -49,8 +42,7 @@ pub struct Message {
 //     FOREIGN KEY (sender_id) REFERENCES users(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = offline_messages)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OfflineMessage {
     pub id: i32,
     pub conversation_id: i32,
@@ -60,36 +52,35 @@ pub struct OfflineMessage {
     pub is_sent: bool,
 }
 
-// CREATE TABLE contacts (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     user_id INTEGER NOT NULL,
-//     contact_id INTEGER NOT NULL,
-//     relationship_type TEXT DEFAULT 'friend', -- friend, family, colleague
-//     nickname TEXT,
-//     status TEXT, -- online, offline, etc.
-//     last_seen TIMESTAMP,
-//     notes TEXT,
-//     is_verified BOOLEAN DEFAULT 0,
-//     is_blocked BOOLEAN DEFAULT 0,
-//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-//     FOREIGN KEY (user_id) REFERENCES users(id),
-//     FOREIGN KEY (contact_id) REFERENCES users(id)
-// );
+// CREATE TABLE
+//     contacts (
+//         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+//         user_id INTEGER NOT NULL,
+//         contact_id INTEGER NOT NULL,
+//         relationship_type TEXT DEFAULT 'friend', -- friend, family, colleague
+//         nickname TEXT,
+//         status TEXT, -- online, offline, etc.
+//         last_seen TIMESTAMP WITH TIME ZONE,
+//         notes TEXT,
+//         is_verified BOOLEAN DEFAULT 0,
+//         is_blocked BOOLEAN DEFAULT 0,
+//         created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+//     );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable)]
-#[diesel(table_name = contacts)]
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Contact {
-    pub id: i32,
-    pub user_id: i32,
-    pub contact_id: i32,
+    pub id: i64,
+    pub user_id: i64,
+    pub contact_id: i64,
     pub relationship_type: Option<String>,
     pub nickname: Option<String>,
     pub status: Option<String>,
-    pub last_seen: Option<chrono::NaiveDateTime>,
+    pub last_seen: Option<String>,
     pub notes: Option<String>,
     pub is_verified: Option<bool>,
     pub is_blocked: Option<bool>,
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: String,
 }
 
 // CREATE TABLE friend_requests (
@@ -101,8 +92,7 @@ pub struct Contact {
 //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = friend_requests)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FriendRequest {
     pub id: i32,
     pub from_user_id: i32,
@@ -121,8 +111,7 @@ pub struct FriendRequest {
 //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = group_requests)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GroupRequest {
     pub id: i32,
     pub group_id: i32,
@@ -144,18 +133,14 @@ pub struct GroupRequest {
 //     last_active TIMESTAMP
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable)]
-#[diesel(table_name = users)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+
 pub struct User {
     pub id: i32,
     pub username: String,
     pub display_name: String,
     pub avatar_path: Option<String>,
-    pub last_login: Option<chrono::NaiveDateTime>,
-    pub registration_date: chrono::NaiveDateTime,
     pub status: String, // online, offline, busy, away
-    pub last_active: Option<chrono::NaiveDateTime>,
 }
 
 // CREATE TABLE conversations (
@@ -173,12 +158,7 @@ pub struct User {
 //     FOREIGN KEY (group_id) REFERENCES groups(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(belongs_to(users::table, foreign_key = user_id))]
-#[diesel(belongs_to(users::table, foreign_key = other_user_id))]
-#[diesel(belongs_to(groups::table, foreign_key = group_id))]
-#[diesel(belongs_to(messages::table, foreign_key = last_message_id))]
-#[diesel(table_name = conversations)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
     pub id: i32,
     pub type_: String,
@@ -206,9 +186,7 @@ pub struct Conversation {
 //     FOREIGN KEY (creator_id) REFERENCES users(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(belongs_to(users::table, foreign_key = creator_id))]
-#[diesel(table_name = groups)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Group {
     pub id: i32,
     pub name: String,
@@ -238,10 +216,7 @@ pub struct Group {
 //     FOREIGN KEY (user_id) REFERENCES users(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(belongs_to(groups::table, foreign_key = group_id))]
-#[diesel(belongs_to(users::table, foreign_key = user_id))]
-#[diesel(table_name = group_members)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GroupMember {
     pub id: i32,
     pub group_id: i32,
@@ -268,10 +243,7 @@ pub struct GroupMember {
 //     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(belongs_to(users::table, foreign_key = sender_id))]
-#[diesel(belongs_to(conversations::table, foreign_key = conversation_id))]
-#[diesel(table_name = files)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct File {
     pub id: i32,
     pub sender_id: i32,
@@ -292,8 +264,7 @@ pub struct File {
 //     FOREIGN KEY (user_id) REFERENCES users(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(table_name = settings)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Setting {
     pub id: i32,
     pub key: String,
@@ -316,10 +287,7 @@ pub struct Setting {
 //     FOREIGN KEY (user_id) REFERENCES users(id)
 // );
 
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable)]
-#[diesel(belongs_to(users::table, foreign_key = user_id))]
-#[diesel(belongs_to(conversations::table, foreign_key = conversation_id))]
-#[diesel(table_name = notifications)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Notification {
     pub id: i32,
     pub sender_id: Option<i32>,

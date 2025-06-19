@@ -2,19 +2,14 @@
 
 mod client;
 mod db;
-mod types;
 use anyhow::Result;
-use diesel::r2d2::{self, ConnectionManager};
-use diesel::result::Error as DieselError;
-use diesel::SqliteConnection;
+
 use serde::Serialize;
 use tauri::State;
 
 use crate::client::CherryClientOptions;
-use crate::db::{api::*, models::*};
-use crate::types::*;
-
-type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
+use crate::db::{models::*, repo::*};
+use cherrycore::types::*;
 
 trait CherryClient {
     async fn new(options: CherryClientOptions) -> Self;
@@ -29,16 +24,16 @@ struct CommandError {
     message: String,
 }
 
-impl From<DieselError> for CommandError {
-    fn from(err: DieselError) -> Self {
+impl From<anyhow::Error> for CommandError {
+    fn from(err: anyhow::Error) -> Self {
         CommandError {
             message: err.to_string(),
         }
     }
 }
 
-impl From<anyhow::Error> for CommandError {
-    fn from(err: anyhow::Error) -> Self {
+impl From<sqlx::Error> for CommandError {
+    fn from(err: sqlx::Error) -> Self {
         CommandError {
             message: err.to_string(),
         }
@@ -56,20 +51,26 @@ pub struct Options {
 }
 
 struct AppState {
-    db_pool: DbPool,
+    repo: Repo,
 }
 
 #[tauri::command]
 async fn cmd_contact_list_all(state: State<'_, AppState>) -> Result<Vec<Contact>, CommandError> {
-    let mut conn = state.db_pool.get().unwrap();
-    let contacts = crate::db::api::contact_list_all(&mut *conn).map_err(CommandError::from)?;
+    let contacts = state
+        .repo
+        .contact_list_all()
+        .await
+        .map_err(CommandError::from)?;
     Ok(contacts)
 }
 
 #[tauri::command]
 async fn cmd_user_get_by_id(id: i32, state: State<'_, AppState>) -> Result<User, CommandError> {
-    let mut conn = state.db_pool.get().unwrap();
-    let user = user_get_by_id(&mut *conn, id).map_err(CommandError::from)?;
+    let user = state
+        .repo
+        .user_get_by_id(id)
+        .await
+        .map_err(CommandError::from)?;
     Ok(user)
 }
 
@@ -79,15 +80,15 @@ fn greet(name: &str) -> String {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    let manager = ConnectionManager::<SqliteConnection>::new("cherry.db");
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
+pub async fn run() {
 
+    let db_path= std::env::current_dir().unwrap().join("sqlite.db");
+    println!("db_path: {}", db_path.to_str().unwrap());
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState { db_pool: pool })
+        .manage(AppState {
+            repo: Repo::new(db_path.to_str().unwrap()).await,
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             cmd_user_get_by_id,
