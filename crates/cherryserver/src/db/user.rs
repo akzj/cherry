@@ -1,65 +1,34 @@
-use deadpool_postgres::Pool;
-use log::{info, warn};
+// -- 用户表
+// CREATE TABLE IF NOT EXISTS users (
+//     user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+//     username VARCHAR(50) NOT NULL UNIQUE,
+//     email VARCHAR(100) NOT NULL UNIQUE,
+//     password_hash TEXT NOT NULL,
+//     profile JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储动态用户属性
+//     app_config JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储应用配置
+//     stream_meta JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储流元数据
+//     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+//     last_active TIMESTAMPTZ NOT NULL DEFAULT NOW()
+// );
 
-pub async fn authenticate_user(
-    pool: &Pool,
-    username: &str,
-    password: &str,
-) -> Result<Option<i32>, Box<dyn std::error::Error + Send + Sync>> {
-    info!("Authenticating user: {}", username);
-    
-    let client = pool.get().await?;
-    
-    // Get user's hashed password from database
-    let stmt = client
-        .prepare("SELECT id, password FROM users WHERE name = $1")
-        .await?;
-    
-    let rows = client.query(&stmt, &[&username]).await?;
-    
-    if let Some(row) = rows.first() {
-        let user_id: i32 = row.get(0);
-        let stored_hash: String = row.get(1);
-        
-        // Verify password using bcrypt
-        match bcrypt::verify(password, &stored_hash) {
-            Ok(true) => {
-                info!("User {} authenticated successfully with ID: {}", username, user_id);
-                Ok(Some(user_id))
-            }
-            Ok(false) => {
-                warn!("Password verification failed for user: {}", username);
-                Ok(None)
-            }
-            Err(e) => {
-                warn!("Error verifying password for user {}: {}", username, e);
-                Ok(None)
-            }
-        }
-    } else {
-        info!("User not found: {}", username);
-        Ok(None)
-    }
+use chrono::DateTime;
+use diesel::{
+    Selectable,
+    prelude::{Insertable, Queryable},
+};
+use serde_json::Value;
+use uuid::Uuid;
+
+#[derive(Queryable, Insertable, Selectable)]
+#[diesel(table_name = crate::db::schema::users)]
+pub struct User {
+    pub user_id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub profile: Value,
+    pub app_config: Value,
+    pub stream_meta: Value,
+    pub created_at: DateTime<chrono::Utc>,
+    pub last_active: DateTime<chrono::Utc>,
 }
-
-/// Hash a password using bcrypt
-pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
-    bcrypt::hash(password, bcrypt::DEFAULT_COST)
-}
-
-// 修改密码时哈希新密码
-pub async fn change_password(
-    pool: &Pool,
-    user_id: i32,
-    new_password: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let hashed_password = hash_password(new_password)?;
-    
-    let client = pool.get().await?;
-    let stmt = client
-        .prepare("UPDATE users SET password = $1 WHERE id = $2")
-        .await?;
-    
-    client.execute(&stmt, &[&hashed_password, &user_id]).await?;
-    Ok(())
-} 

@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, user_id, contact_id, relationship_type, nickname, status, last_seen, notes, is_verified, is_blocked, created_at FROM contacts",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "contact_id",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "relationship_type",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "nickname",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "status",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_seen",
+        "ordinal": 6,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "notes",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_verified",
+        "ordinal": 8,
+        "type_info": "Bool"
+      },
+      {
+        "name": "is_blocked",
+        "ordinal": 9,
+        "type_info": "Bool"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 10,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "fa6380c0c9d937e30be8c9368e95992726ae930b17f39cdd4765d5d183e7f6a0"
+}
