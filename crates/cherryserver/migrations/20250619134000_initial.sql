@@ -1,3 +1,4 @@
+-- Add migration script here
 -- Your SQL goes here
 -- 启用UUID扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -6,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) NOT NULL UNIQUE,
+    avatar_url TEXT,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     profile JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储动态用户属性

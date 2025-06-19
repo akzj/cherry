@@ -78,10 +78,10 @@ impl CherryClient for CherryClientImpl {
         Ok(body)
     }
 
-    async fn login_request(server_url: String, req: LoginReq) -> Result<LoginResp> {
+    async fn login_request(server_url: String, req: LoginRequest) -> Result<LoginResponse> {
         let url = format!("{}/api/v1/login", server_url);
         let resp = reqwest::Client::new().post(url).json(&req).send().await?;
-        let body = resp.json::<LoginResp>().await?;
+        let body = resp.json::<LoginResponse>().await?;
         Ok(body)
     }
 }
