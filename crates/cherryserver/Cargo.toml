@@ -4,9 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-chrono = "0.4.41"
-diesel = { version = "2.2.11", features = ["postgres", "uuid", "chrono", "serde_json"] }
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+axum = { version = "0.8.4", features = ["macros", "ws"] }
+chrono = { version = "0.4.41", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8", features = ["runtime-tokio"] }
+serde_yaml = "0.9"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "postgres",
+    "chrono",
+    "uuid",
+] }
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 use = "0.0.1-pre.0"
 uuid = "1.17.0"
+cherrycore = { path = "../cherrycore" }
+jsonwebtoken = "9.3.1"

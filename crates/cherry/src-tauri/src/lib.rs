@@ -16,7 +16,7 @@ trait CherryClient {
     async fn contact_list_all(&self) -> Result<Vec<Contact>>;
     async fn user_get_by_id(&self, id: u64) -> Result<User>;
     async fn conversation_list_all(&self) -> Result<Vec<Conversation>>;
-    async fn login_request(server_url: String, req: LoginReq) -> Result<LoginResp>;
+    async fn login_request(server_url: String, req: LoginRequest) -> Result<LoginResponse>;
 }
 
 #[derive(Debug, Serialize)]
