@@ -15,7 +15,7 @@ pub fn establish_connection() -> SqliteConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn get_user_by_id(conn: &mut SqliteConnection, id: i32) -> Result<User, diesel::result::Error> {
+pub fn user_get_by_id(conn: &mut SqliteConnection, id: i32) -> Result<User, diesel::result::Error> {
     users::table.find(id).select(User::as_select()).first(conn)
 }
 

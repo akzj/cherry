@@ -2,7 +2,7 @@ CREATE TABLE
     messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         conversation_id INTEGER NOT NULL,
-        sender_id INTEGER NOT NULL REFERENCES users(id),
+        sender_id INTEGER NOT NULL REFERENCES users (id),
         content TEXT NOT NULL,
         type TEXT NOT NULL CHECK (
             type IN (
@@ -88,6 +88,7 @@ CREATE TABLE
         user_id INTEGER NOT NULL,
         other_user_id INTEGER,
         group_id INTEGER,
+        stream_id INTEGER NOT NULL,
         last_message_id INTEGER,
         unread_count INTEGER DEFAULT 0,
         is_pinned BOOLEAN DEFAULT 0,
