@@ -1,5 +1,5 @@
 [package]
-name = "streamstore-rs"
+name = "streamstore"
 version = "0.1.0"
 edition = "2024"
 authors = ["fu.niukey@gmail.com"]
@@ -7,8 +7,8 @@ rust-version = "1.86"
 license = "MIT"
 keywords = ["streamstore", "stream"]
 description  = "lib for storage stream programing"
-repository = "https://github.com/akzj/cherry"
-homepage  = "https://github.com/akzj/cherry"
+repository = "https://github.com/akzj/cherry/tree/main/crates/streamstore"
+homepage  = "https://github.com/akzj/cherry/tree/main/crates/streamstore"
 
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }

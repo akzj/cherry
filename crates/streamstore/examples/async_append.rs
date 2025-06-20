@@ -23,7 +23,7 @@ async fn main() {
         .init();
     log::info!("Starting streamstore example");
 
-    let mut options = streamstore_rs::options::Options::new_with_data_path("data/async");
+    let mut options = streamstore::options::Options::new_with_data_path("data/async");
     options.max_wal_size(32 * 1024);
     options.max_table_size(64 * 1024);
 
