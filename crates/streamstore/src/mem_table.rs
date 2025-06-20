@@ -3,10 +3,11 @@ use anyhow::Result;
 use std::{
     collections::HashMap,
     io,
-    sync::{Arc, Mutex, atomic::AtomicU64},
+    sync::{atomic::AtomicU64, Arc, Mutex, Weak},
 };
 
 pub type MemTableArc = Arc<MemTable>;
+pub type MemTableWeak = Weak<MemTable>;
 pub(crate) type GetStreamOffset = Box<dyn Fn(u64) -> Result<u64, anyhow::Error> + Send + Sync>;
 pub struct MemTable {
     stream_tables: Mutex<HashMap<u64, StreamTable>>,
