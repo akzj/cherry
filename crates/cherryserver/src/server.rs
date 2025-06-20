@@ -4,23 +4,21 @@ use anyhow::Result;
 use axum::{
     Json, Router,
     extract::State,
-    http::HeaderMap,
     routing::{get, post},
 };
-use cherrycore::types::*;
+use cherrycore::{
+    jwt::{AuthError, JwtClaims},
+    types::*,
+};
 use serde::Deserialize;
 use tokio::net::TcpListener;
 
-use crate::{
-    db::{models::Contact, repo::Repo},
-    jwt::{Jwt, JwtConfig},
-};
+use crate::db::{models::Contact, repo::Repo};
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct ServerConfig {
-    pub(crate) expire_time: u64,
     pub(crate) db_url: String,
-    pub(crate) jwt_secret: String,
+    pub(crate) expire_time: u64,
 }
 
 impl ServerConfig {
@@ -35,40 +33,15 @@ impl ServerConfig {
 pub(crate) struct CherryServer {
     config: ServerConfig,
     db: Repo,
-    jwt: Jwt,
-}
-
-type Rejection = (axum::http::StatusCode, String);
-
-fn get_token(headers: HeaderMap) -> Result<String, Rejection> {
-    let token = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .map(|v| v.to_string())
-        .ok_or((
-            axum::http::StatusCode::UNAUTHORIZED,
-            "Unauthorized".to_string(),
-        ))?;
-    Ok(token)
 }
 
 #[axum::debug_handler]
 async fn list_contacts(
-    headers: HeaderMap,
     server: State<CherryServer>,
-) -> Result<Json<Vec<Contact>>, Rejection> {
-    let token = get_token(headers)?;
-    let user_id = server
-        .jwt
-        .verify_token(&token)
-        .map_err(|e| (axum::http::StatusCode::UNAUTHORIZED, e.to_string()))?
-        .user_id;
-    let contacts = server
-        .db
-        .list_contacts(user_id)
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    claims: JwtClaims,
+) -> Result<Json<Vec<Contact>>, ResponseError> {
+    let user_id = claims.user_id;
+    let contacts = server.db.list_contacts(user_id).await?;
     Ok(Json(contacts))
 }
 
@@ -76,37 +49,25 @@ async fn list_contacts(
 async fn login(
     server: State<CherryServer>,
     body: Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, Rejection> {
+) -> Result<Json<LoginResponse>, ResponseError> {
     let user = server
         .db
         .check_password(
             body.username.as_ref().unwrap(),
             body.password.as_ref().unwrap(),
         )
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await?;
 
     if !user {
-        return Err((
-            axum::http::StatusCode::UNAUTHORIZED,
-            "Invalid username or password".to_string(),
-        ));
+        return Err(AuthError::WrongCredentials.into());
     }
 
     let user = server
         .db
         .user_get_by_username(body.username.as_ref().unwrap())
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await?;
 
-    let jwt_token = server
-        .jwt
-        .generate_token(JwtClaims {
-            user_id: user.user_id,
-            exp: 0, // TODO: set exp
-            iat: 0, // TODO: set iat
-        })
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let jwt_token = JwtClaims::new(user.user_id, server.config.expire_time).to_token()?;
 
     Ok(Json(LoginResponse {
         jwt_token,
@@ -121,14 +82,9 @@ async fn login(
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_url).await;
-        let jwt_secret = config.jwt_secret.clone();
         Self {
             db,
             config: config.clone(),
-            jwt: Jwt::new(JwtConfig {
-                secret: jwt_secret,
-                expire_time: config.expire_time,
-            }),
         }
     }
 }

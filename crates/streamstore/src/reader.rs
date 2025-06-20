@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use crate::{
-    mem_table::MemTableArc,
+    mem_table::MemTableWeak,
     metrics,
     store::{SegmentWeak, StreamStoreInner},
 };
@@ -14,13 +14,15 @@ pub enum StreamReadState {
     MemTable,
 }
 
+#[derive(Clone)]
+
 pub struct StreamReader {
     stream_id: u64,
     inner: Arc<StreamStoreInner>,
-    offset: std::sync::atomic::AtomicU64,
-    read_memtable: Option<MemTableArc>,
+    offset: Arc<std::sync::atomic::AtomicU64>,
+    read_mem_table: Option<MemTableWeak>,
     read_segment: Option<SegmentWeak>,
-    read_state: std::sync::Mutex<StreamReadState>,
+    read_state: Arc<std::sync::Mutex<StreamReadState>>,
 }
 
 impl StreamReader {
@@ -28,10 +30,10 @@ impl StreamReader {
         Self {
             inner,
             stream_id,
-            read_memtable: None,
+            read_mem_table: None,
             read_segment: None,
-            read_state: std::sync::Mutex::new(StreamReadState::None),
-            offset: std::sync::atomic::AtomicU64::new(0),
+            read_state: Arc::new(std::sync::Mutex::new(StreamReadState::None)),
+            offset: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
 
@@ -54,7 +56,7 @@ impl StreamReader {
     }
 
     fn reset_read_state(&mut self) {
-        self.read_memtable = None;
+        self.read_mem_table = None;
         self.read_segment = None;
         *self.read_state.lock().unwrap() = StreamReadState::None;
     }
@@ -118,13 +120,15 @@ impl StreamReader {
 
     fn read_from_tables(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut read_bytes_all = 0;
-        if let Some(memtable) = &self.read_memtable {
-            let bytes_read =
-                memtable.read_stream(self.stream_id, self.offset(), &mut buf[read_bytes_all..])?;
-            self.offset_inc(bytes_read);
-            read_bytes_all += bytes_read;
-            if read_bytes_all >= buf.len() {
-                return Ok(read_bytes_all); // Stop if we filled the buffer
+        if let Some(mem_table) = &self.read_mem_table {
+            if let Some(table) = mem_table.upgrade() {
+                let bytes_read =
+                    table.read_stream(self.stream_id, self.offset(), &mut buf[read_bytes_all..])?;
+                self.offset_inc(bytes_read);
+                read_bytes_all += bytes_read;
+                if read_bytes_all >= buf.len() {
+                    return Ok(read_bytes_all); // Stop if we filled the buffer
+                }
             }
         }
 
@@ -146,7 +150,7 @@ impl StreamReader {
                     read_bytes_all += bytes_read;
 
                     if read_bytes_all >= buf.len() {
-                        self.read_memtable = Some(memtable.clone());
+                        self.read_mem_table = Some(Arc::downgrade(&memtable));
                         return Ok(read_bytes_all); // Stop if we filled the buffer
                     }
                 }
@@ -203,8 +207,8 @@ impl io::Read for StreamReader {
                             false
                         }
                     }) {
-                        Some(memtable) => {
-                            let (begin, end) = memtable.get_stream_range(self.stream_id).unwrap();
+                        Some(mem_table) => {
+                            let (begin, end) = mem_table.get_stream_range(self.stream_id).unwrap();
                             log::info!(
                                 "Stream ID {} offset {} found in MemTable begin {} end {}",
                                 self.stream_id,
@@ -212,7 +216,7 @@ impl io::Read for StreamReader {
                                 begin,
                                 end
                             );
-                            self.read_memtable = Some(memtable.clone());
+                            self.read_mem_table = Some(Arc::downgrade(&mem_table));
                             *self.read_state.lock().unwrap() = StreamReadState::MemTables;
                             continue;
                         }

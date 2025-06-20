@@ -1,2 +1,2 @@
 [workspace]
-members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore"]
+members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore", "crates/streamserver"]

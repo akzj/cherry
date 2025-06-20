@@ -198,7 +198,7 @@ unsafe impl Send for WalInner {}
 #[derive(Clone)]
 pub struct Wal {
     inner: Arc<WalInner>,
-    sender: SyncSender<Entry>,
+    sender: Arc<SyncSender<Entry>>,
 }
 
 impl std::ops::Deref for Wal {
@@ -220,7 +220,11 @@ impl Wal {
         err_handler: Box<dyn Fn(Error) + Send + Sync>,
     ) -> Self {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1024);
-        let file_size = file.0.metadata().expect("Failed to get file metadata").len();
+        let file_size = file
+            .0
+            .metadata()
+            .expect("Failed to get file metadata")
+            .len();
         Wal {
             inner: Arc::new(WalInner {
                 dir,
@@ -233,7 +237,7 @@ impl Wal {
                 file_size: atomic::AtomicU64::new(file_size),
                 err_handler: std::sync::Mutex::new(err_handler),
             }),
-            sender: sender,
+            sender: Arc::new(sender),
         }
     }
 
