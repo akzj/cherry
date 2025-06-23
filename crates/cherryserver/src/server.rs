@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Query, State},
     routing::{get, post},
 };
 use cherrycore::{
@@ -11,7 +11,9 @@ use cherrycore::{
     types::*,
 };
 use serde::Deserialize;
+use sqlx::query;
 use tokio::net::TcpListener;
+use uuid::Uuid;
 
 use crate::db::{models::Contact, repo::Repo};
 
@@ -43,6 +45,30 @@ async fn list_contacts(
     let user_id = claims.user_id;
     let contacts = server.db.list_contacts(user_id).await?;
     Ok(Json(contacts))
+}
+
+#[axum::debug_handler]
+async fn list_streams(
+    server: State<CherryServer>,
+    request: Query<ListStreamRequest>,
+) -> Result<Json<ListStreamResponse>, ResponseError> {
+    let user_id = request.user_id;
+    let streams = server.db.list_streams(user_id).await?;
+    Ok(Json(ListStreamResponse {
+        streams: streams
+            .into_iter()
+            .map(|s| Stream {
+                stream_id: s.stream_id,
+                owner_id: s.owner_id,
+                stream_type: s.stream_type,
+                status: s.status,
+                offset: s.offset,
+                stream_meta: s.stream_meta.clone(),
+                created_at: s.created_at,
+                updated_at: s.updated_at,
+            })
+            .collect(),
+    }))
 }
 
 #[axum::debug_handler]
@@ -94,6 +120,7 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/", get(|| async { "Hello, World!" }))
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/contract/list", get(list_contacts))
+        .route("/api/v1/streams/list", get(list_streams))
         .with_state(server.clone());
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
