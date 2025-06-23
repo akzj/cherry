@@ -23,7 +23,7 @@ mod tests {
     async fn setup_test_db() -> PgPool {
         // Use an environment variable for the test database URL or a default test URL
         let db_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cherry_test".to_string());
+            .unwrap_or_else(|_| "postgres://postgres:postgres123@localhost:5432/cherryserver".to_string());
         
         let pool = PgPoolOptions::new()
             .max_connections(5)
