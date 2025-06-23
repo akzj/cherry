@@ -64,3 +64,49 @@ pub struct Contact {
     pub is_favorite: bool,
     pub mute_settings: JsonValue,
 }
+
+// CREATE TABLE IF NOT EXISTS streams (
+//     stream_id BIGSERIAL PRIMARY KEY,
+//     owner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+//     type VARCHAR(20) NOT NULL CHECK (type IN ('message', 'system', 'event', 'notification', 'file')),
+//     name VARCHAR(100) NOT NULL,
+//     status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'inactive', 'archived')),
+//     offset BIGINT NOT NULL DEFAULT 0,
+//     stream_meta JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储流元数据
+//     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+//     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+// );
+#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
+pub struct Stream {
+    pub stream_id: i64,
+    pub owner_id: Uuid,
+    pub stream_type: String,
+    pub status: String,
+    pub offset: i64,
+    pub stream_meta: JsonValue,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+}
+
+
+// CREATE TABLE IF NOT EXISTS conversations (
+//     conversation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+//     type VARCHAR(10) NOT NULL CHECK (type IN ('direct', 'group')), -- 会话类型
+//     members JSONB NOT NULL DEFAULT '[]'::JSONB, -- 成员ID数组
+//     meta JSONB NOT NULL DEFAULT '{}'::JSONB,    -- 动态会话属性
+//     -- 消息流ID
+//     message_stream_id BIGINT NOT NULL,
+//     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+//     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+// );
+
+#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
+pub struct Conversation {
+    pub conversation_id: Uuid,
+    pub conversation_type: String,
+    pub members: JsonValue,
+    pub meta: JsonValue,
+    pub stream_id: i64,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+}

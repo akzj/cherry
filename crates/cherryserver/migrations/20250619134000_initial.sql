@@ -20,11 +20,11 @@ CREATE TABLE IF NOT EXISTS users (
 -- 会话表（混合单聊/群聊）
 CREATE TABLE IF NOT EXISTS conversations (
     conversation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type VARCHAR(10) NOT NULL CHECK (type IN ('direct', 'group')), -- 会话类型
+    conversation_type VARCHAR(10) NOT NULL, -- 会话类型
     members JSONB NOT NULL DEFAULT '[]'::JSONB, -- 成员ID数组
     meta JSONB NOT NULL DEFAULT '{}'::JSONB,    -- 动态会话属性
     -- 消息流ID
-    message_stream_id BIGINT NOT NULL,
+    stream_id BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -64,14 +64,15 @@ CREATE TABLE IF NOT EXISTS contact_details (
 CREATE TABLE IF NOT EXISTS streams (
     stream_id BIGSERIAL PRIMARY KEY,
     owner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('message', 'system', 'event', 'notification', 'file')),
+    stream_type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    "offset" BIGINT NOT NULL DEFAULT 0,
     stream_meta JSONB NOT NULL DEFAULT '{}'::JSONB, -- 存储流元数据
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 索引优化
-
 CREATE INDEX IF NOT EXISTS idx_streams_owner ON streams(owner_id);
 CREATE INDEX IF NOT EXISTS idx_streams_stream_id ON streams(stream_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(owner_id);
