@@ -8,7 +8,7 @@ mod tests {
     
     // The following tests require a database connection
     // Uncomment when database is available
-    /*
+
     use super::*;
     use crate::db::models::*;
     use crate::db::repo::Repo;
@@ -33,10 +33,10 @@ mod tests {
             .expect("Failed to connect to test database");
         
         // Clear test data
-        sqlx::query!("DELETE FROM conversations").execute(&pool).await.unwrap();
-        sqlx::query!("DELETE FROM streams").execute(&pool).await.unwrap();
-        sqlx::query!("DELETE FROM contacts").execute(&pool).await.unwrap();
-        sqlx::query!("DELETE FROM users").execute(&pool).await.unwrap();
+        let _ = sqlx::query("DELETE FROM conversations").execute(&pool).await;
+        let _ = sqlx::query("DELETE FROM streams").execute(&pool).await;
+        let _ = sqlx::query("DELETE FROM contacts").execute(&pool).await;
+        let _ = sqlx::query("DELETE FROM users").execute(&pool).await;
         
         pool
     }
@@ -47,8 +47,7 @@ mod tests {
         let username = format!("test_user_{}", user_id.to_string().split('-').next().unwrap());
         let email = format!("{}@example.com", username);
         
-        let user = sqlx::query_as!(
-            User,
+        let user = sqlx::query_as::<_, User>(
             r#"
             INSERT INTO users (
                 user_id, username, email, password_hash, status, 
@@ -59,18 +58,18 @@ mod tests {
                 $6, $7, $8, $9, $10
             )
             RETURNING *
-            "#,
-            user_id,
-            username,
-            email,
-            "test_password_hash",
-            "active",
-            json!({}),
-            json!({}),
-            json!({}),
-            Utc::now(),
-            Utc::now()
+            "#
         )
+        .bind(user_id)
+        .bind(username)
+        .bind(email)
+        .bind("test_password_hash")
+        .bind("active")
+        .bind(json!({}))
+        .bind(json!({}))
+        .bind(json!({}))
+        .bind(Utc::now())
+        .bind(Utc::now())
         .fetch_one(pool)
         .await
         .expect("Failed to create test user");
@@ -80,11 +79,10 @@ mod tests {
 
     // Helper function to create a test stream
     async fn create_test_stream(pool: &PgPool, owner_id: Uuid) -> Stream {
-        let stream = sqlx::query_as!(
-            Stream,
+        let stream = sqlx::query_as::<_, Stream>(
             r#"
             INSERT INTO streams (
-                owner_id, stream_type, status, offset, stream_meta, 
+                owner_id, stream_type, status, "offset", stream_meta, 
                 created_at, updated_at
             )
             VALUES (
@@ -92,15 +90,15 @@ mod tests {
                 $6, $7
             )
             RETURNING *
-            "#,
-            owner_id,
-            "message",
-            "active",
-            0,
-            json!({}),
-            Utc::now(),
-            Utc::now()
+            "#
         )
+        .bind(owner_id)
+        .bind("message")
+        .bind("active")
+        .bind(0i64)
+        .bind(json!({}))
+        .bind(Utc::now())
+        .bind(Utc::now())
         .fetch_one(pool)
         .await
         .expect("Failed to create test stream");
@@ -110,8 +108,7 @@ mod tests {
 
     // Helper function to create a test contact
     async fn create_test_contact(pool: &PgPool, owner_id: Uuid, target_id: Uuid) -> Contact {
-        let contact = sqlx::query_as!(
-            Contact,
+        let contact = sqlx::query_as::<_, Contact>(
             r#"
             INSERT INTO contacts (
                 owner_id, target_id, relation_type, 
@@ -124,17 +121,17 @@ mod tests {
                 $8, $9
             )
             RETURNING *
-            "#,
-            owner_id,
-            target_id,
-            "friend",
-            Some("Test Contact"),
-            json!([]),
-            false,
-            json!({}),
-            Utc::now(),
-            Utc::now()
+            "#
         )
+        .bind(owner_id)
+        .bind(target_id)
+        .bind("friend")
+        .bind(Some("Test Contact"))
+        .bind(json!([]))
+        .bind(false)
+        .bind(json!({}))
+        .bind(Utc::now())
+        .bind(Utc::now())
         .fetch_one(pool)
         .await
         .expect("Failed to create test contact");
@@ -144,8 +141,7 @@ mod tests {
 
     // Helper function to create a test conversation
     async fn create_test_conversation(pool: &PgPool, stream_id: i64, members: Vec<Uuid>) -> Conversation {
-        let conversation = sqlx::query_as!(
-            Conversation,
+        let conversation = sqlx::query_as::<_, Conversation>(
             r#"
             INSERT INTO conversations (
                 conversation_type, members, meta, stream_id,
@@ -156,14 +152,14 @@ mod tests {
                 $5, $6
             )
             RETURNING *
-            "#,
-            "direct",
-            json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>()),
-            json!({}),
-            stream_id,
-            Utc::now(),
-            Utc::now()
+            "#
         )
+        .bind("direct")
+        .bind(json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>()))
+        .bind(json!({}))
+        .bind(stream_id)
+        .bind(Utc::now())
+        .bind(Utc::now())
         .fetch_one(pool)
         .await
         .expect("Failed to create test conversation");
@@ -215,7 +211,7 @@ mod tests {
         let target = create_test_user(&pool).await;
         
         // Create a test contact
-        let test_contact = create_test_contact(&pool, owner.user_id, target.user_id).await;
+        let _test_contact = create_test_contact(&pool, owner.user_id, target.user_id).await;
         
         // Create a repo with the test pool
         let repo = Repo::with_pool(pool.clone());
@@ -301,11 +297,10 @@ mod tests {
         repo.update_stream_offset(test_stream.stream_id, new_offset).await?;
         
         // Verify the offset was updated
-        let updated_stream = sqlx::query_as!(
-            Stream,
-            "SELECT * FROM streams WHERE stream_id = $1",
-            test_stream.stream_id
+        let updated_stream = sqlx::query_as::<_, Stream>(
+            "SELECT * FROM streams WHERE stream_id = $1"
         )
+        .bind(test_stream.stream_id)
         .fetch_one(&pool)
         .await?;
         
@@ -338,11 +333,10 @@ mod tests {
         assert!(result.is_ok());
         
         // Verify the offset was updated in the database
-        let updated_stream = sqlx::query_as!(
-            Stream,
-            "SELECT * FROM streams WHERE stream_id = $1",
-            test_stream.stream_id
+        let updated_stream = sqlx::query_as::<_, Stream>(
+            "SELECT * FROM streams WHERE stream_id = $1"
         )
+        .bind(test_stream.stream_id)
         .fetch_one(&pool)
         .await?;
         
@@ -350,5 +344,5 @@ mod tests {
         
         Ok(())
     }
-    */
+
 }
