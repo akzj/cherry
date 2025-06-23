@@ -3,11 +3,13 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Result;
 use async_tungstenite::{tokio::ConnectStream, tungstenite::Message, WebSocketStream};
 use crate::types::{
-    StreamAppendRequest, StreamAppendResponse, StreamReadRequest, StreamReadResponse,
+    StreamAppendRequest, StreamAppendResponse, StreamAppendBatchRequest, StreamAppendBatchResponse,
+    StreamReadRequest, StreamReadResponse,
 };
 use futures_util::{SinkExt, StreamExt};
 use tokio::select;
 
+#[derive(Clone)]
 pub struct StreamClient {
     stream_server_url: String,
     client: reqwest::Client,
@@ -40,6 +42,18 @@ impl StreamClient {
 
         let resp = self.client.post(url).json(&request).send().await?;
         let response = resp.json::<StreamAppendResponse>().await?;
+        Ok(response)
+    }
+
+    pub async fn append_stream_batch(
+        &self,
+        batch: Vec<StreamAppendRequest>,
+    ) -> Result<StreamAppendBatchResponse, anyhow::Error> {
+        let url = format!("{}/api/v2/stream/append_batch", self.stream_server_url);
+        let request = StreamAppendBatchRequest { batch };
+
+        let resp = self.client.post(url).json(&request).send().await?;
+        let response = resp.json::<StreamAppendBatchResponse>().await?;
         Ok(response)
     }
 }

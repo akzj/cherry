@@ -17,6 +17,35 @@ use tokio::sync::{mpsc, watch};
 
 use crate::StreamServer;
 
+
+
+
+#[axum::debug_handler]
+async fn append_stream_batch(server: State<StreamServer>, batch: Json<StreamAppendBatchRequest>) -> Result<Json<StreamAppendBatchResponse>, ResponseError> {
+    let mut jobs = vec![];
+    for request in batch.0.batch.into_iter() {
+        let server_clone = server.clone();
+        let job =  tokio::spawn(async move {
+            let stream_id = request.stream_id;
+            let data = request.data.unwrap_or_default();
+            if let Ok(offset) = server_clone.store.append_async(stream_id, data).await {
+                log::info!("append stream success, stream_id: {}, offset: {}", stream_id, offset);
+            }else{
+                log::error!("append stream error, stream_id: {}", stream_id);   
+            }
+        });
+        jobs.push(job);
+
+    }
+
+    // wait for all jobs to complete
+    for job in jobs {
+        job.await.unwrap();
+    }
+
+    Ok(Json(StreamAppendBatchResponse{}))
+}
+
 #[axum::debug_handler]
 async fn append_stream(
     claims: JwtClaims,
@@ -27,22 +56,8 @@ async fn append_stream(
     if !acl_checker.check_acl().await.unwrap_or(false) {
         return Err(ResponseError::Forbidden);
     }
-
-    if request.data.is_none() || request.data.as_ref().unwrap().is_empty() {
-        return Err(ResponseError::DataEmpty);
-    }
-
-    let stream_id = request.stream_id;
-    let data = request.data.take().unwrap();
-    let offset = server.store.append_async(stream_id, data).await?;
-
-    // notify watchers to read the stream data
-    let watchers = server.watchers.lock().unwrap();
-    if let Some((tx, _rx)) = watchers.get(&stream_id) {
-        let _ = tx.send_replace(offset);
-    }
-
-    Ok(Json(StreamAppendResponse { stream_id, offset }))
+   let offset = server.append_stream(request.stream_id, request.data.take().unwrap_or_default()).await?;
+    Ok(Json(StreamAppendResponse { stream_id: request.stream_id, offset }))
 }
 
 struct AclChecker<'a> {
@@ -327,4 +342,5 @@ pub(crate) fn init_routes() -> Router<StreamServer> {
     Router::new()
         .route("/api/v1/stream/append", post(append_stream))
         .route("/api/v1/stream/read", get(read_stream))
+        .route("/api/v2/stream/append_batch", post(append_stream_batch))
 }

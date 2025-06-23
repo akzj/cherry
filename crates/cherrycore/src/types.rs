@@ -37,6 +37,15 @@ pub struct StreamAppendRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct StreamAppendBatchRequest {
+   pub batch : Vec<StreamAppendRequest>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StreamAppendBatchResponse {
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StreamReadRequest {
     pub stream_id: u64,
     pub offset: u64,

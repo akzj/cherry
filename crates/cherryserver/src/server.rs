@@ -18,6 +18,7 @@ use crate::db::{models::Contact, repo::Repo};
 #[derive(Clone, Deserialize)]
 pub(crate) struct ServerConfig {
     pub(crate) db_url: String,
+    pub(crate) stream_server_url: String,
     pub(crate) expire_time: u64,
 }
 
@@ -33,6 +34,7 @@ impl ServerConfig {
 pub(crate) struct CherryServer {
     config: ServerConfig,
     db: Repo,
+    stream_client: cherrycore::client::stream::StreamClient,
 }
 
 #[axum::debug_handler]
@@ -224,9 +226,11 @@ async fn create_conversation(
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_url).await;
+        let stream_client = cherrycore::client::stream::StreamClient::new(config.stream_server_url.clone());
         Self {
             db,
             config: config.clone(),
+            stream_client,
         }
     }
 }
