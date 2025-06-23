@@ -94,4 +94,171 @@ impl Repo {
         let count = count.unwrap_or(0);
         Ok(count > 0)
     }
+
+    // 检查1对1会话是否已存在
+    pub async fn find_direct_conversation(&self, user1: Uuid, user2: Uuid) -> Result<Option<Conversation>> {
+        let members_json = json!([user1.to_string(), user2.to_string()]);
+        let members_json_reverse = json!([user2.to_string(), user1.to_string()]);
+        
+        let conversation = query_as::<_, Conversation>(
+            r#"
+            SELECT * FROM conversations 
+            WHERE conversation_type = 'direct' 
+            AND (members = $1::jsonb OR members = $2::jsonb)
+            LIMIT 1
+            "#
+        )
+        .bind(&members_json)
+        .bind(&members_json_reverse)
+        .fetch_optional(&self.sqlx_pool)
+        .await?;
+        
+        Ok(conversation)
+    }
+
+    // 创建新的流
+    pub async fn create_stream(&self, owner_id: Uuid, stream_type: &str) -> Result<Stream> {
+        let stream = query_as::<_, Stream>(
+            r#"
+            INSERT INTO streams (
+                owner_id, stream_type, status, "offset", stream_meta, 
+                created_at, updated_at
+            )
+            VALUES (
+                $1, $2, 'active', 0, '{}'::jsonb, 
+                NOW(), NOW()
+            )
+            RETURNING *
+            "#
+        )
+        .bind(owner_id)
+        .bind(stream_type)
+        .fetch_one(&self.sqlx_pool)
+        .await?;
+        
+        Ok(stream)
+    }
+
+    // 创建新的会话
+    pub async fn create_conversation(
+        &self, 
+        conversation_type: &str, 
+        members: &[Uuid], 
+        meta: &serde_json::Value,
+        stream_id: i64
+    ) -> Result<Conversation> {
+        let members_json = json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>());
+        
+        let conversation = query_as::<_, Conversation>(
+            r#"
+            INSERT INTO conversations (
+                conversation_type, members, meta, stream_id,
+                created_at, updated_at
+            )
+            VALUES (
+                $1, $2, $3, $4,
+                NOW(), NOW()
+            )
+            RETURNING *
+            "#
+        )
+        .bind(conversation_type)
+        .bind(&members_json)
+        .bind(meta)
+        .bind(stream_id)
+        .fetch_one(&self.sqlx_pool)
+        .await?;
+        
+        Ok(conversation)
+    }
+
+    // 组合方法：创建会话和对应的流（使用事务）
+    pub async fn create_conversation_with_stream(
+        &self,
+        creator_id: Uuid,
+        conversation_type: &str,
+        members: &[Uuid],
+        meta: &serde_json::Value
+    ) -> Result<(Conversation, Stream, bool)> {
+        // 开始事务
+        let mut tx = self.sqlx_pool.begin().await?;
+        
+        // 如果是1对1会话，在事务中检查是否已存在
+        if conversation_type == "direct" && members.len() == 2 {
+            let members_json = json!([members[0].to_string(), members[1].to_string()]);
+            let members_json_reverse = json!([members[1].to_string(), members[0].to_string()]);
+            
+            let existing_conversation = query_as::<_, Conversation>(
+                r#"
+                SELECT * FROM conversations 
+                WHERE conversation_type = 'direct' 
+                AND (members = $1::jsonb OR members = $2::jsonb)
+                LIMIT 1
+                FOR UPDATE
+                "#
+            )
+            .bind(&members_json)
+            .bind(&members_json_reverse)
+            .fetch_optional(&mut *tx)
+            .await?;
+            
+            if let Some(conversation) = existing_conversation {
+                // 获取对应的流
+                let stream = query_as::<_, Stream>("SELECT * FROM streams WHERE stream_id = $1")
+                    .bind(conversation.stream_id)
+                    .fetch_one(&mut *tx)
+                    .await?;
+                
+                // 提交事务（虽然没有修改，但要释放锁）
+                tx.commit().await?;
+                return Ok((conversation, stream, false)); // false 表示不是新创建的
+            }
+        }
+        
+        // 在事务中创建新的流
+        let stream = query_as::<_, Stream>(
+            r#"
+            INSERT INTO streams (
+                owner_id, stream_type, status, "offset", stream_meta, 
+                created_at, updated_at
+            )
+            VALUES (
+                $1, $2, 'active', 0, '{}'::jsonb, 
+                NOW(), NOW()
+            )
+            RETURNING *
+            "#
+        )
+        .bind(creator_id)
+        .bind("message")
+        .fetch_one(&mut *tx)
+        .await?;
+        
+        // 在事务中创建新的会话
+        let members_json = json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>());
+        let conversation = query_as::<_, Conversation>(
+            r#"
+            INSERT INTO conversations (
+                conversation_type, members, meta, stream_id,
+                created_at, updated_at
+            )
+            VALUES (
+                $1, $2, $3, $4,
+                NOW(), NOW()
+            )
+            RETURNING *
+            "#
+        )
+        .bind(conversation_type)
+        .bind(&members_json)
+        .bind(meta)
+        .bind(stream.stream_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        // 提交事务
+        tx.commit().await?;
+
+        Ok((conversation, stream, true)) // true 表示是新创建的
+    }
 }

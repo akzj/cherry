@@ -159,6 +159,68 @@ async fn update_stream_offset(
     }))
 }
 
+#[axum::debug_handler]
+async fn create_conversation(
+    server: State<CherryServer>,
+    claims: JwtClaims,
+    body: Json<CreateConversationRequest>,
+) -> Result<Json<CreateConversationResponse>, ResponseError> {
+    let creator_id = claims.user_id;
+    
+    // 验证请求参数
+    if body.members.is_empty() {
+        return Err(ResponseError::DataInvalid);
+    }
+    
+    // 确保创建者包含在成员列表中
+    let mut members = body.members.clone();
+    if !members.contains(&creator_id) {
+        members.push(creator_id);
+    }
+    
+    // 验证会话类型
+    let conversation_type = match body.conversation_type.as_str() {
+        "direct" => {
+            if members.len() != 2 {
+                return Err(ResponseError::DataInvalid);
+            }
+            "direct"
+        }
+        "group" => {
+            if members.len() < 2 {
+                return Err(ResponseError::DataInvalid);
+            }
+            "group"
+        }
+        _ => return Err(ResponseError::DataInvalid),
+    };
+    
+    // 设置默认元数据
+    let default_meta = serde_json::json!({});
+    let meta = body.meta.as_ref().unwrap_or(&default_meta);
+    
+    // 创建会话和流
+    let (conversation, _stream, is_new) = server.db.create_conversation_with_stream(
+        creator_id,
+        conversation_type,
+        &members,
+        meta
+    ).await?;
+    
+    // TODO: 向streamserver发送通知
+    // 这里需要调用streamserver的API来发送会话创建通知
+    
+    Ok(Json(CreateConversationResponse {
+        conversation_id: conversation.conversation_id,
+        conversation_type: conversation.conversation_type,
+        members: members,
+        meta: conversation.meta,
+        stream_id: conversation.stream_id,
+        created_at: conversation.created_at,
+        is_new,
+    }))
+}
+
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_url).await;
@@ -178,6 +240,7 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/conversations/list", get(list_conversations))
         .route("/api/v1/acl/check", get(check_acl))
         .route("/api/v1/streams/update_offset", post(update_stream_offset))
+        .route("/api/v1/conversations/create", post(create_conversation))
         
         .with_state(server.clone());
 
