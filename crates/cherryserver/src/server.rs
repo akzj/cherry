@@ -135,7 +135,29 @@ async fn check_acl(
     Ok(Json(CheckAclResponse { allowed }))
 }
 
-
+#[axum::debug_handler]
+async fn update_stream_offset(
+    server: State<CherryServer>,
+    claims: JwtClaims,
+    body: Json<UpdateStreamOffsetRequest>,
+) -> Result<Json<UpdateStreamOffsetResponse>, ResponseError> {
+    let user_id = claims.user_id;
+    
+    // Check if user has access to this stream
+    let allowed = server.db.check_acl(user_id, body.stream_id).await?;
+    if !allowed {
+        return Err(ResponseError::Forbidden);
+    }
+    
+    // Update the stream offset
+    server.db.update_stream_offset(body.stream_id, body.offset).await?;
+    
+    Ok(Json(UpdateStreamOffsetResponse {
+        stream_id: body.stream_id,
+        offset: body.offset,
+        success: true,
+    }))
+}
 
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
@@ -155,6 +177,8 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/streams/list", get(list_streams))
         .route("/api/v1/conversations/list", get(list_conversations))
         .route("/api/v1/acl/check", get(check_acl))
+        .route("/api/v1/streams/update_offset", post(update_stream_offset))
+        
         .with_state(server.clone());
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();

@@ -1,5 +1,3 @@
-
-
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -143,6 +141,19 @@ pub struct ListConversationsResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StreamErrorResponse {
     pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateStreamOffsetRequest {
+    pub stream_id: i64,
+    pub offset: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateStreamOffsetResponse {
+    pub stream_id: i64,
+    pub offset: i64,
+    pub success: bool,
 }
 
 #[cfg(test)]
@@ -475,5 +486,35 @@ mod tests {
         
         let deserialized: StreamReadResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.data, vec![72, 101, 108, 108, 111]);
+    }
+
+    #[test]
+    fn test_update_stream_offset_request_serialization() {
+        let request = UpdateStreamOffsetRequest {
+            stream_id: 123,
+            offset: 456,
+        };
+        
+        let json = serde_json::to_string(&request).unwrap();
+        let deserialized: UpdateStreamOffsetRequest = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(deserialized.stream_id, 123);
+        assert_eq!(deserialized.offset, 456);
+    }
+
+    #[test]
+    fn test_update_stream_offset_response_serialization() {
+        let response = UpdateStreamOffsetResponse {
+            stream_id: 123,
+            offset: 456,
+            success: true,
+        };
+        
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: UpdateStreamOffsetResponse = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(deserialized.stream_id, 123);
+        assert_eq!(deserialized.offset, 456);
+        assert_eq!(deserialized.success, true);
     }
 }

@@ -313,5 +313,42 @@ mod tests {
         
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_update_stream_offset_api() -> Result<()> {
+        let pool = setup_test_db().await;
+        let owner = create_test_user(&pool).await;
+        
+        // Create a test stream
+        let test_stream = create_test_stream(&pool, owner.user_id).await;
+        
+        // Create a test conversation to establish ACL
+        let _test_conversation = create_test_conversation(
+            &pool, 
+            test_stream.stream_id, 
+            vec![owner.user_id]
+        ).await;
+        
+        // Create a repo with the test pool
+        let repo = Repo::with_pool(pool.clone());
+        
+        // Test updating stream offset through the API logic
+        let new_offset = 150;
+        let result = repo.update_stream_offset(test_stream.stream_id, new_offset).await;
+        assert!(result.is_ok());
+        
+        // Verify the offset was updated in the database
+        let updated_stream = sqlx::query_as!(
+            Stream,
+            "SELECT * FROM streams WHERE stream_id = $1",
+            test_stream.stream_id
+        )
+        .fetch_one(&pool)
+        .await?;
+        
+        assert_eq!(updated_stream.offset, new_offset);
+        
+        Ok(())
+    }
     */
 }
