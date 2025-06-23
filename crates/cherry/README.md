@@ -1,10 +1,12 @@
-# Tauri + React + Typescript
+# Cherry - Tauri + React + TypeScript IM Application
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This project is built with Tauri, React, and TypeScript to create a modern instant messaging desktop application.
 
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+## 前端架构设计 (Frontend Architecture Design)
 
 好的，使用 Tauri + React 开发 IM 桌面应用，前端架构设计需要考虑以下几个关键方面：
 
@@ -66,13 +68,13 @@ This template should help get you started developing with Tauri, React and Types
 
 *   **WebSocket 连接:**
     *   在 Tauri 的 Rust 后端建立 WebSocket 服务器或使用现成的库（如 `tokio-websocket`）。
-    *   React 前端通过 `@tauri-apps/api` 调用 Rust 函数来建立和维护 WebSocket 连接。
-    *   **建议:** 将 WebSocket 连接实例和主要的接收消息逻辑放在 `messages` Store 或一个专门的 `WebSocketManager` 类中管理。
+    *   React 前端通过 [`@tauri-apps/api`](https://tauri.app/v1/api/js/) 调用 Rust 函数来建立和维护 WebSocket 连接。
+    *   **建议:** 将 WebSocket 连接实例和主要的接收消息逻辑放在 [`messages`](#-a-状态管理-piniazustand) Store 或一个专门的 `WebSocketManager` 类中管理。
 *   **消息处理:**
     *   **接收消息:** WebSocket 接收到消息后，通过 `@tauri-apps/api` 回调或事件总线通知 React 前端，更新 `messages` Store。
     *   **发送消息:** 用户点击发送，React 组件调用 `messages` Store 的方法（或直接 `@tauri-apps/api`）发送消息到 Tauri 后端，Tauri 后端通过 WebSocket 推送出去。
     *   **消息状态更新:** 实时更新消息的“已发送、已送达、已读”状态，这些状态通常由服务器推送或通过长轮询/短轮询补充。
-*   **集成:** 使用 `@tauri-apps/api` 提供的 `invoke` 方法和 `listen` 方法来与 Rust 后端进行双向通信。
+*   **集成:** 使用 [`@tauri-apps/api`](https://tauri.app/v1/api/js/) 提供的 [`invoke`](https://tauri.app/v1/api/js/invoke) 方法和 [`listen`](https://tauri.app/v1/api/js/event#listen) 方法来与 Rust 后端进行双向通信。
 
 #### ✅ C. UI 组件
 
@@ -139,7 +141,7 @@ This template should help get you started developing with Tauri, React and Types
 
 一个典型的 Tauri + React IM 应用前端架构设计包含以下层次：
 
-```
+```plaintext
 src/
 ├── /components         # UI 组件 (原子、分子、组织、模板)
 ├── /hooks              # 自定义 React Hooks
