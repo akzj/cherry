@@ -1,12 +1,12 @@
 use std::time::Duration;
 
+use crate::db::models::*;
 use anyhow::Result;
+use cherrycore::types::*;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
-
-use crate::db::models::*;
-use cherrycore::types::*;
+use uuid::Uuid;
 
 struct CherryClientImpl {
     options: CherryClientOptions,
@@ -20,6 +20,7 @@ trait CherryClient {
     async fn user_get_by_id(&self, id: u64) -> Result<User>;
     async fn conversation_list_all(&self) -> Result<Vec<Conversation>>;
     async fn login_request(server_url: String, req: LoginRequest) -> Result<LoginResponse>;
+    async fn stream_list_all(&self, uuid: Uuid) -> Result<ListStreamResponse>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,6 +91,19 @@ impl CherryClient for CherryClientImpl {
         let url = format!("{}/api/v1/login", server_url);
         let resp = reqwest::Client::new().post(url).json(&req).send().await?;
         let body = resp.json::<LoginResponse>().await?;
+        Ok(body)
+    }
+
+    async fn stream_list_all(&self, uuid: Uuid) -> Result<ListStreamResponse> {
+        let url = format!("{}/api/v1/streams", self.options.cherry_server);
+        let resp = self
+            .cherry_client
+            .get(url)
+            .headers(self.base_headers.clone())
+            .query(&ListStreamRequest { user_id: uuid })
+            .send()
+            .await?;
+        let body = resp.json::<ListStreamResponse>().await?;
         Ok(body)
     }
 }

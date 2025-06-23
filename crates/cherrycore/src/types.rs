@@ -1,9 +1,13 @@
+use std::vec;
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use uuid::Uuid;
 
@@ -85,4 +89,26 @@ impl From<anyhow::Error> for ResponseError {
     fn from(error: anyhow::Error) -> Self {
         Self::InternalError(error)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListStreamRequest {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Stream {
+    pub stream_id: i64,
+    pub owner_id: Uuid,
+    pub stream_type: String,
+    pub status: String,
+    pub offset: i64,
+    pub stream_meta: Value,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListStreamResponse {
+    pub streams: Vec<Stream>,
 }

@@ -1,10 +1,11 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use serde_json::json;
 use sqlx::{
     Pool,
     postgres::{PgPool, PgPoolOptions},
-    query_as,
+    query, query_as,
     types::Uuid,
 };
 
@@ -49,5 +50,34 @@ impl Repo {
         .fetch_all(&self.sqlx_pool)
         .await?;
         Ok(contacts)
+    }
+
+    pub async fn list_streams(&self, user_id: Uuid) -> Result<Vec<Stream>> {
+        let streams = query_as!(Stream, "SELECT * FROM streams WHERE owner_id = $1", user_id)
+            .fetch_all(&self.sqlx_pool)
+            .await?;
+        Ok(streams)
+    }
+
+    pub async fn list_conversations(&self, user_id: Uuid) -> Result<Vec<Conversation>> {
+        let conversations = query_as!(
+            Conversation,
+            "SELECT * FROM conversations WHERE members @> $1::jsonb",
+            json!(user_id.to_string())
+        )
+        .fetch_all(&self.sqlx_pool)
+        .await?;
+        Ok(conversations)
+    }
+
+    pub async fn update_stream_offset(&self, stream_id: i64, offset: i64) -> Result<()> {
+        let _ = query!(
+            "UPDATE streams SET \"offset\" = $1 WHERE stream_id = $2",
+            offset,
+            stream_id
+        )
+        .execute(&self.sqlx_pool)
+        .await?;
+        Ok(())
     }
 }
