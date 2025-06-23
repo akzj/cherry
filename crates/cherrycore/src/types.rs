@@ -174,6 +174,31 @@ pub struct CreateConversationResponse {
     pub is_new: bool,              // 是否是新创建的会话（用于1对1重复检测）
 }
 
+
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct User {
+    pub id: i32,
+    pub username: String,
+    pub display_name: String,
+    pub avatar_path: Option<String>,
+    pub status: String, // online, offline, busy, away
+}
+
+#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
+pub struct Contact {
+    pub contact_id: Uuid,
+    pub owner_id: Uuid,
+    pub target_id: Uuid,
+    pub relation_type: String,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+    pub remark_name: Option<String>,
+    pub tags: Value,
+    pub is_favorite: bool,
+    pub mute_settings: Value,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

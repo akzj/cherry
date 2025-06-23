@@ -51,19 +51,8 @@ pub struct User {
 //     UNIQUE (owner_id, target_id)
 // );
 
-#[derive(Debug, sqlx::FromRow, Serialize, Deserialize)]
-pub struct Contact {
-    pub contact_id: Uuid,
-    pub owner_id: Uuid,
-    pub target_id: Uuid,
-    pub relation_type: String,
-    pub created_at: DateTime<chrono::Utc>,
-    pub updated_at: DateTime<chrono::Utc>,
-    pub remark_name: Option<String>,
-    pub tags: JsonValue,
-    pub is_favorite: bool,
-    pub mute_settings: JsonValue,
-}
+pub type  Contact = cherrycore::types::Contact;
+
 
 // CREATE TABLE IF NOT EXISTS streams (
 //     stream_id BIGSERIAL PRIMARY KEY,

@@ -1,13 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
-mod client;
 mod db;
 use anyhow::Result;
 
 use serde::Serialize;
 use tauri::State;
 
-use crate::client::cherry::CherryClientOptions;
 use crate::db::{models::{Contact, User}, repo::Repo};
 
 

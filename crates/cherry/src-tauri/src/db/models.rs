@@ -133,15 +133,7 @@ pub struct GroupRequest {
 //     last_active TIMESTAMP
 // );
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-
-pub struct User {
-    pub id: i32,
-    pub username: String,
-    pub display_name: String,
-    pub avatar_path: Option<String>,
-    pub status: String, // online, offline, busy, away
-}
+pub type User = cherrycore::types::User;
 
 // CREATE TABLE conversations (
 //     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
