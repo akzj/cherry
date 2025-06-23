@@ -1,0 +1,5 @@
+server_url: "http://localhost"
+server_port: 3000
+jwt_secret: "test_secret_key"
+jwt_expire_time: 86400
+stream_storage_path: "/tmp/stream_storage"
