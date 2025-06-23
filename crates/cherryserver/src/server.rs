@@ -72,6 +72,29 @@ async fn list_streams(
 }
 
 #[axum::debug_handler]
+async fn list_conversations(
+    server: State<CherryServer>,
+    claims: JwtClaims,
+) -> Result<Json<ListConversationsResponse>, ResponseError> {
+    let user_id = claims.user_id;
+    let conversations = server.db.list_conversations(user_id).await?;
+    Ok(Json(ListConversationsResponse {
+        conversations: conversations
+            .into_iter()
+            .map(|c| cherrycore::types::Conversation {
+                conversation_id: c.conversation_id,
+                conversation_type: c.conversation_type,
+                members: c.members.clone(),
+                meta: c.meta.clone(),
+                stream_id: c.stream_id,
+                created_at: c.created_at,
+                updated_at: c.updated_at,
+            })
+            .collect(),
+    }))
+}
+
+#[axum::debug_handler]
 async fn login(
     server: State<CherryServer>,
     body: Json<LoginRequest>,
@@ -121,6 +144,7 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/contract/list", get(list_contacts))
         .route("/api/v1/streams/list", get(list_streams))
+        .route("/api/v1/conversations/list", get(list_conversations))
         .with_state(server.clone());
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
