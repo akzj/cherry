@@ -156,6 +156,24 @@ pub struct UpdateStreamOffsetResponse {
     pub success: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateConversationRequest {
+    pub conversation_type: String, // "direct" or "group"
+    pub members: Vec<Uuid>,        // 会话成员的用户ID列表
+    pub meta: Option<Value>,       // 可选的会话元数据，如群组名称等
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateConversationResponse {
+    pub conversation_id: Uuid,
+    pub conversation_type: String,
+    pub members: Vec<Uuid>,
+    pub meta: Value,
+    pub stream_id: i64,
+    pub created_at: DateTime<chrono::Utc>,
+    pub is_new: bool,              // 是否是新创建的会话（用于1对1重复检测）
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -516,5 +534,50 @@ mod tests {
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.offset, 456);
         assert_eq!(deserialized.success, true);
+    }
+
+    #[test]
+    fn test_create_conversation_request_serialization() {
+        let user1 = Uuid::new_v4();
+        let user2 = Uuid::new_v4();
+        let request = CreateConversationRequest {
+            conversation_type: "direct".to_string(),
+            members: vec![user1, user2],
+            meta: Some(json!({"name": "Test Chat"})),
+        };
+        
+        let json = serde_json::to_string(&request).unwrap();
+        let deserialized: CreateConversationRequest = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(deserialized.conversation_type, "direct");
+        assert_eq!(deserialized.members.len(), 2);
+        assert_eq!(deserialized.meta, Some(json!({"name": "Test Chat"})));
+    }
+
+    #[test]
+    fn test_create_conversation_response_serialization() {
+        let conversation_id = Uuid::new_v4();
+        let user1 = Uuid::new_v4();
+        let user2 = Uuid::new_v4();
+        let now = chrono::Utc::now();
+        
+        let response = CreateConversationResponse {
+            conversation_id,
+            conversation_type: "group".to_string(),
+            members: vec![user1, user2],
+            meta: json!({"name": "Test Group"}),
+            stream_id: 789,
+            created_at: now,
+            is_new: true,
+        };
+        
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: CreateConversationResponse = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(deserialized.conversation_id, conversation_id);
+        assert_eq!(deserialized.conversation_type, "group");
+        assert_eq!(deserialized.members.len(), 2);
+        assert_eq!(deserialized.stream_id, 789);
+        assert_eq!(deserialized.is_new, true);
     }
 }
