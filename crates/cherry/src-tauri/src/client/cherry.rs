@@ -1,8 +1,10 @@
 use std::time::Duration;
 
-use crate::db::models::*;
+use crate::db::models::{Contact, User};
 use anyhow::Result;
-use cherrycore::types::*;
+use cherrycore::types::{LoginRequest, LoginResponse, ListStreamRequest, ListStreamResponse};
+// Use the Conversation type from cherrycore
+use cherrycore::types::Conversation;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
