@@ -128,3 +128,8 @@ pub struct Conversation {
 pub struct ListConversationsResponse {
     pub conversations: Vec<Conversation>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StreamErrorResponse {
+    pub error: String,
+}
