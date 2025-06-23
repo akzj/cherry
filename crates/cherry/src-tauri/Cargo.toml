@@ -34,3 +34,6 @@ sqlx = { version = "0.8.6", features = [
     "tls-native-tls",
     "chrono",
 ] }
+async-tungstenite = { version = "0.29.1", features = ["tokio-runtime"] }
+futures-util = "0.3"
+log = "0.4.27"

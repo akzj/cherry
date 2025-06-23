@@ -7,17 +7,11 @@ use anyhow::Result;
 use serde::Serialize;
 use tauri::State;
 
-use crate::client::CherryClientOptions;
+use crate::client::cherry::CherryClientOptions;
 use crate::db::{models::*, repo::*};
 use cherrycore::types::*;
 
-trait CherryClient {
-    async fn new(options: CherryClientOptions) -> Self;
-    async fn contact_list_all(&self) -> Result<Vec<Contact>>;
-    async fn user_get_by_id(&self, id: u64) -> Result<User>;
-    async fn conversation_list_all(&self) -> Result<Vec<Conversation>>;
-    async fn login_request(server_url: String, req: LoginRequest) -> Result<LoginResponse>;
-}
+
 
 #[derive(Debug, Serialize)]
 struct CommandError {
@@ -81,8 +75,7 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
-
-    let db_path= std::env::current_dir().unwrap().join("sqlite.db");
+    let db_path = std::env::current_dir().unwrap().join("sqlite.db");
     println!("db_path: {}", db_path.to_str().unwrap());
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
