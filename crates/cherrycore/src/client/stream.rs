@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use async_tungstenite::{tokio::ConnectStream, tungstenite::Message, WebSocketStream};
-use cherrycore::types::{
+use crate::types::{
     StreamAppendRequest, StreamAppendResponse, StreamReadRequest, StreamReadResponse,
 };
 use futures_util::{SinkExt, StreamExt};

@@ -691,10 +691,14 @@ name = "cherrycore"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-tungstenite",
  "axum",
  "axum-extra",
  "chrono",
+ "futures-util",
  "jsonwebtoken",
+ "log",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_with",
