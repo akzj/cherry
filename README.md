@@ -19,6 +19,7 @@ This repository is organized as a Rust workspace with multiple crates:
 - Rust (latest stable version)
 - Node.js (v14 or later)
 - npm or yarn
+- PostgreSQL (for the server component)
 
 ### Development Setup
 
@@ -52,9 +53,25 @@ A Docker development environment is available for easier setup:
 docker-compose -f docker-compose.dev.yml up
 ```
 
+This will set up all the necessary services and dependencies in isolated containers.
+
 ## Contributing
 
 We welcome contributions to Cherry! Please see our [contributing guidelines](./CONTRIBUTING.md) for more information on how to get involved.
+
+### Running Tests
+
+To run the tests for all components:
+
+```bash
+cargo test
+```
+
+To run tests for a specific crate:
+
+```bash
+cargo test -p cherrycore
+```
 
 ## License
 
