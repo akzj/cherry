@@ -112,3 +112,19 @@ pub struct Stream {
 pub struct ListStreamResponse {
     pub streams: Vec<Stream>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Conversation {
+    pub conversation_id: Uuid,
+    pub conversation_type: String,
+    pub members: Value,
+    pub meta: Value,
+    pub stream_id: i64,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListConversationsResponse {
+    pub conversations: Vec<Conversation>,
+}
