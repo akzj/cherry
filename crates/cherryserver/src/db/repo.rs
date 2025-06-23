@@ -77,8 +77,8 @@ impl Repo {
     }
 
     pub async fn update_stream_offset(&self, stream_id: i64, offset: i64) -> Result<()> {
-        let _ = query("UPDATE streams SET stream_meta = jsonb_set(stream_meta, '{offset}', $1::jsonb, true) WHERE stream_id = $2")
-            .bind(json!(offset))
+        let _ = query("UPDATE streams SET \"offset\" = $1 WHERE stream_id = $2")
+            .bind(offset)
             .bind(stream_id)
             .execute(&self.sqlx_pool)
             .await?;
