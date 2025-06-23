@@ -57,4 +57,73 @@ pub fn new_store_is_read_only() -> anyhow::Error {
     anyhow::anyhow!(Error::StoreIsReadOnly)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
 
+    #[test]
+    fn test_error_display() {
+        let error = Error::AlreadyExists;
+        assert_eq!(error.to_string(), "Stream already exists");
+
+        let path = PathBuf::from("/invalid/path");
+        let error = Error::InValidPath { path: path.clone() };
+        assert_eq!(error.to_string(), format!("path {} is invalid", path.display()));
+
+        let error = Error::InvalidData;
+        assert_eq!(error.to_string(), "invalid data");
+
+        let error = Error::InternalError;
+        assert_eq!(error.to_string(), "internal error");
+
+        let error = Error::CloseError;
+        assert_eq!(error.to_string(), "is closed");
+
+        let error = Error::StoreIsReadOnly;
+        assert_eq!(error.to_string(), "store is read-only");
+
+        let error = Error::WalChannelSendError;
+        assert_eq!(error.to_string(), "channel is closed");
+
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let error = Error::IoError(io_error);
+        assert_eq!(error.to_string(), "IO error");
+
+        let error = Error::StreamOffsetInvalid { stream_id: 123, offset: 456 };
+        assert_eq!(error.to_string(), "Stream 123 offset 456 is invalid");
+
+        let error = Error::StreamNotFound { stream_id: 789 };
+        assert_eq!(error.to_string(), "Stream 789 Not Found");
+    }
+
+    #[test]
+    fn test_error_constructors() {
+        let err = new_stream_offset_invalid(123, 456);
+        assert!(err.to_string().contains("Stream 123 offset 456 is invalid"));
+
+        let err = new_stream_not_found(789);
+        assert!(err.to_string().contains("Stream 789 Not Found"));
+
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "test error");
+        let err = new_io_error(io_error);
+        assert!(err.to_string().contains("IO error"));
+
+        let path = PathBuf::from("/test/path");
+        let err = new_invalid_path(path.clone());
+        assert!(err.to_string().contains(&format!("path {} is invalid", path.display())));
+
+        let err = new_invalid_data();
+        assert!(err.to_string().contains("invalid data"));
+
+        let err = new_store_is_read_only();
+        assert!(err.to_string().contains("store is read-only"));
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let error = Error::AlreadyExists;
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("AlreadyExists"));
+    }
+}
