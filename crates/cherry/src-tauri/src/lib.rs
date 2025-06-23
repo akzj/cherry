@@ -8,8 +8,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::client::cherry::CherryClientOptions;
-use crate::db::{models::*, repo::*};
-use cherrycore::types::*;
+use crate::db::{models::{Contact, User}, repo::Repo};
 
 
 
