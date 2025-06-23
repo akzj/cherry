@@ -1,2 +1,3 @@
 [workspace]
-members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore", "crates/streamserver", "crates/cherryserver-tests"]
+members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore", "crates/streamserver"]
+resolver = "3"

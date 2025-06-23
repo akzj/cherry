@@ -59,6 +59,17 @@ pub struct StreamAppendResponse {
     pub offset: u64, // 偏移量
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckAclRequest {
+    pub user_id: Uuid,
+    pub stream_id: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckAclResponse {
+    pub allowed: bool,
+}
+
 pub enum ResponseError {
     InternalError(anyhow::Error),
     AuthError(AuthError),

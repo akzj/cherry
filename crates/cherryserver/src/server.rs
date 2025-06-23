@@ -11,9 +11,7 @@ use cherrycore::{
     types::*,
 };
 use serde::Deserialize;
-use sqlx::query;
 use tokio::net::TcpListener;
-use uuid::Uuid;
 
 use crate::db::{models::Contact, repo::Repo};
 
@@ -128,6 +126,17 @@ async fn login(
     }))
 }
 
+#[axum::debug_handler]
+async fn check_acl(
+    server: State<CherryServer>,
+    body: Json<CheckAclRequest>,
+) -> Result<Json<CheckAclResponse>, ResponseError> {
+    let allowed = server.db.check_acl(body.user_id, body.stream_id).await?;
+    Ok(Json(CheckAclResponse { allowed }))
+}
+
+
+
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_url).await;
@@ -145,6 +154,7 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/contract/list", get(list_contacts))
         .route("/api/v1/streams/list", get(list_streams))
         .route("/api/v1/conversations/list", get(list_conversations))
+        .route("/api/v1/acl/check", get(check_acl))
         .with_state(server.clone());
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
