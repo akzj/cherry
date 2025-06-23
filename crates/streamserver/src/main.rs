@@ -10,6 +10,7 @@ use axum::{
     Router,
     routing::{get, post},
 };
+use cherrycore::types::ResponseError;
 use clap::Parser;
 use serde::Deserialize;
 use tokio::{net::TcpListener, sync::watch};
@@ -38,19 +39,45 @@ impl StreamServerConfig {
 
 #[derive(Clone)]
 struct StreamServer {
+    inner: Arc<StreamServerInner>,
+}
+
+struct StreamServerInner{
     config: StreamServerConfig,
     store: streamstore::store::Store,
     watchers: Arc<Mutex<HashMap<u64, (watch::Sender<u64>, watch::Receiver<u64>)>>>,
+}
+
+impl std::ops::Deref for StreamServer {
+    type Target = StreamServerInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl StreamServer {
     pub fn new(config: StreamServerConfig, store: streamstore::store::Store) -> Self {
         let watchers = Arc::new(Mutex::new(HashMap::new()));
         Self {
-            config,
-            store,
-            watchers,
+            inner: Arc::new(StreamServerInner {
+                config,
+                store,
+                watchers,
+            }),
         }
+    }
+
+    async fn append_stream(&self,stream_id:u64,data:Vec<u8>)->Result<u64,ResponseError>{
+        if data.is_empty() {
+            return Err(ResponseError::DataEmpty);
+        }
+        let offset = self.store.append_async(stream_id, data).await?;
+        // notify watchers to read the stream data
+        let watchers = self.watchers.lock().unwrap();
+        if let Some((tx, _rx)) = watchers.get(&stream_id) {
+            let _ = tx.send_replace(offset);
+        }   
+        Ok(offset)
     }
 }
 
