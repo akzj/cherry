@@ -700,6 +700,7 @@ dependencies = [
  "serde_with",
  "serde_yaml",
  "sqlx",
+ "tokio",
  "uuid",
 ]
 
@@ -4688,6 +4689,7 @@ dependencies = [
  "axum",
  "cherrycore",
  "clap",
+ "futures-util",
  "log",
  "serde",
  "serde_json",
