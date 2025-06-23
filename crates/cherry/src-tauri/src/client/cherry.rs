@@ -5,13 +5,21 @@ use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::models::*, CherryClient, Options};
+use crate::db::models::*;
 use cherrycore::types::*;
 
 struct CherryClientImpl {
     options: CherryClientOptions,
-    client: reqwest::Client,
+    cherry_client: reqwest::Client,
     base_headers: HeaderMap,
+}
+
+trait CherryClient {
+    async fn new(options: CherryClientOptions) -> Self;
+    async fn contact_list_all(&self) -> Result<Vec<Contact>>;
+    async fn user_get_by_id(&self, id: u64) -> Result<User>;
+    async fn conversation_list_all(&self) -> Result<Vec<Conversation>>;
+    async fn login_request(server_url: String, req: LoginRequest) -> Result<LoginResponse>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,7 +38,7 @@ impl CherryClient for CherryClientImpl {
         );
         Self {
             options,
-            client: reqwest::Client::builder()
+            cherry_client: reqwest::Client::builder()
                 .pool_idle_timeout(Duration::from_secs(10))
                 .pool_max_idle_per_host(3)
                 .connect_timeout(Duration::from_secs(10))
@@ -45,7 +53,7 @@ impl CherryClient for CherryClientImpl {
         let url = format!("{}/api/v1/contacts", self.options.cherry_server);
 
         let resp = self
-            .client
+            .cherry_client
             .get(url)
             .headers(self.base_headers.clone())
             .send()
@@ -57,7 +65,7 @@ impl CherryClient for CherryClientImpl {
     async fn user_get_by_id(&self, id: u64) -> Result<User> {
         let url = format!("{}/api/v1/users/{}", self.options.cherry_server, id);
         let resp = self
-            .client
+            .cherry_client
             .get(url)
             .headers(self.base_headers.clone())
             .send()
@@ -69,7 +77,7 @@ impl CherryClient for CherryClientImpl {
     async fn conversation_list_all(&self) -> Result<Vec<Conversation>> {
         let url = format!("{}/api/v1/conversations", self.options.cherry_server);
         let resp = self
-            .client
+            .cherry_client
             .get(url)
             .headers(self.base_headers.clone())
             .send()
