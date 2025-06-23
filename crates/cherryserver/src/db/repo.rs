@@ -13,7 +13,7 @@ use crate::db::models::*;
 
 #[derive(Clone)]
 pub struct Repo {
-    sqlx_pool: PgPool,
+    pub(crate) sqlx_pool: PgPool,
 }
 
 impl Repo {
@@ -24,6 +24,11 @@ impl Repo {
             .connect(db_url)
             .await
             .unwrap();
+        Self { sqlx_pool: pool }
+    }
+    
+    // Create a new Repo with an existing pool (useful for testing)
+    pub fn with_pool(pool: PgPool) -> Self {
         Self { sqlx_pool: pool }
     }
 
