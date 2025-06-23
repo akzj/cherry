@@ -18,3 +18,4 @@ serde_with = { version = "3.13.0", features = ["base64"] }
 uuid = "1.17.0"
 tokio-util = "0.7.15"
 futures-util = "0.3.31"
+reqwest = "0.12.20"

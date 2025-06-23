@@ -1,0 +1,26 @@
+networks:
+  rauthy-test:
+    driver: bridge
+    
+services:
+  mailcrab:
+    image: marlonb/mailcrab:latest
+    ports:
+      - "1080:1080"
+    networks:
+      - rauthy-test
+      
+  rauthy:
+    container_name: rauthy-test
+    image: ghcr.io/sebadob/rauthy:0.30.2
+    environment:
+      - LOCAL_TEST=true
+      - SMTP_URL=mailcrab
+      - SMTP_PORT=1025
+      - SMTP_DANGER_INSECURE=true
+    ports:
+      - "8443:8443"
+    depends_on:
+      - mailcrab
+    networks:
+      - rauthy-test

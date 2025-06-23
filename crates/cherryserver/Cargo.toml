@@ -3,6 +3,10 @@ name = "cherryserver"
 version = "0.1.0"
 edition = "2024"
 
+
+[build-dependencies]
+dotenvy = "0.15.7"
+
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 axum = { version = "0.8.4", features = ["macros", "ws"] }
@@ -22,3 +26,4 @@ uuid = "1.17.0"
 cherrycore = { path = "../cherrycore" }
 jsonwebtoken = "9.3.1"
 clap = { version = "4.5.40", features = ["derive"] }
+

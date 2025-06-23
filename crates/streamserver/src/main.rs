@@ -15,12 +15,13 @@ use serde::Deserialize;
 use tokio::{net::TcpListener, sync::watch};
 
 use streamstore::store::Store;
-
+mod acl_checker;
 mod stream;
 
 #[derive(Clone, Deserialize)]
 struct StreamServerConfig {
     pub server_url: String,
+    pub cherry_server_url: String,
     pub server_port: u16,
     pub jwt_secret: String,
     pub jwt_expire_time: u64,
@@ -42,6 +43,17 @@ struct StreamServer {
     watchers: Arc<Mutex<HashMap<u64, (watch::Sender<u64>, watch::Receiver<u64>)>>>,
 }
 
+impl StreamServer {
+    pub fn new(config: StreamServerConfig, store: streamstore::store::Store) -> Self {
+        let watchers = Arc::new(Mutex::new(HashMap::new()));
+        Self {
+            config,
+            store,
+            watchers,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 struct Cli {
     #[clap(short, long, default_value = "config.yaml")]
@@ -58,11 +70,7 @@ async fn main() {
         .open_store()
         .unwrap();
 
-    let server = StreamServer {
-        config,
-        store,
-        watchers: Arc::new(Mutex::new(HashMap::new())), 
-    };
+    let server = StreamServer::new(config, store);
 
     let app = Router::new()
         .merge(stream::init_routes())

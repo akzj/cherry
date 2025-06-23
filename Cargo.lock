@@ -713,6 +713,7 @@ dependencies = [
  "cherrycore",
  "chrono",
  "clap",
+ "dotenvy",
  "jsonwebtoken",
  "serde",
  "serde_json",
@@ -720,18 +721,6 @@ dependencies = [
  "sqlx",
  "tokio",
  "use",
- "uuid",
-]
-
-[[package]]
-name = "cherryserver-tests"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "serde",
- "serde_json",
- "tokio",
  "uuid",
 ]
 
@@ -1303,12 +1292,12 @@ dependencies = [
 
 [[package]]
 name = "errno"
-version = "0.3.12"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
+checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4703,6 +4692,7 @@ dependencies = [
  "clap",
  "futures-util",
  "log",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_with",
