@@ -38,12 +38,11 @@ pub struct StreamAppendRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StreamAppendBatchRequest {
-   pub batch : Vec<StreamAppendRequest>
+    pub batch: Vec<StreamAppendRequest>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StreamAppendBatchResponse {
-}
+pub struct StreamAppendBatchResponse {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StreamReadRequest {
@@ -180,10 +179,8 @@ pub struct CreateConversationResponse {
     pub meta: Value,
     pub stream_id: i64,
     pub created_at: DateTime<chrono::Utc>,
-    pub is_new: bool,              // 是否是新创建的会话（用于1对1重复检测）
+    pub is_new: bool, // 是否是新创建的会话（用于1对1重复检测）
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -208,6 +205,48 @@ pub struct Contact {
     pub mute_settings: Value,
 }
 
+pub enum StreamType {
+    Message,
+    File,
+    Image,
+    Audio,
+    Video,
+    Other,
+}
+
+impl From<String> for StreamType {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "message" => StreamType::Message,
+            "file" => StreamType::File,
+            "image" => StreamType::Image,
+            "audio" => StreamType::Audio,
+            "video" => StreamType::Video,
+            "other" => StreamType::Other,
+            _ => StreamType::Other,
+        }
+    }
+}
+
+impl Into<String> for &StreamType {
+    fn into(self) -> String {
+        match self {
+            StreamType::Message => "message".to_string(),
+            StreamType::File => "file".to_string(),
+            StreamType::Image => "image".to_string(),
+            StreamType::Audio => "audio".to_string(),
+            StreamType::Video => "video".to_string(),
+            StreamType::Other => "other".to_string(),
+        }
+    }
+}
+
+impl ToString for StreamType {
+    fn to_string(&self) -> String {
+        self.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,10 +260,10 @@ mod tests {
             username: Some("testuser".to_string()),
             password: Some("testpass".to_string()),
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: LoginRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.type_, "username_password");
         assert_eq!(deserialized.username, Some("testuser".to_string()));
         assert_eq!(deserialized.password, Some("testpass".to_string()));
@@ -237,10 +276,10 @@ mod tests {
             username: None,
             password: None,
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: LoginRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.type_, "github_oauth");
         assert_eq!(deserialized.username, None);
         assert_eq!(deserialized.password, None);
@@ -257,14 +296,17 @@ mod tests {
             status: "active".to_string(),
             jwt_token: "test_token".to_string(),
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: LoginResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.user_id, user_id);
         assert_eq!(deserialized.username, "testuser");
         assert_eq!(deserialized.email, "test@example.com");
-        assert_eq!(deserialized.avatar_url, Some("https://example.com/avatar.jpg".to_string()));
+        assert_eq!(
+            deserialized.avatar_url,
+            Some("https://example.com/avatar.jpg".to_string())
+        );
         assert_eq!(deserialized.status, "active");
         assert_eq!(deserialized.jwt_token, "test_token");
     }
@@ -275,10 +317,10 @@ mod tests {
             stream_id: 123,
             data: Some(vec![1, 2, 3, 4]),
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: StreamAppendRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.data, Some(vec![1, 2, 3, 4]));
     }
@@ -289,10 +331,10 @@ mod tests {
             stream_id: 456,
             offset: 789,
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: StreamReadRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 456);
         assert_eq!(deserialized.offset, 789);
     }
@@ -304,10 +346,10 @@ mod tests {
             offset: 456,
             data: vec![1, 2, 3, 4, 5],
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: StreamReadResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.offset, 456);
         assert_eq!(deserialized.data, vec![1, 2, 3, 4, 5]);
@@ -319,10 +361,10 @@ mod tests {
             stream_id: 789,
             offset: 1000,
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: StreamAppendResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 789);
         assert_eq!(deserialized.offset, 1000);
     }
@@ -331,7 +373,10 @@ mod tests {
     fn test_response_error_into_response() {
         let error = ResponseError::InternalError(anyhow::anyhow!("Test error"));
         let response = error.into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR
+        );
 
         let error = ResponseError::AuthError(AuthError::InvalidToken);
         let response = error.into_response();
@@ -362,9 +407,9 @@ mod tests {
     fn test_response_error_from_anyhow() {
         let anyhow_error = anyhow::anyhow!("Test error");
         let response_error: ResponseError = anyhow_error.into();
-        
+
         match response_error {
-            ResponseError::InternalError(_) => {},
+            ResponseError::InternalError(_) => {}
             _ => panic!("Expected InternalError"),
         }
     }
@@ -373,10 +418,10 @@ mod tests {
     fn test_list_stream_request_serialization() {
         let user_id = Uuid::new_v4();
         let request = ListStreamRequest { user_id };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: ListStreamRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.user_id, user_id);
     }
 
@@ -394,10 +439,10 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let json = serde_json::to_string(&stream).unwrap();
         let deserialized: Stream = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.owner_id, owner_id);
         assert_eq!(deserialized.stream_type, "chat");
@@ -420,14 +465,14 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let response = ListStreamResponse {
             streams: vec![stream],
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: ListStreamResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.streams.len(), 1);
         assert_eq!(deserialized.streams[0].stream_id, 123);
     }
@@ -445,10 +490,10 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let json = serde_json::to_string(&conversation).unwrap();
         let deserialized: Conversation = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.conversation_id, conversation_id);
         assert_eq!(deserialized.conversation_type, "group");
         assert_eq!(deserialized.members, json!(["user1", "user2"]));
@@ -469,16 +514,19 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let response = ListConversationsResponse {
             conversations: vec![conversation],
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: ListConversationsResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.conversations.len(), 1);
-        assert_eq!(deserialized.conversations[0].conversation_id, conversation_id);
+        assert_eq!(
+            deserialized.conversations[0].conversation_id,
+            conversation_id
+        );
     }
 
     #[test]
@@ -486,17 +534,17 @@ mod tests {
         let response = StreamErrorResponse {
             error: "Something went wrong".to_string(),
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: StreamErrorResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.error, "Something went wrong");
     }
 
     #[test]
     fn test_debug_implementations() {
         let user_id = Uuid::new_v4();
-        
+
         let login_request = LoginRequest {
             type_: "test".to_string(),
             username: Some("user".to_string()),
@@ -504,7 +552,7 @@ mod tests {
         };
         let debug_str = format!("{:?}", login_request);
         assert!(debug_str.contains("LoginRequest"));
-        
+
         let login_response = LoginResponse {
             user_id,
             username: "test".to_string(),
@@ -515,7 +563,7 @@ mod tests {
         };
         let debug_str = format!("{:?}", login_response);
         assert!(debug_str.contains("LoginResponse"));
-        
+
         let stream_append_request = StreamAppendRequest {
             stream_id: 1,
             data: Some(vec![1, 2, 3]),
@@ -531,11 +579,11 @@ mod tests {
             offset: 456,
             data: vec![72, 101, 108, 108, 111], // "Hello" in bytes
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         // The data should be base64 encoded in JSON
         assert!(json.contains("SGVsbG8=")); // "Hello" in base64
-        
+
         let deserialized: StreamReadResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.data, vec![72, 101, 108, 108, 111]);
     }
@@ -546,10 +594,10 @@ mod tests {
             stream_id: 123,
             offset: 456,
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: UpdateStreamOffsetRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.offset, 456);
     }
@@ -561,10 +609,10 @@ mod tests {
             offset: 456,
             success: true,
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: UpdateStreamOffsetResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.stream_id, 123);
         assert_eq!(deserialized.offset, 456);
         assert_eq!(deserialized.success, true);
@@ -579,10 +627,10 @@ mod tests {
             members: vec![user1, user2],
             meta: Some(json!({"name": "Test Chat"})),
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: CreateConversationRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.conversation_type, "direct");
         assert_eq!(deserialized.members.len(), 2);
         assert_eq!(deserialized.meta, Some(json!({"name": "Test Chat"})));
@@ -594,7 +642,7 @@ mod tests {
         let user1 = Uuid::new_v4();
         let user2 = Uuid::new_v4();
         let now = chrono::Utc::now();
-        
+
         let response = CreateConversationResponse {
             conversation_id,
             conversation_type: "group".to_string(),
@@ -604,10 +652,10 @@ mod tests {
             created_at: now,
             is_new: true,
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: CreateConversationResponse = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.conversation_id, conversation_id);
         assert_eq!(deserialized.conversation_type, "group");
         assert_eq!(deserialized.members.len(), 2);

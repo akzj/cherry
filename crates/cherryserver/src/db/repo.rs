@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use cherrycore::types::StreamType;
 use serde_json::json;
 use sqlx::{
     Pool,
@@ -26,7 +27,7 @@ impl Repo {
             .unwrap();
         Self { sqlx_pool: pool }
     }
-    
+
     // Create a new Repo with an existing pool (useful for testing)
     pub fn with_pool(pool: PgPool) -> Self {
         Self { sqlx_pool: pool }
@@ -58,7 +59,7 @@ impl Repo {
 
     pub async fn list_streams(&self, user_id: Uuid) -> Result<Vec<Stream>> {
         // Return stream IDs as i64 instead of full Stream objects to avoid schema issues
-        let streams   = query_as::<_,Stream>("SELECT * FROM streams WHERE owner_id = $1")
+        let streams = query_as::<_, Stream>("SELECT * FROM streams WHERE owner_id = $1")
             .bind(user_id)
             .fetch_all(&self.sqlx_pool)
             .await?;
@@ -67,12 +68,11 @@ impl Repo {
 
     pub async fn list_conversations(&self, user_id: Uuid) -> Result<Vec<Conversation>> {
         // Simplified to return conversation IDs to avoid schema issues
-        let conversations  = query_as::<_,Conversation>(
-            "SELECT * FROM conversations WHERE members @> $1::jsonb"
-        )
-        .bind(json!([user_id.to_string()]))
-        .fetch_all(&self.sqlx_pool)
-        .await?;
+        let conversations =
+            query_as::<_, Conversation>("SELECT * FROM conversations WHERE members @> $1::jsonb")
+                .bind(json!([user_id.to_string()]))
+                .fetch_all(&self.sqlx_pool)
+                .await?;
         Ok(conversations)
     }
 
@@ -96,23 +96,27 @@ impl Repo {
     }
 
     // 检查1对1会话是否已存在
-    pub async fn find_direct_conversation(&self, user1: Uuid, user2: Uuid) -> Result<Option<Conversation>> {
+    pub async fn find_direct_conversation(
+        &self,
+        user1: Uuid,
+        user2: Uuid,
+    ) -> Result<Option<Conversation>> {
         let members_json = json!([user1.to_string(), user2.to_string()]);
         let members_json_reverse = json!([user2.to_string(), user1.to_string()]);
-        
+
         let conversation = query_as::<_, Conversation>(
             r#"
             SELECT * FROM conversations 
             WHERE conversation_type = 'direct' 
             AND (members = $1::jsonb OR members = $2::jsonb)
             LIMIT 1
-            "#
+            "#,
         )
         .bind(&members_json)
         .bind(&members_json_reverse)
         .fetch_optional(&self.sqlx_pool)
         .await?;
-        
+
         Ok(conversation)
     }
 
@@ -129,26 +133,31 @@ impl Repo {
                 NOW(), NOW()
             )
             RETURNING *
-            "#
+            "#,
         )
         .bind(owner_id)
         .bind(stream_type)
         .fetch_one(&self.sqlx_pool)
         .await?;
-        
+
         Ok(stream)
     }
 
     // 创建新的会话
     pub async fn create_conversation(
-        &self, 
-        conversation_type: &str, 
-        members: &[Uuid], 
+        &self,
+        conversation_type: &str,
+        members: &[Uuid],
         meta: &serde_json::Value,
-        stream_id: i64
+        stream_id: i64,
     ) -> Result<Conversation> {
-        let members_json = json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>());
-        
+        let members_json = json!(
+            members
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<String>>()
+        );
+
         let conversation = query_as::<_, Conversation>(
             r#"
             INSERT INTO conversations (
@@ -160,7 +169,7 @@ impl Repo {
                 NOW(), NOW()
             )
             RETURNING *
-            "#
+            "#,
         )
         .bind(conversation_type)
         .bind(&members_json)
@@ -168,7 +177,7 @@ impl Repo {
         .bind(stream_id)
         .fetch_one(&self.sqlx_pool)
         .await?;
-        
+
         Ok(conversation)
     }
 
@@ -178,16 +187,16 @@ impl Repo {
         creator_id: Uuid,
         conversation_type: &str,
         members: &[Uuid],
-        meta: &serde_json::Value
+        meta: &serde_json::Value,
     ) -> Result<(Conversation, Stream, bool)> {
         // 开始事务
         let mut tx = self.sqlx_pool.begin().await?;
-        
+
         // 如果是1对1会话，在事务中检查是否已存在
         if conversation_type == "direct" && members.len() == 2 {
             let members_json = json!([members[0].to_string(), members[1].to_string()]);
             let members_json_reverse = json!([members[1].to_string(), members[0].to_string()]);
-            
+
             let existing_conversation = query_as::<_, Conversation>(
                 r#"
                 SELECT * FROM conversations 
@@ -195,26 +204,26 @@ impl Repo {
                 AND (members = $1::jsonb OR members = $2::jsonb)
                 LIMIT 1
                 FOR UPDATE
-                "#
+                "#,
             )
             .bind(&members_json)
             .bind(&members_json_reverse)
             .fetch_optional(&mut *tx)
             .await?;
-            
+
             if let Some(conversation) = existing_conversation {
                 // 获取对应的流
                 let stream = query_as::<_, Stream>("SELECT * FROM streams WHERE stream_id = $1")
                     .bind(conversation.stream_id)
                     .fetch_one(&mut *tx)
                     .await?;
-                
+
                 // 提交事务（虽然没有修改，但要释放锁）
                 tx.commit().await?;
                 return Ok((conversation, stream, false)); // false 表示不是新创建的
             }
         }
-        
+
         // 在事务中创建新的流
         let stream = query_as::<_, Stream>(
             r#"
@@ -227,15 +236,20 @@ impl Repo {
                 NOW(), NOW()
             )
             RETURNING *
-            "#
+            "#,
         )
         .bind(creator_id)
-        .bind("message")
+        .bind(StreamType::Message.to_string())
         .fetch_one(&mut *tx)
         .await?;
-        
+
         // 在事务中创建新的会话
-        let members_json = json!(members.iter().map(|id| id.to_string()).collect::<Vec<String>>());
+        let members_json = json!(
+            members
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<String>>()
+        );
         let conversation = query_as::<_, Conversation>(
             r#"
             INSERT INTO conversations (
@@ -247,7 +261,7 @@ impl Repo {
                 NOW(), NOW()
             )
             RETURNING *
-            "#
+            "#,
         )
         .bind(conversation_type)
         .bind(&members_json)
