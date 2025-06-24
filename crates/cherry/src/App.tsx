@@ -1,6 +1,7 @@
 // src/App.tsx
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { listen } from '@tauri-apps/api/event';
 import Sidebar from './components/Sidebar';
 import ChatHeader from './components/ChatHeader';
 import MessageList from './components/MessageList';
@@ -8,10 +9,12 @@ import MessageInput from './components/MessageInput';
 import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
+import NotificationManager from './components/NotificationManager';
 import LoginForm from './pages/login';
 import { Conversation, Message, User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
+import { useNotifications } from './store/notification';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
@@ -443,6 +446,70 @@ const App: React.FC = () => {
 
   // 认证状态
   const { isLoggedIn, user, isLoading } = useAuth();
+  
+  // 通知状态
+  const { addNotification, updateContacts, updateConversations, setConnectionStatus } = useNotifications();
+
+  // 监听Tauri事件
+  useEffect(() => {
+    const unlisten = listen('notification', (event) => {
+      const { type, data, timestamp } = event.payload as any;
+      
+      console.log('Received notification:', { type, data, timestamp });
+      
+      // 根据事件类型处理通知
+      switch (type) {
+        case 'contacts_updated':
+          if (data.contacts) {
+            updateContacts(data.contacts);
+          }
+          addNotification({
+            type: 'contacts_updated',
+            data: { count: data.count },
+            timestamp,
+          });
+          break;
+          
+        case 'conversations_updated':
+          if (data.conversations) {
+            updateConversations(data.conversations);
+          }
+          addNotification({
+            type: 'conversations_updated',
+            data: { count: data.count },
+            timestamp,
+          });
+          break;
+          
+        case 'new_message':
+          addNotification({
+            type: 'new_message',
+            data: { sender: data.sender, message: data.message },
+            timestamp,
+          });
+          break;
+          
+        case 'user_status_changed':
+          addNotification({
+            type: 'user_status_changed',
+            data: { user: data.user, status: data.status },
+            timestamp,
+          });
+          break;
+          
+        default:
+          console.warn('Unknown notification type:', type);
+      }
+    });
+
+    // 设置连接状态为已连接
+    setConnectionStatus(true);
+
+    return () => {
+      unlisten.then(f => f());
+      setConnectionStatus(false);
+    };
+  }, [addNotification, updateContacts, updateConversations, setConnectionStatus]);
 
   // 如果正在加载认证状态，显示加载界面
   if (isLoading) {
@@ -584,6 +651,9 @@ const App: React.FC = () => {
           </ContactModalContainer>
         </ModalOverlay>
       )}
+
+      {/* Notification Manager */}
+      <NotificationManager />
     </AppContainer>
   );
 };
