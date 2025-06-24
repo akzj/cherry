@@ -210,6 +210,7 @@ pub enum StreamType {
     File,
     Image,
     Audio,
+    Notification,
     Video,
     Other,
 }
@@ -221,6 +222,7 @@ impl From<String> for StreamType {
             "file" => StreamType::File,
             "image" => StreamType::Image,
             "audio" => StreamType::Audio,
+            "notification" => StreamType::Notification,
             "video" => StreamType::Video,
             "other" => StreamType::Other,
             _ => StreamType::Other,
@@ -235,6 +237,7 @@ impl Into<String> for &StreamType {
             StreamType::File => "file".to_string(),
             StreamType::Image => "image".to_string(),
             StreamType::Audio => "audio".to_string(),
+            StreamType::Notification => "notification".to_string(),
             StreamType::Video => "video".to_string(),
             StreamType::Other => "other".to_string(),
         }
@@ -245,6 +248,22 @@ impl ToString for StreamType {
     fn to_string(&self) -> String {
         self.into()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "event_type", rename_all = "snake_case")]
+pub enum StreamEvent {
+    ConversationCreated {
+        conversation_id: Uuid,
+    },
+    ConversationMemberAdded {
+        conversation_id: Uuid,
+        member_id: Uuid,
+    },
+    ConversationMemberRemoved {
+        conversation_id: Uuid,
+        member_id: Uuid,
+    },
 }
 
 #[cfg(test)]

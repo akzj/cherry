@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use axum::{
@@ -32,9 +32,21 @@ impl ServerConfig {
 }
 #[derive(Clone)]
 pub(crate) struct CherryServer {
-    config: ServerConfig,
+    inner: Arc<CherryServerInner>,
+}
+
+pub struct CherryServerInner {
     db: Repo,
+    config: ServerConfig,
     stream_client: cherrycore::client::stream::StreamClient,
+}
+
+impl std::ops::Deref for CherryServer {
+    type Target = CherryServerInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 #[axum::debug_handler]
@@ -144,16 +156,19 @@ async fn update_stream_offset(
     body: Json<UpdateStreamOffsetRequest>,
 ) -> Result<Json<UpdateStreamOffsetResponse>, ResponseError> {
     let user_id = claims.user_id;
-    
+
     // Check if user has access to this stream
     let allowed = server.db.check_acl(user_id, body.stream_id).await?;
     if !allowed {
         return Err(ResponseError::Forbidden);
     }
-    
+
     // Update the stream offset
-    server.db.update_stream_offset(body.stream_id, body.offset).await?;
-    
+    server
+        .db
+        .update_stream_offset(body.stream_id, body.offset)
+        .await?;
+
     Ok(Json(UpdateStreamOffsetResponse {
         stream_id: body.stream_id,
         offset: body.offset,
@@ -168,18 +183,18 @@ async fn create_conversation(
     body: Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResponse>, ResponseError> {
     let creator_id = claims.user_id;
-    
+
     // 验证请求参数
     if body.members.is_empty() {
         return Err(ResponseError::DataInvalid);
     }
-    
+
     // 确保创建者包含在成员列表中
     let mut members = body.members.clone();
     if !members.contains(&creator_id) {
         members.push(creator_id);
     }
-    
+
     // 验证会话类型
     let conversation_type = match body.conversation_type.as_str() {
         "direct" => {
@@ -196,22 +211,36 @@ async fn create_conversation(
         }
         _ => return Err(ResponseError::DataInvalid),
     };
-    
+
     // 设置默认元数据
     let default_meta = serde_json::json!({});
     let meta = body.meta.as_ref().unwrap_or(&default_meta);
-    
+
     // 创建会话和流
-    let (conversation, _stream, is_new) = server.db.create_conversation_with_stream(
-        creator_id,
-        conversation_type,
-        &members,
-        meta
-    ).await?;
-    
-    // TODO: 向streamserver发送通知
-    // 这里需要调用streamserver的API来发送会话创建通知
-    
+    let (conversation, _stream, is_new) = server
+        .db
+        .create_conversation_with_stream(creator_id, conversation_type, &members, meta)
+        .await?;
+
+    // 如果会话是新创建的，则向streamserver发送会话创建事件
+    if is_new {
+        let stream_ids = server.db.get_notification_stream_ids(&members).await?;
+        let mut batch = Vec::new();
+        for stream_id in stream_ids {
+            batch.push(StreamAppendRequest {
+                stream_id: stream_id as u64,
+                data: Some(
+                    serde_json::to_vec(&StreamEvent::ConversationCreated {
+                        conversation_id: conversation.conversation_id,
+                    })
+                    .unwrap(),
+                ),
+            });
+        }
+        server.stream_client.append_stream_batch(batch).await?;
+        log::info!("send conversation created event to stream server");
+    }
+
     Ok(Json(CreateConversationResponse {
         conversation_id: conversation.conversation_id,
         conversation_type: conversation.conversation_type,
@@ -226,11 +255,14 @@ async fn create_conversation(
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_url).await;
-        let stream_client = cherrycore::client::stream::StreamClient::new(config.stream_server_url.clone());
+        let stream_client =
+            cherrycore::client::stream::StreamClient::new(config.stream_server_url.clone());
         Self {
-            db,
-            config: config.clone(),
-            stream_client,
+            inner: Arc::new(CherryServerInner {
+                db,
+                config: config.clone(),
+                stream_client,
+            }),
         }
     }
 }
@@ -245,7 +277,6 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/acl/check", get(check_acl))
         .route("/api/v1/streams/update_offset", post(update_stream_offset))
         .route("/api/v1/conversations/create", post(create_conversation))
-        
         .with_state(server.clone());
 
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();

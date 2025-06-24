@@ -95,6 +95,25 @@ impl Repo {
         Ok(count > 0)
     }
 
+    pub async fn get_notification_stream_ids(&self, user_ids: &[Uuid]) -> Result<Vec<i64>> {
+        if user_ids.is_empty() {
+            return Ok(vec![]);
+        }
+        let stream_ids = query_scalar::<_, i64>(
+            r#"
+            SELECT DISTINCT stream_id 
+            FROM streams 
+            WHERE owner_id = ANY($1::uuid[])
+            AND stream_type = 'notification'
+            "#,
+        )
+        .bind(user_ids)
+        .fetch_all(&self.sqlx_pool)
+        .await?;
+
+        Ok(stream_ids)
+    }
+
     // 检查1对1会话是否已存在
     pub async fn find_direct_conversation(
         &self,
