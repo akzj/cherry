@@ -138,7 +138,7 @@ const Input = styled.input<{ $hasError: boolean }>`
   backdrop-filter: blur(10px);
   border: 1px solid ${({ $hasError }) => $hasError ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'};
   border-radius: 16px;
-  color: white;
+  color: black;
   font-size: 1rem;
   transition: all 0.3s ease;
   

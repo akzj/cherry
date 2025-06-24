@@ -32,7 +32,7 @@ pub struct CherryClientConfig {
 impl Default for CherryClientConfig {
     fn default() -> Self {
         Self {
-            base_url: "http://localhost:8080".to_string(),
+            base_url: "http://localhost:8180".to_string(),
             timeout: Duration::from_secs(30),
             max_idle_per_host: 10,
             pool_idle_timeout: Duration::from_secs(90),
@@ -88,6 +88,7 @@ impl CherryClient {
             .pool_idle_timeout(config.pool_idle_timeout)
             .pool_max_idle_per_host(config.max_idle_per_host)
             .user_agent(config.user_agent.clone())
+            .no_proxy()
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -174,6 +175,8 @@ impl CherryClient {
         let url = format!("{}{}", self.config.base_url, endpoint);
         let headers = self.create_headers()?;
 
+        log::info!("request: url={}, headers={:?}", url, headers); 
+
         let response = self
             .client
             .request(method, &url)
@@ -199,11 +202,11 @@ impl CherryClient {
     }
 
     /// Login and get authentication credentials
-    pub async fn login(&self, username: &str, password: &str) -> Result<LoginResponse> {
+    pub async fn login(&self, email: &str, password: &str) -> Result<LoginResponse> {
         let login_request = LoginRequest {
-            username: Some(username.to_string()),
+            email: Some(email.to_string()),
             password: Some(password.to_string()),
-            type_: "password".to_string(),
+            type_: "email".to_string(),
         };
 
         let login_response = self

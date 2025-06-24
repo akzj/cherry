@@ -14,8 +14,8 @@ use crate::jwt::AuthError;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginRequest {
     #[serde(rename = "type")]
-    pub type_: String, // username_password, github_oauth
-    pub username: Option<String>,
+    pub type_: String, // email, github_oauth
+    pub email: Option<String>,
     pub password: Option<String>,
 }
 
@@ -284,7 +284,7 @@ mod tests {
     fn test_login_request_serialization() {
         let request = LoginRequest {
             type_: "username_password".to_string(),
-            username: Some("testuser".to_string()),
+            email: Some("testuser".to_string()),
             password: Some("testpass".to_string()),
         };
 
@@ -292,7 +292,7 @@ mod tests {
         let deserialized: LoginRequest = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized.type_, "username_password");
-        assert_eq!(deserialized.username, Some("testuser".to_string()));
+        assert_eq!(deserialized.email, Some("testuser".to_string()));
         assert_eq!(deserialized.password, Some("testpass".to_string()));
     }
 
@@ -300,7 +300,7 @@ mod tests {
     fn test_login_request_oauth() {
         let request = LoginRequest {
             type_: "github_oauth".to_string(),
-            username: None,
+            email: None,
             password: None,
         };
 
@@ -308,7 +308,7 @@ mod tests {
         let deserialized: LoginRequest = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized.type_, "github_oauth");
-        assert_eq!(deserialized.username, None);
+        assert_eq!(deserialized.email, None);
         assert_eq!(deserialized.password, None);
     }
 
@@ -579,7 +579,7 @@ mod tests {
 
         let login_request = LoginRequest {
             type_: "test".to_string(),
-            username: Some("user".to_string()),
+            email: Some("user".to_string()),
             password: Some("pass".to_string()),
         };
         let debug_str = format!("{:?}", login_request);

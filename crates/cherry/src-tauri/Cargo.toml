@@ -38,4 +38,5 @@ sqlx = { version = "0.8.6", features = [
 async-tungstenite = { version = "0.29.1", features = ["tokio-runtime"] }
 futures-util = "0.3"
 log = "0.4.27"
+env_logger = "0.11"
 uuid = "1.17.0"
