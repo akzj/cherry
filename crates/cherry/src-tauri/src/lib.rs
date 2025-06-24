@@ -1,14 +1,21 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 mod db;
-use anyhow::Result;
 
+use anyhow::Result;
+use futures_util::lock::Mutex;
 use serde::Serialize;
 use tauri::State;
+use uuid::Uuid;
 
-use crate::db::{models::{Contact, User}, repo::Repo};
-
-
+use crate::db::{
+    models::{Contact, User},
+    repo::Repo,
+};
+use cherrycore::{
+    client::cherry::{AuthCredentials, CherryClient},
+    types::LoginResponse,
+};
 
 #[derive(Debug, Serialize)]
 struct CommandError {
@@ -37,12 +44,34 @@ pub struct Options {
     stream_server: String,
     // chat server
     cherry_server: String,
-
     user_id: u64,
 }
 
+// 用户信息结构
+
 struct AppState {
     repo: Repo,
+    cherry_client: Mutex<Option<CherryClient>>,
+}
+
+#[tauri::command]
+async fn cmd_login(
+    username: String,
+    password: String,
+    state: State<'_, AppState>,
+) -> Result<cherrycore::types::UserInfo, CommandError> {
+    let cherry_client = CherryClient::new().expect("Failed to create Cherry client");
+
+    let login_response: LoginResponse = cherry_client
+        .login(&username, &password)
+        .await
+        .map_err(CommandError::from)?;
+    let cherry_client = cherry_client.with_auth(AuthCredentials {
+        user_id: login_response.user_info.user_id,
+        jwt_token: login_response.jwt_token,
+    });
+    state.cherry_client.lock().await.replace(cherry_client);
+    Ok(login_response.user_info)
 }
 
 #[tauri::command]
@@ -74,13 +103,16 @@ fn greet(name: &str) -> String {
 pub async fn run() {
     let db_path = std::env::current_dir().unwrap().join("sqlite.db");
     println!("db_path: {}", db_path.to_str().unwrap());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             repo: Repo::new(db_path.to_str().unwrap()).await,
+            cherry_client: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            cmd_login,
             cmd_user_get_by_id,
             cmd_contact_list_all
         ])

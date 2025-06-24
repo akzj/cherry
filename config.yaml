@@ -3,3 +3,9 @@ server_port: 3000
 jwt_secret: "test_secret_key"
 jwt_expire_time: 86400
 stream_storage_path: "/tmp/stream_storage"
+
+# 数据库配置
+db_url: "postgresql://postgres:password@localhost:5432/cherry_db"
+
+# 流服务器配置
+stream_server_url: "http://localhost:3001"

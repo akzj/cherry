@@ -177,7 +177,7 @@ impl CherryClient {
     }
 
     /// Login and get authentication credentials
-    pub async fn login(&self, username: &str, password: &str) -> Result<AuthCredentials> {
+    pub async fn login(&self, username: &str, password: &str) -> Result<LoginResponse> {
         let login_request = LoginRequest {
             username: Some(username.to_string()),
             password: Some(password.to_string()),
@@ -192,10 +192,7 @@ impl CherryClient {
             )
             .await?;
 
-        Ok(AuthCredentials::new(
-            login_response.user_id,
-            login_response.jwt_token,
-        ))
+        Ok(login_response)
     }
 
     /// Get all contacts for the authenticated user
