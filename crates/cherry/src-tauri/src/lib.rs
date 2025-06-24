@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::sync::Mutex;
 use tauri::State;
 use uuid::Uuid;
+use env_logger;
 
 use crate::db::{
     models::{Contact, User},
@@ -70,6 +71,7 @@ async fn cmd_login(
     password: String,
     state: State<'_, AppState>,
 ) -> Result<cherrycore::types::UserInfo, CommandError> {
+    log::info!("cmd_login: username={}, password={}", username, password);
     let cherry_client = CherryClient::new().expect("Failed to create Cherry client");
 
     let login_response: LoginResponse = cherry_client
@@ -111,6 +113,8 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+
     let db_path = std::env::current_dir().unwrap().join("sqlite.db");
     println!("db_path: {}", db_path.to_str().unwrap());
 

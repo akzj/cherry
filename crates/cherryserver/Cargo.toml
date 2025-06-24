@@ -27,4 +27,5 @@ cherrycore = { path = "../cherrycore" }
 jsonwebtoken = "9.3.1"
 clap = { version = "4.5.40", features = ["derive"] }
 log = "0.4.27"
+env_logger = "0.11.8"
 

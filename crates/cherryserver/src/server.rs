@@ -17,9 +17,23 @@ use crate::db::{models::Contact, repo::Repo};
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct ServerConfig {
-    pub(crate) db_url: String,
-    pub(crate) stream_server_url: String,
-    pub(crate) expire_time: u64,
+    pub(crate) db_conn: Option<String>,
+    pub(crate) stream_server_url: Option<String>,
+    pub(crate) jwt_token_expire_seconds: Option<u64>,
+    pub(crate) jwt_secret: Option<String>,
+    pub(crate) listen_addr: Option<String>,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            db_conn: Some("postgres://postgres:postgres123@localhost:5432/cherry".to_string()),
+            stream_server_url: Some("ws://localhost:8080".to_string()),
+            jwt_token_expire_seconds: Some(3600),
+            jwt_secret: Some("cherry_jwt_secret".to_string()),
+            listen_addr: Some("0.0.0.0:8180".to_string()),
+        }
+    }
 }
 
 impl ServerConfig {
@@ -27,9 +41,22 @@ impl ServerConfig {
         let content = tokio::fs::read_to_string(filename).await?;
         let config = serde_yaml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?;
-        Ok(config)
+
+        // merge default config
+        Ok(Self::default().or(config))
+    }
+
+    fn or(self, other: Self) -> Self {
+        Self {
+            db_conn: other.db_conn.or(self.db_conn),
+            stream_server_url: other.stream_server_url.or(self.stream_server_url),
+            jwt_token_expire_seconds: other.jwt_token_expire_seconds.or(self.jwt_token_expire_seconds),
+            jwt_secret: other.jwt_secret.or(self.jwt_secret),
+            listen_addr: other.listen_addr.or(self.listen_addr),
+        }
     }
 }
+
 #[derive(Clone)]
 pub(crate) struct CherryServer {
     inner: Arc<CherryServerInner>,
@@ -111,10 +138,11 @@ async fn login(
     server: State<CherryServer>,
     body: Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ResponseError> {
+    log::info!("login: email={}, password={}", body.email.as_ref().unwrap(), body.password.as_ref().unwrap());
     let user = server
         .db
         .check_password(
-            body.username.as_ref().unwrap(),
+            body.email.as_ref().unwrap(),
             body.password.as_ref().unwrap(),
         )
         .await?;
@@ -125,10 +153,10 @@ async fn login(
 
     let user = server
         .db
-        .user_get_by_username(body.username.as_ref().unwrap())
+        .user_get_by_email(body.email.as_ref().unwrap())
         .await?;
 
-    let jwt_token = JwtClaims::new(user.user_id, server.config.expire_time).to_token()?;
+    let jwt_token = JwtClaims::new(user.user_id, server.config.jwt_token_expire_seconds.unwrap()).to_token()?;
 
     Ok(Json(LoginResponse {
         jwt_token,
@@ -259,13 +287,13 @@ async fn create_conversation(
 
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
-        let db = Repo::new(&config.db_url).await;
+        let db = Repo::new(&config.db_conn.as_ref().unwrap()).await;
         let stream_client =
-            cherrycore::client::stream::StreamClient::new(config.stream_server_url.clone());
+            cherrycore::client::stream::StreamClient::new(&config.stream_server_url.as_ref().unwrap());
         Self {
             inner: Arc::new(CherryServerInner {
                 db,
-                config: config.clone(),
+                config,
                 stream_client,
             }),
         }
@@ -284,6 +312,6 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/conversations/create", post(create_conversation))
         .with_state(server.clone());
 
-    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    let listener = TcpListener::bind(server.config.listen_addr.as_ref().unwrap()).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

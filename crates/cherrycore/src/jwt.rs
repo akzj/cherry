@@ -102,10 +102,10 @@ where
 }
 
 impl JwtClaims {
-    pub fn new(user_id: Uuid, expire_time: u64) -> Self {
+    pub fn new(user_id: Uuid, expire_seconds: u64) -> Self {
         Self {
             user_id,
-            exp: chrono::Utc::now().timestamp() as u64 + expire_time,
+            exp: chrono::Utc::now().timestamp() as u64 + expire_seconds,
             iat: chrono::Utc::now().timestamp() as u64,
         }
     }

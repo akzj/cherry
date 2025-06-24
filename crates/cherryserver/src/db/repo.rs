@@ -33,17 +33,17 @@ impl Repo {
         Self { sqlx_pool: pool }
     }
 
-    pub async fn user_get_by_username(&self, username: &str) -> Result<User> {
-        let user = query_as::<_, User>("SELECT * FROM users WHERE username = $1")
-            .bind(username)
+    pub async fn user_get_by_email(&self, email: &str) -> Result<User> {
+        let user = query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(email)
             .fetch_one(&self.sqlx_pool)
             .await?;
         Ok(user)
     }
 
-    pub async fn check_password(&self, username: &str, password: &str) -> Result<bool> {
-        let user = query_as::<_, User>("SELECT * FROM users WHERE username = $1")
-            .bind(username)
+    pub async fn check_password(&self, email: &str, password: &str) -> Result<bool> {
+        let user = query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(email)
             .fetch_one(&self.sqlx_pool)
             .await?;
         Ok(user.password_hash == password)

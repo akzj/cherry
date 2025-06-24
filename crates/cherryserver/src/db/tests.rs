@@ -205,11 +205,11 @@ mod tests {
         let repo = Repo::with_pool(pool.clone());
         
         // Test the user_get_by_username method
-        let user = repo.user_get_by_username(&test_user.username).await?;
+        let user = repo.user_get_by_email(&test_user.email).await?;
         
         assert_eq!(user.user_id, test_user.user_id);
         assert_eq!(user.username, test_user.username);
-        assert_eq!(user.email, test_user.email);
+        assert_eq!(user.email, test_user.email);    
         
         Ok(())
     }

@@ -16,9 +16,9 @@ pub struct StreamClient {
 }
 
 impl StreamClient {
-    pub fn new(stream_server_url: String) -> Self {
+    pub fn new(stream_server_url: &str) -> Self {
         Self {
-            stream_server_url,
+            stream_server_url: stream_server_url.to_string(),
             client: reqwest::Client::builder()
                 .pool_idle_timeout(Duration::from_secs(10))
                 .pool_max_idle_per_host(3)
