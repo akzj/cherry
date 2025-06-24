@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Sidebar from './components/Sidebar';
 import ChatHeader from './components/ChatHeader';
@@ -8,8 +8,10 @@ import MessageInput from './components/MessageInput';
 import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
+import LoginForm from './pages/login';
 import { Conversation, Message, User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
+import { useAuth } from './store/auth';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
@@ -61,6 +63,32 @@ const AppContainer = styled.div`
   /* 移除链接的默认焦点样式 */
   a:focus {
     outline: none !important;
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 1rem;
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 `;
 
@@ -413,11 +441,30 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
+  // 认证状态
+  const { isLoggedIn, user, isLoading } = useAuth();
+
+  // 如果正在加载认证状态，显示加载界面
+  if (isLoading) {
+    return (
+      <LoadingContainer>
+        <LoadingSpinner />
+        Loading...
+      </LoadingContainer>
+    );
+  }
+
+  // 如果未登录，显示登录页面
+  if (!isLoggedIn) {
+    return <LoginForm />;
+  }
+
+  // 登录成功后的主应用界面
   const currentUser: User = {
-    id: 'user1',
-    name: 'John Doe',
-    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-    status: 'online'
+    id: user?.user_id || 'user1',
+    name: user?.username || 'User',
+    avatar: user?.avatar_url || 'https://randomuser.me/api/portraits/men/1.jpg',
+    status: (user?.status as 'online' | 'offline' | 'away') || 'online'
   };
 
   const handleSelectConversation = (id: string) => {

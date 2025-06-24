@@ -3,8 +3,8 @@
 mod db;
 
 use anyhow::Result;
-use futures_util::lock::Mutex;
 use serde::Serialize;
+use std::sync::Mutex;
 use tauri::State;
 use uuid::Uuid;
 
@@ -54,6 +54,16 @@ struct AppState {
     cherry_client: Mutex<Option<CherryClient>>,
 }
 
+impl AppState {
+    async fn init(&self) -> Result<()> {
+        let mut cherry_client = self.cherry_client.lock().unwrap().as_ref().unwrap().clone();
+
+        let contract = cherry_client.get_contacts().await;
+
+        Ok(())
+    }
+}
+
 #[tauri::command]
 async fn cmd_login(
     username: String,
@@ -70,7 +80,7 @@ async fn cmd_login(
         user_id: login_response.user_info.user_id,
         jwt_token: login_response.jwt_token,
     });
-    state.cherry_client.lock().await.replace(cherry_client);
+    state.cherry_client.lock().unwrap().replace(cherry_client);
     Ok(login_response.user_info)
 }
 

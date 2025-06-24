@@ -55,10 +55,24 @@ impl AuthCredentials {
 }
 
 /// Professional Cherry client implementation
+#[derive(Clone)]
 pub struct CherryClient {
+    inner: Arc<CherryClientInner>,
+}
+
+#[derive(Clone)]
+pub struct CherryClientInner {
     config: CherryClientConfig,
     client: Client,
     auth: Option<AuthCredentials>,
+}
+
+impl std::ops::Deref for CherryClient {
+    type Target = CherryClientInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl CherryClient {
@@ -78,16 +92,24 @@ impl CherryClient {
             .context("Failed to create HTTP client")?;
 
         Ok(Self {
-            config,
-            client,
-            auth: None,
+            inner: Arc::new(CherryClientInner {
+                config,
+                client,
+                auth: None,
+            }),
         })
     }
 
     /// Set authentication credentials
-    pub fn with_auth(mut self, auth: AuthCredentials) -> Self {
-        self.auth = Some(auth);
-        self
+    pub fn with_auth(self, auth: AuthCredentials) -> Self {
+        let inner = CherryClientInner {
+            auth: Some(auth),
+            client: self.inner.client.clone(),
+            config: self.inner.config.clone(),
+        };
+        Self {
+            inner: Arc::new(inner),
+        }
     }
 
     /// Create authenticated headers
