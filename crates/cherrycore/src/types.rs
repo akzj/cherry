@@ -20,12 +20,20 @@ pub struct LoginRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LoginResponse {
+pub struct UserInfo {
     pub user_id: Uuid,
     pub username: String,
     pub email: String,
     pub avatar_url: Option<String>,
     pub status: String,
+    pub profile: Value,
+    pub app_config: Value,
+    pub stream_meta: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginResponse {
+    pub user_info: UserInfo,
     pub jwt_token: String,
 }
 
@@ -308,25 +316,30 @@ mod tests {
     fn test_login_response_serialization() {
         let user_id = Uuid::new_v4();
         let response = LoginResponse {
-            user_id,
-            username: "testuser".to_string(),
-            email: "test@example.com".to_string(),
-            avatar_url: Some("https://example.com/avatar.jpg".to_string()),
-            status: "active".to_string(),
+            user_info: UserInfo {
+                user_id,
+                username: "testuser".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: Some("https://example.com/avatar.jpg".to_string()),
+                status: "active".to_string(),
+                profile: json!({}),
+                app_config: json!({}),
+                stream_meta: json!({}),
+            },
             jwt_token: "test_token".to_string(),
         };
 
         let json = serde_json::to_string(&response).unwrap();
         let deserialized: LoginResponse = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(deserialized.user_id, user_id);
-        assert_eq!(deserialized.username, "testuser");
-        assert_eq!(deserialized.email, "test@example.com");
+        assert_eq!(deserialized.user_info.user_id, user_id);
+        assert_eq!(deserialized.user_info.username, "testuser");
+        assert_eq!(deserialized.user_info.email, "test@example.com");
         assert_eq!(
-            deserialized.avatar_url,
+            deserialized.user_info.avatar_url,
             Some("https://example.com/avatar.jpg".to_string())
         );
-        assert_eq!(deserialized.status, "active");
+        assert_eq!(deserialized.user_info.status, "active");
         assert_eq!(deserialized.jwt_token, "test_token");
     }
 
@@ -573,12 +586,17 @@ mod tests {
         assert!(debug_str.contains("LoginRequest"));
 
         let login_response = LoginResponse {
-            user_id,
-            username: "test".to_string(),
-            email: "test@example.com".to_string(),
-            avatar_url: None,
-            status: "active".to_string(),
-            jwt_token: "token".to_string(),
+            user_info: UserInfo {
+                user_id,
+                username: "test".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+                status: "active".to_string(),
+                profile: json!({}),
+                app_config: json!({}),
+                stream_meta: json!({}),
+            },
+            jwt_token: "test_token".to_string(),
         };
         let debug_str = format!("{:?}", login_response);
         assert!(debug_str.contains("LoginResponse"));

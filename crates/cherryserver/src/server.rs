@@ -132,11 +132,16 @@ async fn login(
 
     Ok(Json(LoginResponse {
         jwt_token,
-        user_id: user.user_id,
-        username: user.username,
-        email: user.email,
-        avatar_url: user.avatar_url,
-        status: user.status,
+        user_info: UserInfo {
+            user_id: user.user_id,
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            status: user.status,
+            profile: user.profile,
+            app_config: user.app_config,
+            stream_meta: user.stream_meta,
+        },
     }))
 }
 

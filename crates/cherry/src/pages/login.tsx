@@ -1,5 +1,6 @@
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react';
 import styled from 'styled-components';
+import { useAuth } from '../store/auth';
 import "../App.css";
 
 interface FormErrors {
@@ -204,9 +205,9 @@ const SubmitButton = styled.button<{ $isSubmitting: boolean }>`
   width: 100%;
   padding: 1rem;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
   border: none;
   border-radius: 16px;
+  color: white;
   font-size: 1rem;
   font-weight: 600;
   cursor: ${({ $isSubmitting }) => $isSubmitting ? 'not-allowed' : 'pointer'};
@@ -215,26 +216,32 @@ const SubmitButton = styled.button<{ $isSubmitting: boolean }>`
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  position: relative;
+  overflow: hidden;
   
-  &:hover {
-    ${({ $isSubmitting }) => !$isSubmitting && `
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(99, 102, 241, 0.4);
-    `}
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 25px rgba(99, 102, 241, 0.3),
+      0 4px 15px rgba(139, 92, 246, 0.2);
   }
   
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
   }
   
-  ${({ $isSubmitting }) => $isSubmitting && `
+  &:disabled {
     opacity: 0.7;
-  `}
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
 `;
 
 const FooterSection = styled.div`
-  background: rgba(255, 255, 255, 0.05);
   padding: 1.5rem 2rem;
   text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -247,31 +254,35 @@ const FooterText = styled.p`
 `;
 
 const SignUpLink = styled.a`
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
+  color: #6366f1;
   text-decoration: none;
+  font-weight: 600;
   transition: color 0.3s ease;
   
   &:hover {
-    color: white;
+    color: #8b5cf6;
   }
 `;
 
 const SocialLoginSection = styled.div`
-  margin-top: 1.5rem;
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
   text-align: center;
+  z-index: 2;
 `;
 
 const SocialText = styled.p`
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.875rem;
-  margin-bottom: 1rem;
+  margin: 0 0 1rem 0;
 `;
 
 const SocialButtons = styled.div`
   display: flex;
-  justify-content: center;
   gap: 1rem;
+  justify-content: center;
 `;
 
 const SocialButton = styled.button`
@@ -300,6 +311,8 @@ const SocialButton = styled.button`
 `;
 
 const LoginForm = () => {
+    const { login, isLoading, error, clearError, isLoggedIn } = useAuth();
+    
     const [formData, setFormData] = useState<FormData>({
         email: '',
         password: '',
@@ -307,7 +320,21 @@ const LoginForm = () => {
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // 如果已经登录，重定向到主页面
+    useEffect(() => {
+        if (isLoggedIn) {
+            // 这里可以添加导航逻辑，暂时使用简单的重定向
+            window.location.href = '/';
+        }
+    }, [isLoggedIn]);
+
+    // 清除API错误
+    useEffect(() => {
+        if (error) {
+            clearError();
+        }
+    }, [error, clearError]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
@@ -345,18 +372,17 @@ const LoginForm = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
         if (validate()) {
-            setIsSubmitting(true);
-
-            // 模拟API请求
-            setTimeout(() => {
-                console.log('Login data:', formData);
-                setIsSubmitting(false);
-                alert('Login successful!');
-            }, 1500);
+            try {
+                await login(formData.email, formData.password);
+                // 登录成功后的处理在useEffect中完成
+            } catch (error) {
+                // 错误处理在auth store中完成
+                console.error('Login error:', error);
+            }
         }
     };
 
@@ -426,8 +452,8 @@ const LoginForm = () => {
                         <ForgotLink href="#">Forgot password?</ForgotLink>
                     </CheckboxRow>
 
-                    <SubmitButton type="submit" $isSubmitting={isSubmitting}>
-                        {isSubmitting ? (
+                    <SubmitButton type="submit" $isSubmitting={isLoading} disabled={isLoading}>
+                        {isLoading ? (
                             <>
                                 <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
