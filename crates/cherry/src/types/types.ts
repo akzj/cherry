@@ -27,4 +27,16 @@ export interface User {
     messages: Message[];
     unreadCount: number;
   }
+
+  export interface Contact {
+    owner_id: string;
+    target_id: string;
+    relation_type: string;
+    remark_name?: string;
+    tags: any[];
+    is_favorite: boolean;
+    mute_settings: any;
+    created_at: string;
+    updated_at: string;
+  }
   
