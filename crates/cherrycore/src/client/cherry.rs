@@ -138,6 +138,8 @@ impl CherryClient {
         let url = format!("{}{}", self.config.base_url, endpoint);
         let headers = self.create_headers()?;
 
+        log::info!("request: url={}, headers={:?}", url, headers); 
+
         let response = self
             .client
             .request(method, &url)

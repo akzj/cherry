@@ -313,12 +313,6 @@ const SocialButton = styled.button`
   }
 `;
 
-const Divider = styled.hr`
-  border: none;
-  border-top: 1px solid rgba(255,255,255,0.15);
-  margin: 1.5rem 0 1rem 0;
-`;
-
 const CloseButton = styled.button`
   position: fixed;
   top: 32px;

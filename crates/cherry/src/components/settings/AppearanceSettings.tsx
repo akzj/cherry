@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import type { ThemePreference } from '../../types/settings';
 
 interface AppearanceSettingsProps {
-  darkMode: boolean;
   setDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -194,7 +193,7 @@ const DensityButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ darkMode, setDarkMode }) => {
+const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ setDarkMode }) => {
   const [settings, setSettings] = useState({
     theme: 'system' as ThemePreference,
     fontSize: 16,

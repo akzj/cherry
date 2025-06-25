@@ -133,16 +133,16 @@ impl AppState {
 
 #[tauri::command]
 async fn cmd_login(
-    username: String,
+    email: String,
     password: String,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<cherrycore::types::UserInfo, CommandError> {
-    log::info!("cmd_login: username={}, password={}", username, password);
+    log::info!("cmd_login: username={}, password={}", email, password);
     let cherry_client = CherryClient::new().expect("Failed to create Cherry client");
 
     let login_response: LoginResponse = cherry_client
-        .login(&username, &password)
+        .login(&email, &password)
         .await
         .map_err(CommandError::from)?;
     let cherry_client = cherry_client.with_auth(AuthCredentials {
@@ -158,13 +158,20 @@ async fn cmd_login(
 }
 
 #[tauri::command]
-async fn cmd_contact_list_all(state: State<'_, AppState>) -> Result<Vec<DbContact>, CommandError> {
-    let contacts = state
-        .repo
-        .contact_list_all()
-        .await
-        .map_err(CommandError::from)?;
-    Ok(contacts)
+async fn cmd_contact_list_all(state: State<'_, AppState>) -> Result<Vec<Contact>, CommandError> {
+    let cherry_client = {
+        let guard = state.cherry_client.lock().unwrap();
+        guard.as_ref().cloned()
+    };
+    
+    if let Some(cherry_client) = cherry_client {
+        let contacts = cherry_client.get_contacts().await.map_err(CommandError::from)?;
+        Ok(contacts)
+    } else {
+        Err(CommandError {
+            message: "Not authenticated".to_string(),
+        })
+    }
 }
 
 #[tauri::command]
@@ -176,6 +183,7 @@ async fn cmd_conversation_list_all(state: State<'_, AppState>) -> Result<Vec<Con
     
     if let Some(cherry_client) = cherry_client {
         let conversations = cherry_client.get_conversations().await.map_err(CommandError::from)?;
+        log::info!("cmd_conversation_list_all: conversations={:?}", conversations);
         Ok(conversations)
     } else {
         Err(CommandError {

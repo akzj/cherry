@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled, { css } from 'styled-components';
 import ContactGroup from './ContactGroup';
 import GroupSection from './GroupSection';
-import { mockContactGroups, mockOwnedGroups, mockJoinedGroups } from '../../data/mockContacts';
+import LoadingSpinner from '../UI/LoadingSpinner';
+import ErrorMessage from '../UI/ErrorMessage';
+import EmptyState from '../UI/EmptyState';
+import { useContactStore } from '../../store/contact';
 import { FaUserFriends, FaUsers, FaPlus, FaSearch } from 'react-icons/fa';
 
 interface SidebarButtonProps {
@@ -255,11 +258,110 @@ const ContentSection = styled.div`
 
 const ContactPage = () => {
   const [activeTab, setActiveTab] = useState('contacts');
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // 使用联系人 store
+  const {
+    contactGroups,
+    ownedGroups,
+    joinedGroups,
+    isLoading,
+    error,
+    searchQuery,
+    refreshContacts,
+    refreshGroups,
+    searchContacts,
+    setSearchQuery
+  } = useContactStore();
 
-  const contactGroups = mockContactGroups;
-  const ownedGroups = mockOwnedGroups;
-  const joinedGroups = mockJoinedGroups;
+  // 组件挂载时加载数据
+  useEffect(() => {
+    if (activeTab === 'contacts') {
+      refreshContacts();
+    } else {
+      refreshGroups();
+    }
+  }, [activeTab, refreshContacts, refreshGroups]);
+
+  // 处理搜索
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (activeTab === 'contacts') {
+      searchContacts(query);
+    } else {
+      // 群组搜索逻辑可以在这里实现
+      console.log('Searching groups:', query);
+    }
+  };
+
+  // 处理创建群组
+  const handleCreateGroup = () => {
+    // 这里可以实现创建群组的逻辑
+    console.log('Creating new group');
+  };
+
+  // 渲染内容
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <LoadingSpinner 
+          text={activeTab === 'contacts' ? '加载联系人中...' : '加载群组中...'} 
+        />
+      );
+    }
+
+    if (error) {
+      return (
+        <ErrorMessage
+          title="加载失败"
+          message={error}
+          onRetry={activeTab === 'contacts' ? refreshContacts : refreshGroups}
+        />
+      );
+    }
+
+    if (activeTab === 'contacts') {
+      if (contactGroups.length === 0) {
+        return (
+          <EmptyState
+            type={searchQuery ? 'search' : 'contacts'}
+            onAction={refreshContacts}
+          />
+        );
+      }
+
+      return (
+        <ContentSection>
+          {contactGroups.map(group => (
+            <ContactGroup key={group.id} group={group} />
+          ))}
+        </ContentSection>
+      );
+    } else {
+      if (ownedGroups.length === 0 && joinedGroups.length === 0) {
+        return (
+          <EmptyState
+            type="groups"
+            onAction={handleCreateGroup}
+          />
+        );
+      }
+
+      return (
+        <>
+          {ownedGroups.length > 0 && (
+            <ContentSection>
+              <GroupSection title="我创建的群" groups={ownedGroups} />
+            </ContentSection>
+          )}
+          {joinedGroups.length > 0 && (
+            <ContentSection>
+              <GroupSection title="我加入的群" groups={joinedGroups} />
+            </ContentSection>
+          )}
+        </>
+      );
+    }
+  };
 
   return (
     <Container>
@@ -287,49 +389,31 @@ const ContactPage = () => {
       </Sidebar>
 
       <MainContent>
-        {activeTab === 'contacts' ? (
-          <>
-            <SearchBar>
-              <SearchInput
-                type="text"
-                placeholder="搜索联系人..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <SearchButton>
-                <FaSearch />
-              </SearchButton>
-            </SearchBar>
+        <HeaderContainer>
+          <Header>
+            {activeTab === 'contacts' ? '联系人' : '群组'}
+          </Header>
+          {activeTab === 'groups' && (
+            <NewGroupButton onClick={handleCreateGroup}>
+              <FaPlus />
+              新建群组
+            </NewGroupButton>
+          )}
+        </HeaderContainer>
 
-            <ContentSection>
-              {contactGroups.map(group => (
-                <ContactGroup key={group.id} group={group} />
-              ))}
-            </ContentSection>
-          </>
-        ) : (
-          <>
-            <SearchBar>
-              <SearchInput
-                type="text"
-                placeholder="搜索群组..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <SearchButton>
-                <FaSearch />
-              </SearchButton>
-            </SearchBar>
+        <SearchBar>
+          <SearchInput
+            type="text"
+            placeholder={activeTab === 'contacts' ? '搜索联系人...' : '搜索群组...'}
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+          <SearchButton>
+            <FaSearch />
+          </SearchButton>
+        </SearchBar>
 
-            <ContentSection>
-              <GroupSection title="我创建的群" groups={ownedGroups} />
-            </ContentSection>
-
-            <ContentSection>
-              <GroupSection title="我加入的群" groups={joinedGroups} />
-            </ContentSection>
-          </>
-        )}
+        {renderContent()}
       </MainContent>
     </Container>
   );

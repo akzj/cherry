@@ -298,7 +298,6 @@ const ActionButton = styled.button`
 // ==================== Component Implementation ====================
 const Sidebar: React.FC<SidebarProps> = ({
     conversations,
-    currentUser,
     onSelectConversation,
     onOpenSettings,
     onOpenContacts
@@ -309,8 +308,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 计算各类会话数量
     const unreadCount = conversations.filter(c => c.unreadCount > 0).length;
     const mentionCount = conversations.filter(c => c.mentions > 0).length;
-    const directCount = conversations.filter(c => c.type === 'direct').length;
-    const groupCount = conversations.filter(c => c.type === 'group').length;
 
     // 根据当前标签过滤会话
     const filteredConversations = conversations.filter(conversation => {
@@ -330,12 +327,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     });
 
+    const handleOpenContacts = () => {
+        onOpenContacts();
+    };
+
     return (
         <>
             <SidebarContainer>
                 <Header>
                     <HeaderActions>
-                        <IconButton onClick={onOpenContacts}>
+                        <IconButton onClick={handleOpenContacts}>
                             <FaUserFriends />
                         </IconButton>
                         <IconButton onClick={onOpenSettings}>

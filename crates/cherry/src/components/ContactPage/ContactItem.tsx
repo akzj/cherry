@@ -56,14 +56,14 @@ const ContactItem: React.FC<ContactItemProps> = ({ contact, onClick }) => {
   return (
     <ContactItemContainer onClick={onClick}>
       <Avatar 
-        src={contact.avatar} 
-        alt={contact.name} 
-        status={contact.status} 
+        src={contact.avatar_url || ''} 
+        alt={contact.remark_name || ''} 
+        status={contact.status || 'online'} 
         size="md"
       />
       <ContactInfo>
-        <ContactName>{contact.name}</ContactName>
-        <ContactStatus>{contact.status}</ContactStatus>
+        <ContactName>{contact.remark_name}</ContactName>
+        <ContactStatus>{contact.status || ''}</ContactStatus>
       </ContactInfo>
     </ContactItemContainer>
   );

@@ -121,37 +121,6 @@ const ToggleSlider = styled.span`
   }
 `;
 
-const Select = styled.select`
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(134, 239, 172, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  color: rgba(22, 57, 35, 0.8);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 200px;
-  
-  &:focus {
-    outline: none;
-    border-color: rgba(134, 239, 172, 0.4);
-    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.1);
-  }
-  
-  &:hover {
-    border-color: rgba(134, 239, 172, 0.3);
-    background: rgba(255, 255, 255, 0.15);
-  }
-  
-  option {
-    background: rgba(255, 255, 255, 0.95);
-    color: rgba(22, 57, 35, 0.8);
-    padding: 0.5rem;
-  }
-`;
-
 const TimeSelect = styled.select`
   padding: 0.5rem 0.75rem;
   border-radius: 8px;

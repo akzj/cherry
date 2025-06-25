@@ -181,7 +181,7 @@ const SettingsPage: React.FC = () => {
       case 'notifications':
         return <NotificationSettings />;
       case 'appearance':
-        return <AppearanceSettings darkMode={darkMode} setDarkMode={setDarkMode} />;
+        return <AppearanceSettings setDarkMode={setDarkMode} />;
       default:
         return <GeneralSettings />;
     }

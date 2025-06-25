@@ -110,7 +110,7 @@ const ContactGroup: React.FC<ContactGroupProps> = ({ group }) => {
           {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
         </IconContainer>
 
-        <GroupTitle>{group.name}</GroupTitle>
+        <GroupTitle>{group.title}</GroupTitle>
 
         <ContactCount>
           {group.contacts.length} 位联系人
