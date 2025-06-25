@@ -1,0 +1,5 @@
+server_port: 8080
+cherry_server_url: "http://localhost:8180"
+jwt_secret: "cherryjwt_secret_test"
+stream_storage_path: "./test_data"
+disable_acl_check: true

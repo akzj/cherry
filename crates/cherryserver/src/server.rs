@@ -300,6 +300,7 @@ impl CherryServer {
         let db = Repo::new(&config.db_conn.as_ref().unwrap()).await;
         let stream_client = cherrycore::client::stream::StreamClient::new(
             &config.stream_server_url.as_ref().unwrap(),
+            config.jwt_secret.clone(),
         );
         Self {
             inner: Arc::new(CherryServerInner {

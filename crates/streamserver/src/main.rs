@@ -21,11 +21,10 @@ mod stream;
 
 #[derive(Clone, Deserialize)]
 struct StreamServerConfig {
-    pub server_url: String,
-    pub cherry_server_url: String,
     pub server_port: u16,
-    pub jwt_secret: String,
-    pub jwt_expire_time: u64,
+    pub cherry_server_url: String,
+    pub disable_acl_check: bool,
+    pub jwt_secret: Option<String>,
     pub stream_storage_path: String,
 }
 
@@ -42,7 +41,7 @@ struct StreamServer {
     inner: Arc<StreamServerInner>,
 }
 
-struct StreamServerInner{
+struct StreamServerInner {
     config: StreamServerConfig,
     store: streamstore::store::Store,
     watchers: Arc<Mutex<HashMap<u64, (watch::Sender<u64>, watch::Receiver<u64>)>>>,
@@ -67,7 +66,7 @@ impl StreamServer {
         }
     }
 
-    async fn append_stream(&self,stream_id:u64,data:Vec<u8>)->Result<u64,ResponseError>{
+    async fn append_stream(&self, stream_id: u64, data: Vec<u8>) -> Result<u64, ResponseError> {
         if data.is_empty() {
             return Err(ResponseError::DataEmpty);
         }
@@ -76,7 +75,7 @@ impl StreamServer {
         let watchers = self.watchers.lock().unwrap();
         if let Some((tx, _rx)) = watchers.get(&stream_id) {
             let _ = tx.send_replace(offset);
-        }   
+        }
         Ok(offset)
     }
 }
@@ -92,17 +91,28 @@ async fn main() {
     let cli = Cli::parse();
     let config = StreamServerConfig::load(cli.config).await.unwrap();
 
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+
+    if let Some(jwt_secret) = config.jwt_secret.as_deref() {
+        // set jwt secret to env
+        unsafe { std::env::set_var("JWT_SECRET", jwt_secret) };
+    } else if std::env::var("JWT_SECRET").is_err() {
+        panic!("JWT_SECRET is not set");
+    }
+
     let store = streamstore::options::Options::default()
         .wal_path(&config.stream_storage_path)
         .open_store()
         .unwrap();
 
-    let server = StreamServer::new(config, store);
+    let server = StreamServer::new(config.clone(), store);
 
     let app = Router::new()
         .merge(stream::init_routes())
         .with_state(server);
-    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", config.server_port))
+        .await
+        .unwrap();
     let addr = listener.local_addr().unwrap();
     println!("Listening on {}", addr);
     axum::serve(listener, app).await.unwrap();

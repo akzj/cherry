@@ -165,8 +165,12 @@ impl StreamReader {
 
 impl io::Read for StreamReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut read_bytes_all = 0;
+        if buf.is_empty() {
+            log::error!("read buffer is empty, stream_id: {}", self.stream_id);
+            return Ok(0);
+        }
 
+        let mut read_bytes_all = 0;
         loop {
             let state = { *self.read_state.lock().unwrap() };
 

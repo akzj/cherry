@@ -28,8 +28,8 @@ fn main() {
     log::info!("Starting streamstore example");
 
     let mut options = streamstore::options::Options::default();
-    options.max_wal_size(320);
-    options.max_table_size(640);
+    options.max_wal_size(32000000);
+    options.max_table_size(64000000);
 
     println!("options {:?}", &options);
 
@@ -69,7 +69,7 @@ fn main() {
     let crc64 = Crc::<u64>::new(&crc::CRC_64_REDIS);
     let mut hash = crc64.digest();
 
-    let count = 10000;
+    let count = 10;
     for i in 0..count {
         let data = format!("hello world {}\n", i);
         hash.update(data.as_bytes());

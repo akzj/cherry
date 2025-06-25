@@ -17,25 +17,28 @@ use tokio::sync::{mpsc, watch};
 
 use crate::StreamServer;
 
-
-
-
 #[axum::debug_handler]
-async fn append_stream_batch(server: State<StreamServer>, batch: Json<StreamAppendBatchRequest>) -> Result<Json<StreamAppendBatchResponse>, ResponseError> {
+async fn append_stream_batch(
+    server: State<StreamServer>,
+    batch: Json<StreamAppendBatchRequest>,
+) -> Result<Json<StreamAppendBatchResponse>, ResponseError> {
     let mut jobs = vec![];
     for request in batch.0.batch.into_iter() {
         let server_clone = server.clone();
-        let job =  tokio::spawn(async move {
+        let job = tokio::spawn(async move {
             let stream_id = request.stream_id;
             let data = request.data.unwrap_or_default();
             if let Ok(offset) = server_clone.store.append_async(stream_id, data).await {
-                log::info!("append stream success, stream_id: {}, offset: {}", stream_id, offset);
-            }else{
-                log::error!("append stream error, stream_id: {}", stream_id);   
+                log::info!(
+                    "append stream success, stream_id: {}, offset: {}",
+                    stream_id,
+                    offset
+                );
+            } else {
+                log::error!("append stream error, stream_id: {}", stream_id);
             }
         });
         jobs.push(job);
-
     }
 
     // wait for all jobs to complete
@@ -43,7 +46,7 @@ async fn append_stream_batch(server: State<StreamServer>, batch: Json<StreamAppe
         job.await.unwrap();
     }
 
-    Ok(Json(StreamAppendBatchResponse{}))
+    Ok(Json(StreamAppendBatchResponse {}))
 }
 
 #[axum::debug_handler]
@@ -52,12 +55,22 @@ async fn append_stream(
     server: State<StreamServer>,
     mut request: Json<StreamAppendRequest>,
 ) -> Result<Json<StreamAppendResponse>, ResponseError> {
+    log::info!(
+        "append stream {}, claims: {:?}",
+        request.stream_id,
+        claims.user_id
+    );
     let mut acl_checker = AclChecker::new(claims.user_id, request.stream_id, &server);
     if !acl_checker.check_acl().await.unwrap_or(false) {
         return Err(ResponseError::Forbidden);
     }
-   let offset = server.append_stream(request.stream_id, request.data.take().unwrap_or_default()).await?;
-    Ok(Json(StreamAppendResponse { stream_id: request.stream_id, offset }))
+    let offset = server
+        .append_stream(request.stream_id, request.data.take().unwrap_or_default())
+        .await?;
+    Ok(Json(StreamAppendResponse {
+        stream_id: request.stream_id,
+        offset,
+    }))
 }
 
 struct AclChecker<'a> {
@@ -98,6 +111,12 @@ async fn read_one_stream_handler(
     sender: mpsc::Sender<StreamReadResponse>,
     server: State<StreamServer>,
 ) -> Result<()> {
+    log::info!(
+        "read_one_stream_handler, user_id: {:?}, request: {:?}",
+        user_id,
+        request,
+    );
+
     let stream_id = request.stream_id;
     let mut offset = request.offset;
     let mut acl_checker = AclChecker::new(user_id, stream_id, &server);
@@ -113,6 +132,13 @@ async fn read_one_stream_handler(
                 log::error!("offset or length is out of range");
                 return Err(anyhow::anyhow!("offset or length is out of range"));
             }
+            log::info!(
+                "read_one_stream_handler, stream_id: {:?}, offset: {:?}, begin: {:?}, end: {:?}",
+                stream_id,
+                offset,
+                begin,
+                end
+            );
 
             let _permit = select! {
                 permit = semaphore.acquire() => {
@@ -135,9 +161,15 @@ async fn read_one_stream_handler(
                 let mut reader = reader.clone();
                 let data = select! {
                     data = tokio::task::spawn_blocking(move || {
-                        let mut data = Vec::with_capacity(128 * 1024);
+                        let mut data = vec![0; 128 * 1024];
                         match reader.read(&mut data) {
                             Ok(read_bytes) => {
+                                log::info!(
+                                    "read_one_stream_handler, stream_id: {:?}, offset: {:?}, read_bytes: {:?}",
+                                    stream_id,
+                                    offset,
+                                    read_bytes
+                                );
                                 data.truncate(read_bytes);
                                 Ok(data)
                             }
@@ -168,6 +200,13 @@ async fn read_one_stream_handler(
                     }
 
                     offset += data.len() as u64;
+                    log::info!(
+                        "read_one_stream_handler, stream_id: {:?}, offset: {:?}, data: {:?}",
+                        stream_id,
+                        offset,
+                        data.len()
+                    );
+                    let data_len = data.len();
                     let response = StreamReadResponse {
                         stream_id,
                         offset,
@@ -175,6 +214,12 @@ async fn read_one_stream_handler(
                     };
                     select! {
                         _ = sender.send(response) => {
+                            log::info!(
+                                "read_one_stream_handler, stream_id: {:?}, offset: {:?}, data: {:?}",
+                                stream_id,
+                                offset,
+                                data_len
+                            );
                             continue;
                         }
                         _ = token.cancelled() => {
@@ -225,19 +270,25 @@ async fn read_stream_handler(
     let token_clone = token.clone();
     let (tx, mut rx) = mpsc::channel(32);
     let semaphore = Arc::new(Semaphore::new(8));
-    
+
     // Spawn a task to handle incoming messages from the WebSocket
     let receiver_task = tokio::spawn(async move {
         while let Some(msg) = socket_receiver.next().await {
+            log::info!("read stream, msg: {:?}", msg);
             match msg {
                 Ok(Message::Text(text)) => {
                     let text_str = text.to_string();
+                    log::info!("read stream, text_str: {:?}", text_str);
                     match serde_json::from_str::<StreamReadRequest>(&text_str) {
                         Ok(request) => {
                             let semaphore = semaphore.clone();
                             let tx = tx.clone();
                             let token = token_clone.clone();
                             let server = server.clone();
+                            log::info!(
+                                "read stream, spawn read_one_stream_handler, request: {:?}",
+                                request
+                            );
                             tokio::spawn(async move {
                                 if let Err(e) = read_one_stream_handler(
                                     user_id,
@@ -252,7 +303,7 @@ async fn read_stream_handler(
                                     log::error!("read stream error: {}", e);
                                 }
                             });
-                        },
+                        }
                         Err(e) => {
                             log::error!("Failed to parse stream read request: {}", e);
                             // Send error message back to client
@@ -266,23 +317,23 @@ async fn read_stream_handler(
                             }
                         }
                     }
-                },
+                }
                 Ok(Message::Binary(_data)) => {
                     log::warn!("Received binary message, which is not supported");
-                },
+                }
                 Ok(Message::Ping(data)) => {
                     let mut sender = socket_sender.lock().await;
                     if let Err(e) = sender.send(Message::Pong(data)).await {
                         log::error!("Failed to send pong: {}", e);
                     }
-                },
+                }
                 Ok(Message::Pong(_)) => {
                     // Ignore pong messages
-                },
+                }
                 Ok(Message::Close(_)) => {
                     log::info!("WebSocket connection closed by client");
                     break;
-                },
+                }
                 Err(e) => {
                     log::error!("WebSocket error: {}", e);
                     break;
@@ -291,7 +342,7 @@ async fn read_stream_handler(
         }
         token_clone.cancel();
     });
-    
+
     // Spawn a task to handle outgoing messages to the WebSocket
     let sender_task = tokio::spawn(async move {
         while let Some(response) = rx.recv().await {
@@ -302,14 +353,14 @@ async fn read_stream_handler(
                         log::error!("Failed to send stream data: {}", e);
                         break;
                     }
-                },
+                }
                 Err(e) => {
                     log::error!("Failed to serialize stream response: {}", e);
                 }
             }
         }
     });
-    
+
     // Wait for either task to complete
     tokio::select! {
         _ = receiver_task => {
@@ -320,7 +371,7 @@ async fn read_stream_handler(
             token.cancel();
         }
     }
-    
+
     Ok(())
 }
 
@@ -331,6 +382,7 @@ async fn read_stream(
     server: State<StreamServer>,
 ) -> impl IntoResponse {
     let user_id = claims.user_id;
+    log::info!("read stream, claims: {:?}", claims);
     ws.on_upgrade(move |socket| async move {
         if let Err(e) = read_stream_handler(user_id, socket, server).await {
             log::error!("read stream error: {}", e);
