@@ -688,6 +688,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cherry-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cherrycore",
+ "chrono",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "cherrycore"
 version = "0.1.0"
 dependencies = [
@@ -4700,6 +4711,7 @@ dependencies = [
  "axum",
  "cherrycore",
  "clap",
+ "env_logger",
  "futures-util",
  "log",
  "reqwest",

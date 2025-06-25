@@ -1,3 +1,3 @@
 [workspace]
-members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore", "crates/streamserver"]
+members = [ "crates/cherryserver","crates/streamstore", "crates/cherry/src-tauri", "crates/cherrycore", "crates/streamserver", "test_message_sending"]
 resolver = "3"

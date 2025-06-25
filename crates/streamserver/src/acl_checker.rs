@@ -1,8 +1,7 @@
-use std::time;
+use crate::StreamServer;
 use anyhow::Result;
 use cherrycore::types;
-use crate::StreamServer;
-
+use std::time;
 
 pub struct AclChecker<'a> {
     user_id: uuid::Uuid,
@@ -34,11 +33,18 @@ impl<'a> AclChecker<'a> {
     }
 
     pub async fn check_acl_from_cherry_server(&self) -> Result<bool> {
+        if self.server.config.disable_acl_check {
+            return Ok(true);
+        }
+
         let url = format!("{}/api/v1/acl/check", self.server.config.cherry_server_url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
-            .query(&[("user_id", self.user_id.to_string()), ("stream_id", self.stream_id.to_string())])
+            .query(&[
+                ("user_id", self.user_id.to_string()),
+                ("stream_id", self.stream_id.to_string()),
+            ])
             .send()
             .await?;
         let body = response.text().await?;
@@ -46,4 +52,3 @@ impl<'a> AclChecker<'a> {
         Ok(response.allowed)
     }
 }
-
