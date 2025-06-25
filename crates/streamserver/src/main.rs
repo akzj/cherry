@@ -15,7 +15,7 @@ use clap::Parser;
 use serde::Deserialize;
 use tokio::{net::TcpListener, sync::watch};
 
-use streamstore::store::Store;
+use streamstore::{StreamId, store::Store};
 mod acl_checker;
 mod stream;
 
@@ -44,7 +44,7 @@ struct StreamServer {
 struct StreamServerInner {
     config: StreamServerConfig,
     store: streamstore::store::Store,
-    watchers: Arc<Mutex<HashMap<u64, (watch::Sender<u64>, watch::Receiver<u64>)>>>,
+    watchers: Arc<Mutex<HashMap<StreamId, (watch::Sender<u64>, watch::Receiver<u64>)>>>,
 }
 
 impl std::ops::Deref for StreamServer {
@@ -66,7 +66,11 @@ impl StreamServer {
         }
     }
 
-    async fn append_stream(&self, stream_id: u64, data: Vec<u8>) -> Result<u64, ResponseError> {
+    async fn append_stream(
+        &self,
+        stream_id: StreamId,
+        data: Vec<u8>,
+    ) -> Result<u64, ResponseError> {
         if data.is_empty() {
             return Err(ResponseError::DataEmpty);
         }

@@ -24,3 +24,4 @@ log = "0.4.27"
 crc32fast = "1.4.2"
 # diesel = "2.2.10"
 # diesel-async = { version = "0.3.1", features = ["postgres"] }
+streamstore = { path = "../streamstore" }

@@ -16,7 +16,47 @@ export interface Message {
   type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
 }
 
+// 后端消息类型
+export interface BackendMessage {
+  id: number;
+  user_id: string;
+  content: string;
+  timestamp: string;
+  reply_to?: number;
+  type: string;
+}
 
+// 流事件类型
+export interface StreamEvent {
+  ConversationCreated?: {
+    conversation_id: string;
+  };
+  ConversationMemberAdded?: {
+    conversation_id: string;
+    member_id: string;
+  };
+  ConversationMemberRemoved?: {
+    conversation_id: string;
+    member_id: string;
+  };
+}
+
+// Cherry消息类型
+export type CherryMessage = 
+  | { Message: BackendMessage }
+  | { Event: StreamEvent };
+
+// 转换后端消息到前端消息
+export function convertBackendMessage(backendMsg: BackendMessage): Message {
+  return {
+    id: backendMsg.id,
+    userId: backendMsg.user_id,
+    content: backendMsg.content,
+    timestamp: backendMsg.timestamp,
+    reply_to: backendMsg.reply_to,
+    type: backendMsg.type as Message['type'],
+  };
+}
 
 // pub struct Conversation {
 //   pub conversation_id: Uuid,

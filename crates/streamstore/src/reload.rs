@@ -14,7 +14,7 @@ use crate::{
     entry::Decoder,
     errors,
     mem_table::{GetStreamOffset, MemTable},
-    segments::Segment,
+    segments::Segment, StreamId,
 };
 
 pub fn reload_segments(segment_path: &str, check_crc: bool) -> Result<VecDeque<Arc<Segment>>> {
@@ -123,8 +123,12 @@ pub fn reload_wals(
     wal_path: &str,
     last_segment_entry_index: u64,
     max_table_size: u64,
-    offset_map: &mut hash_map::HashMap<u64, u64>,
-) -> Result<(VecDeque<Rc<MemTable>>, HashMap<u64, PathBuf>, (File, PathBuf))> {
+    offset_map: &mut hash_map::HashMap<StreamId, u64>,
+) -> Result<(
+    VecDeque<Rc<MemTable>>,
+    HashMap<u64, PathBuf>,
+    (File, PathBuf),
+)> {
     // Check if the WAL path exists
     if !std::path::Path::new(wal_path).exists() {
         // create the wal path if it does not exist

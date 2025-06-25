@@ -6,15 +6,21 @@ use anyhow::Result;
 use env_logger;
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, State};
+use tauri::{ipc::Channel, Emitter, Manager, State};
 
 use crate::db::{
     models::{Contact as DbContact, User},
     repo::Repo,
 };
 use cherrycore::{
-    client::cherry::{AuthCredentials, CherryClient},
-    types::{Contact, Conversation, LoginResponse},
+    client::{
+        cherry::{AuthCredentials, CherryClient},
+        stream::{StreamClient, StreamRecordDecoderMachine},
+    },
+    types::{
+        CherryMessage, Contact, Conversation, DataFormat, LoginResponse, Message, StreamEvent,
+        StreamReadRequest,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -57,8 +63,10 @@ struct NotificationEvent {
 }
 
 struct AppState {
-    repo: Repo,
+    //repo: Repo,
     cherry_client: Mutex<Option<CherryClient>>,
+    stream_client: Mutex<Option<StreamClient>>,
+    conversations: Mutex<Vec<Conversation>>,
 }
 
 impl AppState {
@@ -70,9 +78,16 @@ impl AppState {
             .ok_or(anyhow::anyhow!("Not authenticated"))
     }
 
-    async fn init(&self, app: &tauri::AppHandle) -> Result<()> {
-        let cherry_client = self.get_cherry_client()?;
+    fn get_stream_client(&self) -> Result<StreamClient> {
+        let guard = self.stream_client.lock().unwrap();
+        guard
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow::anyhow!("Not authenticated"))
+    }
 
+    async fn emit_contacts_updated(&self, app: &tauri::AppHandle) -> Result<()> {
+        let cherry_client = self.get_cherry_client()?;
         // 获取联系人列表
         match cherry_client.get_contacts().await {
             Ok(contacts) => {
@@ -96,11 +111,16 @@ impl AppState {
                 log::error!("Failed to get contacts: {}", e);
             }
         }
+        Ok(())
+    }
 
+    async fn emit_conversations_updated(&self, app: &tauri::AppHandle) -> Result<()> {
         // 获取会话列表
+        let cherry_client = self.get_cherry_client()?;
         match cherry_client.get_conversations().await {
             Ok(conversations) => {
                 // 通知前端更新会话列表
+                *self.conversations.lock().unwrap() = conversations.clone();
                 let event = NotificationEvent {
                     event_type: "conversations_updated".to_string(),
                     data: serde_json::json!({
@@ -120,7 +140,63 @@ impl AppState {
                 log::error!("Failed to get conversations: {}", e);
             }
         }
+        Ok(())
+    }
 
+    async fn start_receive_message(&self, on_event: Channel<CherryMessage>) -> Result<()> {
+        let stream_client = self.get_stream_client()?;
+        let (sender, mut receiver) = stream_client.open_stream().await?;
+
+        let mut decoder_machine = StreamRecordDecoderMachine::new();
+        tokio::spawn(async move {
+            while let Some(response) = receiver.recv().await {
+                log::info!("Received message: {:?}", response);
+                let records = decoder_machine.decode(
+                    response.stream_id,
+                    response.offset,
+                    response.data.as_slice(),
+                );
+                if let Ok(Some(records)) = records {
+                    for (record, offset) in records {
+                        match record.meta.data_format {
+                            DataFormat::JsonMessage => {
+                                let decoded_message: Message =
+                                    serde_json::from_slice(&record.content).unwrap();
+                                log::info!("Decoded message: {:?}", decoded_message);
+                                on_event
+                                    .send(CherryMessage::Message(decoded_message))
+                                    .unwrap();
+                            }
+                            DataFormat::JsonEvent => {
+                                let decoded_event: StreamEvent =
+                                    serde_json::from_slice(&record.content).unwrap();
+                                log::info!("Decoded event: {:?}", decoded_event);
+                                on_event.send(CherryMessage::Event(decoded_event)).unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Collect conversations into a local variable to avoid holding MutexGuard across async boundary
+        let conversations = self.conversations.lock().unwrap().clone();
+        for conversation in conversations {
+            let stream_id = conversation.stream_id;
+            sender
+                .send(StreamReadRequest {
+                    stream_id,
+                    offset: 0,
+                })
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn init(&self, app: &tauri::AppHandle) -> Result<()> {
+        self.emit_contacts_updated(app).await?;
+        self.emit_conversations_updated(app).await?;
         Ok(())
     }
 
@@ -146,6 +222,7 @@ async fn cmd_login(
     password: String,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
+    on_event: Channel<CherryMessage>,
 ) -> Result<cherrycore::types::UserInfo, CommandError> {
     log::info!("cmd_login: username={}, password={}", email, password);
     let cherry_client = CherryClient::new().expect("Failed to create Cherry client");
@@ -154,14 +231,24 @@ async fn cmd_login(
         .login(&email, &password)
         .await
         .map_err(CommandError::from)?;
+
     let cherry_client = cherry_client.with_auth(AuthCredentials {
         user_id: login_response.user_info.user_id,
-        jwt_token: login_response.jwt_token,
+        jwt_token: login_response.jwt_token.clone(),
     });
     state.cherry_client.lock().unwrap().replace(cherry_client);
 
+    let stream_client = StreamClient::new(
+        "http://localhost:8080",
+        Some(login_response.jwt_token.clone()),
+    );
+    state.stream_client.lock().unwrap().replace(stream_client);
+
     // 登录成功后初始化数据并通知前端
     state.init(&app).await.map_err(CommandError::from)?;
+    
+    // 启动消息接收
+    state.start_receive_message(on_event).await?;
 
     Ok(login_response.user_info)
 }
@@ -244,16 +331,6 @@ async fn cmd_refresh_conversations(
 }
 
 #[tauri::command]
-async fn cmd_user_get_by_id(id: i32, state: State<'_, AppState>) -> Result<User, CommandError> {
-    let user = state
-        .repo
-        .user_get_by_id(id)
-        .await
-        .map_err(CommandError::from)?;
-    Ok(user)
-}
-
-#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -268,13 +345,15 @@ pub async fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
-            repo: Repo::new(db_path.to_str().unwrap()).await,
+            conversations: Mutex::new(vec![]),
+            stream_client: Mutex::new(None),
             cherry_client: Mutex::new(None),
+            // todo: 需要重新设计
+            // repo: Repo::new(db_path.to_str().unwrap()).await,
         })
         .invoke_handler(tauri::generate_handler![
             greet,
             cmd_login,
-            cmd_user_get_by_id,
             cmd_contact_list_all,
             cmd_conversation_list_all,
             cmd_refresh_contacts,

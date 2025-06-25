@@ -10,12 +10,15 @@ import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
+import MessageTest from './components/MessageTest';
 import LoginForm from './pages/login';
 import { Message, User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
 import { useNotifications } from './store/notification';
 import { useConversationStore } from './store/conversation';
+import { useMessageStore } from './store/message';
+import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
 
 // ==================== Styled Components ====================
@@ -439,7 +442,6 @@ const App: React.FC = () => {
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
 
   // 模态窗口状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -459,6 +461,12 @@ const App: React.FC = () => {
     refreshConversations,
     getConversationById 
   } = useConversationStore();
+
+  // 消息状态
+  const { addMessage, getMessages } = useMessageStore();
+
+  // 消息接收
+  useMessageReceiver();
 
   // 初始化认证状态
   useEffect(() => {
@@ -534,26 +542,27 @@ const App: React.FC = () => {
   // 当前选中的会话
   const selectedConvo = selectedConversation ? getConversationById(selectedConversation) : null;
 
+  // 获取当前会话的消息
+  const currentMessages = selectedConversation ? getMessages(selectedConversation) : [];
+
   // 处理会话选择
   const handleSelectConversation = (id: string) => {
     setSelectedConversation(id);
-    const conversation = getConversationById(id);
-    if (conversation) {
-      setMessages(conversation.messages);
-    }
   };
 
   // 处理发送消息
   const handleSendMessage = (content: string) => {
+    if (!selectedConversation) return;
+    
     const newMessage: Message = {
-      id: `msg_${Date.now()}`,
+      id: Date.now(), // 使用时间戳作为临时ID
       userId: currentUser.id,
       content,
       timestamp: new Date().toISOString(),
-      isOwn: true,
-      status: 'sent'
+      type: 'text'
     };
-    setMessages(prev => [...prev, newMessage]);
+    
+    addMessage(selectedConversation, newMessage);
   };
 
   // 如果正在加载认证状态，显示加载界面
@@ -650,12 +659,15 @@ const App: React.FC = () => {
           <ChatArea>
             {selectedConvo && <ChatHeader conversation={selectedConvo} />}
             <MessageList
-              messages={messages}
+              messages={currentMessages}
               currentUser={currentUser}
             />
             <MessageInput onSend={handleSendMessage} />
           </ChatArea>
         )}
+        
+        {/* 临时添加消息测试组件 */}
+        <MessageTest />
       </MainContent>
 
       {/* Settings Modal */}

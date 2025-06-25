@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, Channel } from '@tauri-apps/api/core';
+import { CherryMessage } from '../types/types';
 
 // 用户信息接口
 export interface User {
@@ -71,8 +72,22 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         
         try {
-          // 调用Tauri命令进行登录
-          const userInfo = await invoke('cmd_login', { email, password }) as {
+          // 创建事件通道用于接收消息
+          const onEvent = new Channel<CherryMessage>();
+          
+          // 设置事件监听器
+          onEvent.onmessage = (message) => {
+            console.log('Received message from backend:', message);
+            // 触发全局事件，供其他组件监听
+            window.dispatchEvent(new CustomEvent('cherry-message', { detail: message }));
+          };
+          
+          // 调用Tauri命令进行登录，传递事件通道
+          const userInfo = await invoke('cmd_login', { 
+            email, 
+            password,
+            onEvent 
+          }) as {
             user_id: string;
             username: string;
             email: string;

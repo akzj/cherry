@@ -271,7 +271,7 @@ async fn create_conversation(
         let mut batch = Vec::new();
         for stream_id in stream_ids {
             batch.push(StreamAppendRequest {
-                stream_id: stream_id as u64,
+                stream_id: stream_id,
                 data: Some(
                     StreamEvent::ConversationCreated {
                         conversation_id: conversation.conversation_id,

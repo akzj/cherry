@@ -1,6 +1,7 @@
 use std::{io, sync::Arc};
 
 use crate::{
+    StreamId,
     mem_table::MemTableWeak,
     metrics,
     store::{SegmentWeak, StreamStoreInner},
@@ -17,7 +18,7 @@ pub enum StreamReadState {
 #[derive(Clone)]
 
 pub struct StreamReader {
-    stream_id: u64,
+    stream_id: StreamId,
     inner: Arc<StreamStoreInner>,
     offset: Arc<std::sync::atomic::AtomicU64>,
     read_mem_table: Option<MemTableWeak>,
@@ -26,7 +27,7 @@ pub struct StreamReader {
 }
 
 impl StreamReader {
-    pub fn new(inner: Arc<StreamStoreInner>, stream_id: u64) -> Self {
+    pub fn new(inner: Arc<StreamStoreInner>, stream_id: StreamId) -> Self {
         Self {
             inner,
             stream_id,
@@ -37,7 +38,7 @@ impl StreamReader {
         }
     }
 
-    pub fn stream_id(&self) -> u64 {
+    pub fn stream_id(&self) -> StreamId {
         self.stream_id
     }
 

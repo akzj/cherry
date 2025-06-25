@@ -13,6 +13,7 @@ use std::{
     fmt::Debug,
     io::{Cursor, Read, Write},
 };
+use streamstore::StreamId;
 use uuid::Uuid;
 
 use crate::jwt::AuthError;
@@ -46,7 +47,7 @@ pub struct LoginResponse {
 #[derive(Debug, Serialize, Deserialize)]
 
 pub struct StreamAppendRequest {
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub data: Option<Vec<u8>>,
 }
 
@@ -60,14 +61,14 @@ pub struct StreamAppendBatchResponse {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StreamReadRequest {
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub offset: u64,
 }
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct StreamReadResponse {
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub offset: u64,
     #[serde_as(as = "Base64")]
     pub data: Vec<u8>,
@@ -87,14 +88,14 @@ impl Debug for StreamReadResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StreamAppendResponse {
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub offset: u64, // 偏移量
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckAclRequest {
     pub user_id: Uuid,
-    pub stream_id: i64,
+    pub stream_id: StreamId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -141,7 +142,7 @@ pub struct ListStreamRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Stream {
-    pub stream_id: i64,
+    pub stream_id: StreamId,
     pub owner_id: Uuid,
     pub stream_type: String,
     pub status: String,
@@ -156,13 +157,13 @@ pub struct ListStreamResponse {
     pub streams: Vec<Stream>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
     pub conversation_id: Uuid,
     pub conversation_type: String,
     pub members: Value,
     pub meta: Value,
-    pub stream_id: i64,
+    pub stream_id: StreamId,
     pub created_at: DateTime<chrono::Utc>,
     pub updated_at: DateTime<chrono::Utc>,
 }
@@ -179,13 +180,13 @@ pub struct StreamErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateStreamOffsetRequest {
-    pub stream_id: i64,
+    pub stream_id: StreamId,
     pub offset: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateStreamOffsetResponse {
-    pub stream_id: i64,
+    pub stream_id: StreamId,
     pub offset: i64,
     pub success: bool,
 }
@@ -276,6 +277,12 @@ impl ToString for StreamType {
     fn to_string(&self) -> String {
         self.into()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum CherryMessage {
+    Message(Message),
+    Event(StreamEvent),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

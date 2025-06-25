@@ -1,4 +1,4 @@
-use crate::{errors, mem_table::MemTable, store::SegmentArc};
+use crate::{StreamId, errors, mem_table::MemTable, store::SegmentArc};
 use anyhow::Result;
 use crc::Crc;
 use std::{
@@ -21,7 +21,7 @@ const SEGMENT_HEADER_VERSION_V1: u32 = 1;
 pub struct SegmentStreamHeader {
     pub(crate) version: u64,
     // The stream id
-    pub(crate) stream_id: u64,
+    pub(crate) stream_id: StreamId,
     // The offset of the stream
     pub(crate) offset: u64,
     // The offset of the stream in the file
@@ -158,14 +158,14 @@ impl Segment {
         }
     }
 
-    pub fn get_stream_range(&self, stream_id: u64) -> Option<(u64, u64)> {
+    pub fn get_stream_range(&self, stream_id: StreamId) -> Option<(u64, u64)> {
         let stream_header = self.find_stream_header(stream_id)?;
         let offset = stream_header.offset;
         let size = stream_header.size;
         Some((offset, offset + size))
     }
 
-    pub fn find_stream_header(&self, stream_id: u64) -> Option<SegmentStreamHeader> {
+    pub fn find_stream_header(&self, stream_id: StreamId) -> Option<SegmentStreamHeader> {
         self.get_stream_headers()
             .binary_search_by(|b| {
                 if b.stream_id < stream_id {
@@ -184,7 +184,12 @@ impl Segment {
         self.data.as_ref().unwrap().as_ptr()
     }
 
-    pub fn read_stream(&self, stream_id: u64, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+    pub fn read_stream(
+        &self,
+        stream_id: StreamId,
+        offset: u64,
+        buf: &mut [u8],
+    ) -> io::Result<usize> {
         let stream_header = self.find_stream_header(stream_id);
         return match stream_header {
             Some(stream_header) => {
@@ -219,7 +224,7 @@ impl Segment {
         };
     }
 
-    pub fn stream_data(&self, stream_id: u64) -> Option<&[u8]> {
+    pub fn stream_data(&self, stream_id: StreamId) -> Option<&[u8]> {
         let stream_header = self.find_stream_header(stream_id)?;
         let offset = stream_header.file_offset;
         let size = stream_header.size;
@@ -586,7 +591,7 @@ fn test_segment_header_size() {
         SEGMENT_HEADER_SIZE + SEGMENT_STREAM_HEADER_SIZE * seg_header.stream_headers_count;
     for (index, header) in segment.get_stream_headers().iter().enumerate() {
         assert!(header.version == SEGMENT_STREAM_HEADER_VERSION_V1);
-        assert!(header.stream_id == index as u64 + 1);
+        assert!(header.stream_id == index as StreamId + 1);
         assert!(header.offset == 0);
         assert!(
             header.file_offset == file_offset,
