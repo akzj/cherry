@@ -1,11 +1,11 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
-use async_tungstenite::{tokio::ConnectStream, tungstenite::Message, WebSocketStream};
 use crate::types::{
-    StreamAppendRequest, StreamAppendResponse, StreamAppendBatchRequest, StreamAppendBatchResponse,
-    StreamReadRequest, StreamReadResponse,
+    Message as CherryMessage, StreamAppendBatchRequest, StreamAppendBatchResponse,
+    StreamAppendRequest, StreamAppendResponse, StreamReadRequest, StreamReadResponse,
 };
+use anyhow::Result;
+use async_tungstenite::{WebSocketStream, tokio::ConnectStream, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 use tokio::select;
 
@@ -43,6 +43,16 @@ impl StreamClient {
         let resp = self.client.post(url).json(&request).send().await?;
         let response = resp.json::<StreamAppendResponse>().await?;
         Ok(response)
+    }
+
+    pub async fn send_message(
+        &self,
+        stream_id: u64,
+        message: CherryMessage,
+    ) -> Result<(), anyhow::Error> {
+        let data = message.encode()?;
+        self.append_stream(stream_id, data).await?;
+        Ok(())
     }
 
     pub async fn append_stream_batch(
