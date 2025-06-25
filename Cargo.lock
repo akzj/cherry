@@ -694,6 +694,7 @@ dependencies = [
  "anyhow",
  "cherrycore",
  "chrono",
+ "serde_json",
  "tokio",
  "uuid",
 ]
