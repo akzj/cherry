@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::types::{
-    Contact, Conversation, ListStreamRequest, ListStreamResponse, LoginRequest, LoginResponse,
-    ResponseError, User,
+    Contact, Conversation, ListConversationsResponse, ListStreamRequest, ListStreamResponse,
+    LoginRequest, LoginResponse, ResponseError, User,
 };
 
 /// Configuration for the Cherry client
@@ -138,7 +138,7 @@ impl CherryClient {
         let url = format!("{}{}", self.config.base_url, endpoint);
         let headers = self.create_headers()?;
 
-        log::info!("request: url={}, headers={:?}", url, headers); 
+        log::info!("request: url={}, headers={:?}", url, headers);
 
         let response = self
             .client
@@ -177,7 +177,7 @@ impl CherryClient {
         let url = format!("{}{}", self.config.base_url, endpoint);
         let headers = self.create_headers()?;
 
-        log::info!("request: url={}, headers={:?}", url, headers); 
+        log::info!("request: url={}, headers={:?}", url, headers);
 
         let response = self
             .client
@@ -236,8 +236,13 @@ impl CherryClient {
 
     /// Get all conversations for the authenticated user
     pub async fn get_conversations(&self) -> Result<Vec<Conversation>> {
-        self.request::<Vec<Conversation>>(reqwest::Method::GET, "/api/v1/conversations/list")
-            .await
+        let response = self
+            .request::<ListConversationsResponse>(
+                reqwest::Method::GET,
+                "/api/v1/conversations/list",
+            )
+            .await?;
+        Ok(response.conversations)
     }
 
     /// Get all streams for a user

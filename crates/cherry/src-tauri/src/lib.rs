@@ -3,10 +3,10 @@
 mod db;
 
 use anyhow::Result;
+use env_logger;
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::{State, Manager, Emitter};
-use env_logger;
+use tauri::{Emitter, Manager, State};
 
 use crate::db::{
     models::{Contact as DbContact, User},
@@ -14,7 +14,7 @@ use crate::db::{
 };
 use cherrycore::{
     client::cherry::{AuthCredentials, CherryClient},
-    types::{LoginResponse, Conversation, Contact},
+    types::{Contact, Conversation, LoginResponse},
 };
 
 #[derive(Debug, Serialize)]
@@ -62,56 +62,65 @@ struct AppState {
 }
 
 impl AppState {
-    async fn init(&self, app: &tauri::AppHandle) -> Result<()> {
-        let cherry_client = {
-            let guard = self.cherry_client.lock().unwrap();
-            guard.as_ref().cloned()
-        };
-        
-        if let Some(cherry_client) = cherry_client {
-            // 获取联系人列表
-            match cherry_client.get_contacts().await {
-                Ok(contacts) => {
-                    // 通知前端更新联系人列表
-                    let event = NotificationEvent {
-                        event_type: "contacts_updated".to_string(),
-                        data: serde_json::json!({
-                            "count": contacts.len(),
-                            "contacts": contacts
-                        }),
-                        timestamp: chrono::Utc::now().timestamp(),
-                    };
-                    
-                    app.emit("notification", &event).unwrap();
-                    log::info!("Emitted contacts_updated event with {} contacts", contacts.len());
-                }
-                Err(e) => {
-                    log::error!("Failed to get contacts: {}", e);
-                }
-            }
+    fn get_cherry_client(&self) -> Result<CherryClient> {
+        let guard = self.cherry_client.lock().unwrap();
+        guard
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow::anyhow!("Not authenticated"))
+    }
 
-            // 获取会话列表
-            match cherry_client.get_conversations().await {
-                Ok(conversations) => {
-                    // 通知前端更新会话列表
-                    let event = NotificationEvent {
-                        event_type: "conversations_updated".to_string(),
-                        data: serde_json::json!({
-                            "count": conversations.len(),
-                            "conversations": conversations
-                        }),
-                        timestamp: chrono::Utc::now().timestamp(),
-                    };
-                    
-                    app.emit("notification", &event).unwrap();
-                    log::info!("Emitted conversations_updated event with {} conversations", conversations.len());
-                }
-                Err(e) => {
-                    log::error!("Failed to get conversations: {}", e);
-                }
+    async fn init(&self, app: &tauri::AppHandle) -> Result<()> {
+        let cherry_client = self.get_cherry_client()?;
+
+        // 获取联系人列表
+        match cherry_client.get_contacts().await {
+            Ok(contacts) => {
+                // 通知前端更新联系人列表
+                let event = NotificationEvent {
+                    event_type: "contacts_updated".to_string(),
+                    data: serde_json::json!({
+                        "count": contacts.len(),
+                        "contacts": contacts
+                    }),
+                    timestamp: chrono::Utc::now().timestamp(),
+                };
+
+                app.emit("notification", &event).unwrap();
+                log::info!(
+                    "Emitted contacts_updated event with {} contacts",
+                    contacts.len()
+                );
+            }
+            Err(e) => {
+                log::error!("Failed to get contacts: {}", e);
             }
         }
-        
+
+        // 获取会话列表
+        match cherry_client.get_conversations().await {
+            Ok(conversations) => {
+                // 通知前端更新会话列表
+                let event = NotificationEvent {
+                    event_type: "conversations_updated".to_string(),
+                    data: serde_json::json!({
+                        "count": conversations.len(),
+                        "conversations": conversations
+                    }),
+                    timestamp: chrono::Utc::now().timestamp(),
+                };
+
+                app.emit("notification", &event).unwrap();
+                log::info!(
+                    "Emitted conversations_updated event with {} conversations",
+                    conversations.len()
+                );
+            }
+            Err(e) => {
+                log::error!("Failed to get conversations: {}", e);
+            }
+        }
+
         Ok(())
     }
 
@@ -122,7 +131,7 @@ impl AppState {
             data,
             timestamp: chrono::Utc::now().timestamp(),
         };
-        
+
         if let Err(e) = app.emit("notification", &event) {
             log::error!("Failed to emit notification event: {}", e);
         } else {
@@ -150,46 +159,38 @@ async fn cmd_login(
         jwt_token: login_response.jwt_token,
     });
     state.cherry_client.lock().unwrap().replace(cherry_client);
-    
+
     // 登录成功后初始化数据并通知前端
     state.init(&app).await.map_err(CommandError::from)?;
-    
+
     Ok(login_response.user_info)
 }
 
 #[tauri::command]
 async fn cmd_contact_list_all(state: State<'_, AppState>) -> Result<Vec<Contact>, CommandError> {
-    let cherry_client = {
-        let guard = state.cherry_client.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-    
-    if let Some(cherry_client) = cherry_client {
-        let contacts = cherry_client.get_contacts().await.map_err(CommandError::from)?;
-        Ok(contacts)
-    } else {
-        Err(CommandError {
-            message: "Not authenticated".to_string(),
-        })
-    }
+    let cherry_client = state.get_cherry_client()?;
+    let contacts = cherry_client
+        .get_contacts()
+        .await
+        .map_err(CommandError::from)?;
+    Ok(contacts)
 }
 
 #[tauri::command]
-async fn cmd_conversation_list_all(state: State<'_, AppState>) -> Result<Vec<Conversation>, CommandError> {
-    let cherry_client = {
-        let guard = state.cherry_client.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-    
-    if let Some(cherry_client) = cherry_client {
-        let conversations = cherry_client.get_conversations().await.map_err(CommandError::from)?;
-        log::info!("cmd_conversation_list_all: conversations={:?}", conversations);
-        Ok(conversations)
-    } else {
-        Err(CommandError {
-            message: "Not authenticated".to_string(),
-        })
-    }
+async fn cmd_conversation_list_all(
+    state: State<'_, AppState>,
+) -> Result<Vec<Conversation>, CommandError> {
+    let cherry_client = state.get_cherry_client()?;
+
+    let conversations = cherry_client
+        .get_conversations()
+        .await
+        .map_err(CommandError::from)?;
+    log::info!(
+        "cmd_conversation_list_all: conversations={:?}",
+        conversations
+    );
+    Ok(conversations)
 }
 
 #[tauri::command]
@@ -197,26 +198,24 @@ async fn cmd_refresh_contacts(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<Vec<Contact>, CommandError> {
-    let cherry_client = {
-        let guard = state.cherry_client.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-    
-    if let Some(cherry_client) = cherry_client {
-        let contacts = cherry_client.get_contacts().await.map_err(CommandError::from)?;
-        
-        // 通知前端更新联系人列表
-        state.emit_notification(&app, "contacts_updated", serde_json::json!({
+    let cherry_client = state.get_cherry_client()?;
+
+    let contacts = cherry_client
+        .get_contacts()
+        .await
+        .map_err(CommandError::from)?;
+
+    // 通知前端更新联系人列表
+    state.emit_notification(
+        &app,
+        "contacts_updated",
+        serde_json::json!({
             "count": contacts.len(),
             "contacts": contacts
-        }));
-        
-        Ok(contacts)
-    } else {
-        Err(CommandError {
-            message: "Not authenticated".to_string(),
-        })
-    }
+        }),
+    );
+
+    Ok(contacts)
 }
 
 #[tauri::command]
@@ -224,26 +223,24 @@ async fn cmd_refresh_conversations(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<Vec<Conversation>, CommandError> {
-    let cherry_client = {
-        let guard = state.cherry_client.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-    
-    if let Some(cherry_client) = cherry_client {
-        let conversations = cherry_client.get_conversations().await.map_err(CommandError::from)?;
-        
-        // 通知前端更新会话列表
-        state.emit_notification(&app, "conversations_updated", serde_json::json!({
+    let cherry_client = state.get_cherry_client()?;
+
+    let conversations = cherry_client
+        .get_conversations()
+        .await
+        .map_err(CommandError::from)?;
+
+    // 通知前端更新会话列表
+    state.emit_notification(
+        &app,
+        "conversations_updated",
+        serde_json::json!({
             "count": conversations.len(),
             "conversations": conversations
-        }));
-        
-        Ok(conversations)
-    } else {
-        Err(CommandError {
-            message: "Not authenticated".to_string(),
-        })
-    }
+        }),
+    );
+
+    Ok(conversations)
 }
 
 #[tauri::command]
