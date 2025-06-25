@@ -41,10 +41,10 @@ export interface StreamEvent {
   };
 }
 
-// Cherry消息类型
+// Cherry消息类型 - 更新为匹配后端格式
 export type CherryMessage = 
-  | { Message: BackendMessage }
-  | { Event: StreamEvent };
+  | { Message: { message: BackendMessage; conversation_id: string } }
+  | { Event: { event: StreamEvent } };
 
 // 转换后端消息到前端消息
 export function convertBackendMessage(backendMsg: BackendMessage): Message {

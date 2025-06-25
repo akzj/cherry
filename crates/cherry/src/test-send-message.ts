@@ -1,22 +1,41 @@
 // 测试发送消息功能的脚本
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, Channel } from '@tauri-apps/api/core';
+import { CherryMessage } from './types/types';
 
 async function testSendMessage() {
   console.log('开始测试发送消息功能...');
   
   try {
-    // 测试发送消息
-    console.log('📤 尝试发送消息...');
-    await invoke('cmd_send_message', {
-      conversationId: 'test-conversation-id',
-      content: 'Hello from test script!',
-      messageType: 'text'
+    // 创建事件通道
+    const onEvent = new Channel<CherryMessage>();
+    
+    // 设置事件监听器
+    onEvent.onmessage = (message) => {
+      console.log('✅ 成功接收到消息:', message);
+      
+      if ('Message' in message) {
+        const { message: backendMessage, conversation_id } = message.Message;
+        console.log('📨 收到聊天消息:', backendMessage);
+        console.log('💬 会话ID:', conversation_id);
+      } else if ('Event' in message) {
+        const { event: streamEvent } = message.Event;
+        console.log('📢 收到流事件:', streamEvent);
+      }
+    };
+    
+    // 调用登录命令
+    console.log('🔐 尝试登录...');
+    const userInfo = await invoke('cmd_login', {
+      email: 'alice@example.com',
+      password: 'password123',
+      onEvent
     });
     
-    console.log('✅ 消息发送成功！');
+    console.log('✅ 登录成功:', userInfo);
+    console.log('🎉 消息接收功能测试完成！');
     
   } catch (error) {
-    console.error('❌ 发送消息失败:', error);
+    console.error('❌ 测试失败:', error);
   }
 }
 

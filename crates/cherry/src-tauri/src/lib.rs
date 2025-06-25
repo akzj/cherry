@@ -5,8 +5,10 @@ mod db;
 use anyhow::Result;
 use env_logger;
 use serde::Serialize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{ipc::Channel, Emitter, Manager, State};
+use streamstore::StreamId;
+use uuid;
 
 use crate::db::{
     models::{Contact as DbContact, User},
@@ -62,12 +64,23 @@ struct NotificationEvent {
     timestamp: i64,
 }
 
-struct AppState {
-    //repo: Repo,
+struct AppStateInner {
     cherry_client: Mutex<Option<CherryClient>>,
     stream_client: Mutex<Option<StreamClient>>,
     conversations: Mutex<Vec<Conversation>>,
     user_info: Mutex<Option<UserInfo>>,
+}
+
+#[derive(Clone)]
+struct AppState {
+    inner: Arc<AppStateInner>
+}
+
+impl std::ops::Deref for AppState {
+    type Target = AppStateInner;
+    fn deref(&self) -> &Self::Target {
+        return &self.inner
+    }
 }
 
 impl AppState {
@@ -85,6 +98,19 @@ impl AppState {
             .as_ref()
             .cloned()
             .ok_or(anyhow::anyhow!("Not authenticated"))
+    }
+
+    fn find_conversation_id(&self, stream_id: StreamId) -> Result<uuid::Uuid> {
+        let guard = self.conversations.lock().unwrap();
+        guard.iter()
+            .find_map(|c| {
+                if c.stream_id == stream_id {
+                    Some(c.conversation_id)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| anyhow::anyhow!("Conversation not found for stream_id: {}", stream_id))
     }
 
     async fn emit_contacts_updated(&self, app: &tauri::AppHandle) -> Result<()> {
@@ -149,6 +175,7 @@ impl AppState {
         let (sender, mut receiver) = stream_client.open_stream().await?;
 
         let mut decoder_machine = StreamRecordDecoderMachine::new();
+        let state = self.clone();
         tokio::spawn(async move {
             while let Some(response) = receiver.recv().await {
                 log::info!("Received message: {:?}", response);
@@ -161,18 +188,27 @@ impl AppState {
                     for (record, offset) in records {
                         match record.meta.data_format {
                             DataFormat::JsonMessage => {
-                                let decoded_message: Message =
+                                let conversation_id = state.find_conversation_id(response.stream_id);
+                                if conversation_id.is_err(){
+                                    log::info!("find_conversation_id error: {:?}",conversation_id.err());
+                                    continue;
+                                }
+                                let mut decoded_message: Message =
                                     serde_json::from_slice(&record.content).unwrap();
                                 log::info!("Decoded message: {:?}", decoded_message);
+                                decoded_message.id = offset as i64;
                                 on_event
-                                    .send(CherryMessage::Message(decoded_message))
+                                    .send(CherryMessage::Message{
+                                        message:decoded_message,
+                                        conversation_id:conversation_id.unwrap()
+                                    })
                                     .unwrap();
                             }
                             DataFormat::JsonEvent => {
                                 let decoded_event: StreamEvent =
                                     serde_json::from_slice(&record.content).unwrap();
                                 log::info!("Decoded event: {:?}", decoded_event);
-                                on_event.send(CherryMessage::Event(decoded_event)).unwrap();
+                                on_event.send(CherryMessage::Event{event:decoded_event}).unwrap();
                             }
                         }
                     }
@@ -403,10 +439,12 @@ pub async fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
-            conversations: Mutex::new(vec![]),
-            stream_client: Mutex::new(None),
-            cherry_client: Mutex::new(None),
-            user_info: Mutex::new(None),
+            inner: Arc::new(AppStateInner {
+                conversations: Mutex::new(vec![]),
+                stream_client: Mutex::new(None),
+                cherry_client: Mutex::new(None),
+                user_info: Mutex::new(None),
+            }),
             // todo: 需要重新设计
             // repo: Repo::new(db_path.to_str().unwrap()).await,
         })

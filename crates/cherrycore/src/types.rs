@@ -281,8 +281,13 @@ impl ToString for StreamType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CherryMessage {
-    Message(Message),
-    Event(StreamEvent),
+    Message {
+        message: Message,
+        conversation_id: Uuid,
+    },
+    Event {
+        event: StreamEvent,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
