@@ -1,11 +1,14 @@
 // src/components/MessageInput.tsx
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import ReplyMessage from './ReplyMessage';
+import { useMessageStore } from '../store/message';
 
 interface MessageInputProps {
-  onSend: (message: string) => Promise<void>;
+  onSend: (message: string, replyTo?: number) => Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
+  conversationId: string;
 }
 
 // ==================== Styled Components ====================
@@ -135,17 +138,20 @@ const SendButton = styled.button<{ $disabled: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false, conversationId }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const { replyingTo, setReplyingTo } = useMessageStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isSending && !disabled) {
       setIsSending(true);
       try {
-        await onSend(message);
+        const replyTo = replyingTo?.id;
+        await onSend(message, replyTo);
         setMessage('');
+        setReplyingTo(null); // 清除回复状态
       } catch (error) {
         console.error('Failed to send message:', error);
         // 可以在这里添加错误提示
@@ -155,10 +161,22 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
     }
   };
 
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
   const isDisabled = disabled || isLoading || isSending || !message.trim();
 
   return (
     <Container>
+      {/* 显示回复消息 */}
+      {replyingTo && (
+        <ReplyMessage 
+          message={replyingTo} 
+          onCancel={handleCancelReply}
+        />
+      )}
+      
       <Form onSubmit={handleSubmit}>
         <IconButton type="button" disabled={isDisabled}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -169,7 +187,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
         <InputContainer>
           <InputField
             type="text"
-            placeholder={isSending ? "Sending..." : "Type a message..."}
+            placeholder={replyingTo ? `回复 ${replyingTo.userId}...` : (isSending ? "Sending..." : "Type a message...")}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={isDisabled}

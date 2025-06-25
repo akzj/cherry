@@ -551,11 +551,11 @@ const App: React.FC = () => {
   };
 
   // 处理发送消息
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, replyTo?: number) => {
     if (!selectedConversation) return;
     
     try {
-      await sendMessage(selectedConversation, content);
+      await sendMessage(selectedConversation, content, 'text', replyTo);
     } catch (error) {
       console.error('Failed to send message:', error);
       // 可以在这里添加错误提示
@@ -657,12 +657,14 @@ const App: React.FC = () => {
             {selectedConvo && <ChatHeader conversation={selectedConvo} />}
             <MessageList
               messages={currentMessages}
-              currentUser={currentUser}
+              currentUserId={currentUser.id}
+              conversationId={selectedConversation || ''}
             />
             <MessageInput 
               onSend={handleSendMessage} 
               isLoading={false}
               disabled={!selectedConversation}
+              conversationId={selectedConversation || ''}
             />
           </ChatArea>
         )}

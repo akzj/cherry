@@ -14,6 +14,8 @@ export interface Message {
   timestamp: string;
   reply_to?: number;
   type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
+  replyToMessage?: Message;
+  isReply?: boolean;
 }
 
 // 后端消息类型
@@ -47,15 +49,26 @@ export type CherryMessage =
   | { Event: { event: StreamEvent } };
 
 // 转换后端消息到前端消息
-export function convertBackendMessage(backendMsg: BackendMessage): Message {
-  return {
+export function convertBackendMessage(backendMsg: BackendMessage, allMessages?: Message[]): Message {
+  const message: Message = {
     id: backendMsg.id,
     userId: backendMsg.user_id,
     content: backendMsg.content,
     timestamp: backendMsg.timestamp,
     reply_to: backendMsg.reply_to,
     type: backendMsg.type as Message['type'],
+    isReply: !!backendMsg.reply_to,
   };
+
+  // 如果有 reply_to 且提供了所有消息，尝试找到被回复的消息
+  if (backendMsg.reply_to && allMessages) {
+    const replyToMessage = allMessages.find(msg => msg.id === backendMsg.reply_to);
+    if (replyToMessage) {
+      message.replyToMessage = replyToMessage;
+    }
+  }
+
+  return message;
 }
 
 // pub struct Conversation {

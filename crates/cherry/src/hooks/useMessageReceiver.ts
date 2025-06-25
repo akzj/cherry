@@ -5,7 +5,7 @@ import { useNotifications } from '../store/notification';
 import { CherryMessage, convertBackendMessage } from '../types/types';
 
 export const useMessageReceiver = () => {
-  const { addMessage } = useMessageStore();
+  const { addMessage, getMessages } = useMessageStore();
   const { addNotification } = useNotifications();
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export const useMessageReceiver = () => {
       unlisten.then(f => f());
       window.removeEventListener('cherry-message', handleGlobalMessage as EventListener);
     };
-  }, [addMessage, addNotification]);
+  }, [addMessage, addNotification, getMessages]);
 
   // 返回一个处理消息的函数，供外部调用
   const handleMessage = (message: CherryMessage) => {

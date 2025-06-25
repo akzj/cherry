@@ -6,6 +6,7 @@ export interface MessageState {
   messages: Record<string, Message[]>; // conversationId -> messages
   isLoading: boolean;
   error: string | null;
+  replyingTo: Message | null; // 当前正在回复的消息
   
   // Actions
   addMessage: (conversationId: string, message: Message) => void;
@@ -16,12 +17,17 @@ export interface MessageState {
   setError: (error: string | null) => void;
   getMessages: (conversationId: string) => Message[];
   sendMessage: (conversationId: string, content: string, messageType?: string, replyTo?: number) => Promise<void>;
+  
+  // 回复相关方法
+  setReplyingTo: (message: Message | null) => void;
+  getMessageById: (conversationId: string, messageId: number) => Message | undefined;
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
   messages: {},
   isLoading: false,
   error: null,
+  replyingTo: null,
 
   addMessage: (conversationId: string, message: Message) => {
     set((state) => {
@@ -134,5 +140,12 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       
       throw error;
     }
+  },
+
+  setReplyingTo: (message: Message | null) => set({ replyingTo: message }),
+
+  getMessageById: (conversationId: string, messageId: number) => {
+    const messages = get().messages[conversationId] || [];
+    return messages.find((msg) => msg.id === messageId);
   },
 }));
