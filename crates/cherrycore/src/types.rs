@@ -4,10 +4,12 @@ use axum::{
 };
 
 use chrono::DateTime;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use uuid::Uuid;
+use std::collections::HashMap;
+use base64::Engine;
 
 use crate::jwt::AuthError;
 
@@ -274,6 +276,92 @@ pub enum StreamEvent {
         conversation_id: Uuid,
         member_id: Uuid,
     },
+}
+
+// export interface Message {
+//     id: number;
+//     userId: string;
+//     content: string;
+//     timestamp: string;
+//     reply_to?: number;
+//     type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
+//   }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Message {
+    pub id: i64,
+    pub user_id: Uuid,
+    pub content: String,
+    pub timestamp: DateTime<chrono::Utc>,
+    pub reply_to: Option<i64>,
+    #[serde(rename = "type")]
+    pub type_: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageRecordMeta {
+    pub version: u32,
+    pub content_size: u32,
+    pub crc32: u32,
+    pub data_format: u32, // 0: json, 1: protobuf, 2: text
+}
+
+pub struct MessageRecord {
+    pub meta: MessageRecordMeta,
+    pub content: Message,
+    pub tail: MessageRecordMeta,
+}
+
+impl Serialize for MessageRecord {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use std::io::Write;
+        use serde::ser::SerializeStruct;
+        
+        // 序列化 meta 为二进制（小端）
+        let mut meta_bytes = Vec::new();
+        meta_bytes.write_all(&self.meta.version.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize meta version: {}", e))
+        })?;
+        meta_bytes.write_all(&self.meta.content_size.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize meta content_size: {}", e))
+        })?;
+        meta_bytes.write_all(&self.meta.crc32.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize meta crc32: {}", e))
+        })?;
+        meta_bytes.write_all(&self.meta.data_format.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize meta data_format: {}", e))
+        })?;
+        
+        // 序列化 content 为 JSON
+        let content_json = serde_json::to_string(&self.content).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize content to JSON: {}", e))
+        })?;
+        
+        // 序列化 tail 为二进制（小端）
+        let mut tail_bytes = Vec::new();
+        tail_bytes.write_all(&self.tail.version.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize tail version: {}", e))
+        })?;
+        tail_bytes.write_all(&self.tail.content_size.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize tail content_size: {}", e))
+        })?;
+        tail_bytes.write_all(&self.tail.crc32.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize tail crc32: {}", e))
+        })?;
+        tail_bytes.write_all(&self.tail.data_format.to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize tail data_format: {}", e))
+        })?;
+        
+        // 序列化为结构体
+        let mut state = serializer.serialize_struct("MessageRecord", 3)?;
+        state.serialize_field("meta", &base64::engine::general_purpose::STANDARD.encode(&meta_bytes))?;
+        state.serialize_field("content", &content_json)?;
+        state.serialize_field("tail", &base64::engine::general_purpose::STANDARD.encode(&tail_bytes))?;
+        state.end()
+    }
 }
 
 #[cfg(test)]
@@ -700,5 +788,42 @@ mod tests {
         assert_eq!(deserialized.members.len(), 2);
         assert_eq!(deserialized.stream_id, 789);
         assert_eq!(deserialized.is_new, true);
+    }
+
+    #[test]
+    fn test_message_record_serialization() {
+        use uuid::Uuid;
+        use chrono::Utc;
+        
+        let message = Message {
+            id: 123,
+            user_id: Uuid::new_v4(),
+            content: "Hello, world!".to_string(),
+            timestamp: Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+        
+        let meta = MessageRecordMeta {
+            version: 1,
+            content_size: 100,
+            crc32: 0x12345678,
+            data_format: 0, // JSON
+        };
+        
+        let message_record = MessageRecord {
+            meta: meta.clone(),
+            content: message,
+            tail: meta,
+        };
+        
+        let json = serde_json::to_string(&message_record).unwrap();
+        println!("Serialized MessageRecord: {}", json);
+        
+        // 验证 JSON 包含正确的字段
+        assert!(json.contains("\"meta\""));
+        assert!(json.contains("\"content\""));
+        assert!(json.contains("\"tail\""));
+        assert!(json.contains("Hello, world!"));
     }
 }

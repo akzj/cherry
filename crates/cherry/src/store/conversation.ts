@@ -5,38 +5,39 @@ import { Conversation, ConversationBase, Message, User } from '../types/types';
 // Mock 消息数据（暂时保留）
 const mockMessages: Message[] = [
   {
-    id: 'msg1',
+    id: 1,
     userId: 'user2',
     content: 'Hey, how are you doing?',
-    timestamp: '2023-05-15T10:30:00Z'
+    timestamp: '2023-05-15T10:30:00Z',
+    type: 'text'
   },
   {
-    id: 'msg2',
+    id: 2,
     userId: 'user1',
     content: "I'm good, thanks! How about you?",
     timestamp: '2023-05-15T10:32:00Z',
-    isOwn: true,
-    status: 'read'
+    type: 'text'
   },
   {
-    id: 'msg3',
+    id: 3,
     userId: 'user2',
     content: "I'm doing great! Just finished that project we were talking about.",
-    timestamp: '2023-05-15T10:33:00Z'
+    timestamp: '2023-05-15T10:33:00Z',
+    type: 'text'
   },
   {
-    id: 'msg4',
+    id: 4,
     userId: 'user1',
     content: "That's awesome! Can you share some screenshots?",
     timestamp: '2023-05-15T10:35:00Z',
-    isOwn: true,
-    status: 'read'
+    type: 'text'
   },
   {
-    id: 'msg5',
+    id: 5,
     userId: 'user2',
     content: "Sure, I'll send them over shortly.",
-    timestamp: '2023-05-15T10:36:00Z'
+    timestamp: '2023-05-15T10:36:00Z',
+    type: 'text'
   }
 ];
 
@@ -66,16 +67,16 @@ const mockUsers: User[] = [
 interface ConversationState {
   // 数据状态
   conversations: Conversation[];
-  
+
   // 加载状态
   isLoading: boolean;
   error: string | null;
-  
+
   // 方法
   setConversations: (conversations: Conversation[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
+
   // API 方法
   refreshConversations: () => Promise<void>;
   getConversationById: (id: string) => Conversation | undefined;
@@ -87,11 +88,11 @@ const transformConversation = (backendConversation: ConversationBase): Conversat
   const conversationId = backendConversation.conversation_id;
   const conversationType = backendConversation.conversation_type;
   const meta = backendConversation.meta || {};
-  
+
   // 根据会话类型设置不同的默认值
   let name = meta.name || 'Unknown Conversation';
   let avatar = meta.avatar || 'https://randomuser.me/api/portraits/men/1.jpg';
-  
+
   // 如果是群聊，使用群组头像和名称
   if (conversationType === 'group') {
     avatar = meta.avatar || 'https://cdn.dribbble.com/users/7179533/avatars/normal/f422e09d77e62217dc67c457f3cf1807.jpg';
@@ -99,15 +100,16 @@ const transformConversation = (backendConversation: ConversationBase): Conversat
     // 如果是私聊，使用默认用户头像
     avatar = 'https://randomuser.me/api/portraits/women/2.jpg';
   }
-  
+
   // 生成 mock 的最后一条消息
   const lastMessage: Message = {
-    id: `msg_${conversationId}_last`,
+    id: 6,
     userId: 'user2',
     content: conversationType === 'group' ? 'Meeting at 3pm tomorrow' : 'Hey, how are you doing?',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    type: 'text'
   };
-  
+
   return {
     id: conversationId,
     name,
@@ -147,24 +149,24 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   refreshConversations: async () => {
     try {
       set({ isLoading: true, error: null });
-      
+
       // 调用后端 API 获取会话列表
       const backendConversations = await invoke('cmd_conversation_list_all') as any[];
-      
+
       // 转换数据格式
       const transformedConversations = backendConversations.map(transformConversation);
-      
-      set({ 
+
+      set({
         conversations: transformedConversations,
-        isLoading: false 
+        isLoading: false
       });
-      
+
       console.log('Refreshed conversations:', transformedConversations);
     } catch (error) {
       console.error('Failed to refresh conversations:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load conversations',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
