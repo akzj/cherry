@@ -17,37 +17,62 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  isInitialized: boolean;
   
   // 数据
   user: User | null;
   token: string | null;
   
   // 方法
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
+  initialize: () => void;
 }
 
 // 创建认证状态管理
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // 初始状态
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      isInitialized: false,
       user: null,
       token: null,
 
+      // 初始化方法
+      initialize: () => {
+        const state = get();
+        console.log('Initializing auth state:', state);
+        
+        // 检查是否有有效的 token 和用户信息
+        if (state.token && state.user) {
+          // 这里可以添加 token 验证逻辑
+          console.log('Found existing auth data, marking as initialized');
+          set({ isInitialized: true });
+        } else {
+          // 如果没有有效信息，清除状态并标记为已初始化
+          console.log('No valid auth data found, clearing state');
+          set({
+            isAuthenticated: false,
+            user: null,
+            token: null,
+            isInitialized: true,
+          });
+        }
+      },
+
       // 登录方法
-      login: async (username: string, password: string) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         
         try {
           // 调用Tauri命令进行登录
-          const userInfo = await invoke('cmd_login', { username, password }) as {
+          const userInfo = await invoke('cmd_login', { email, password }) as {
             user_id: string;
             username: string;
             email: string;
@@ -70,6 +95,7 @@ export const useAuthStore = create<AuthState>()(
             token: userInfo.jwt_token,
             isLoading: false,
             error: null,
+            isInitialized: true,
           });
         } catch (error) {
           let errorMessage = 'Login failed';
@@ -86,6 +112,7 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             isLoading: false,
             error: errorMessage,
+            isInitialized: true,
           });
         }
       },
@@ -97,6 +124,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           error: null,
+          isInitialized: true,
         });
       },
 
@@ -135,6 +163,7 @@ export const useAuth = () => {
     // 便捷的getter
     user: auth.user,
     token: auth.token,
-    isLoggedIn: auth.isAuthenticated,
+    isLoggedIn: auth.isAuthenticated && auth.isInitialized,
+    isLoading: auth.isLoading || !auth.isInitialized,
   };
 }; 

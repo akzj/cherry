@@ -50,7 +50,8 @@ impl Repo {
     }
 
     pub async fn list_contacts(&self, user_id: Uuid) -> Result<Vec<Contact>> {
-        let contacts = query_as::<_, Contact>("SELECT * FROM contacts WHERE owner_id = $1")
+        let contacts = query_as::<_, Contact>(
+            "SELECT contacts.*, users.avatar_url, users.status FROM contacts LEFT JOIN users ON contacts.target_id = users.user_id WHERE contacts.owner_id = $1")
             .bind(user_id)
             .fetch_all(&self.sqlx_pool)
             .await?;

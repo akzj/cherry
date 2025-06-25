@@ -208,6 +208,8 @@ pub struct Contact {
     pub created_at: DateTime<chrono::Utc>,
     pub updated_at: DateTime<chrono::Utc>,
     pub remark_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub status: String,
     pub tags: Value,
     pub is_favorite: bool,
     pub mute_settings: Value,

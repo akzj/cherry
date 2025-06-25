@@ -445,10 +445,20 @@ const App: React.FC = () => {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   // 认证状态
-  const { isLoggedIn, user, isLoading } = useAuth();
+  const { isLoggedIn, user, isLoading, initialize } = useAuth();
   
   // 通知状态
   const { addNotification, updateContacts, updateConversations, setConnectionStatus } = useNotifications();
+
+  // 初始化认证状态
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // 添加调试信息
+  useEffect(() => {
+    console.log('Auth state:', { isLoggedIn, isLoading, user });
+  }, [isLoggedIn, isLoading, user]);
 
   // 监听Tauri事件
   useEffect(() => {

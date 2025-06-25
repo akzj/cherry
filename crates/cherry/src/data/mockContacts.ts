@@ -67,15 +67,15 @@ export const mockContacts: Contact[] = [
 // 模拟联系人分组
 export const mockContactGroups: ContactGroup[] = [
     {
-        id: 'g1',
-        name: '项目A设计',
-        contacts: mockContacts.slice(0, 3),
+        id: '1',
+        title: '项目A设计',
+        contacts: mockContacts.slice(0, 3)
     },
     {
-        id: 'g2',
-        name: '项目A研发',
-        contacts: mockContacts.slice(3, 10),
-    },
+        id: '2',
+        title: '项目A研发',
+        contacts: mockContacts.slice(3, 6)
+    }
 ];
 
 // 模拟创建的群组
