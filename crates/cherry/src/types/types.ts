@@ -16,6 +16,32 @@ export interface User {
     status?: 'sent' | 'delivered' | 'read';
   }
   
+
+  
+// pub struct Conversation {
+//   pub conversation_id: Uuid,
+//   pub conversation_type: String,
+//   pub members: Value,
+//   pub meta: Value,
+//   pub stream_id: i64,
+//   pub created_at: DateTime<chrono::Utc>,
+//   pub updated_at: DateTime<chrono::Utc>,
+// }
+
+export interface ConversationBase {
+  conversation_id: string;
+  conversation_type: string;
+  members: string[];
+  meta: {
+    name: string;
+    description: string;
+    avatar: string;
+  };
+  stream_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
   export interface Conversation {
     id: string;
     name: string;

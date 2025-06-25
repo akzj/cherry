@@ -11,10 +11,12 @@ import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
 import LoginForm from './pages/login';
-import { Conversation, Message, User } from './types/types';
+import { Message, User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
 import { useNotifications } from './store/notification';
+import { useConversationStore } from './store/conversation';
+import { ErrorMessage } from './components/UI';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
@@ -437,18 +439,26 @@ const App: React.FC = () => {
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversations] = useState<Conversation[]>(mockConversations);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // 模态窗口状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   // 认证状态
-  const { isLoggedIn, user, isLoading, initialize } = useAuth();
+  const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
   
   // 通知状态
   const { addNotification, updateContacts, updateConversations, setConnectionStatus } = useNotifications();
+
+  // 会话状态
+  const { 
+    conversations, 
+    isLoading: conversationsLoading, 
+    error: conversationsError, 
+    refreshConversations,
+    getConversationById 
+  } = useConversationStore();
 
   // 初始化认证状态
   useEffect(() => {
@@ -457,77 +467,101 @@ const App: React.FC = () => {
 
   // 添加调试信息
   useEffect(() => {
-    console.log('Auth state:', { isLoggedIn, isLoading, user });
-  }, [isLoggedIn, isLoading, user]);
+    console.log('Auth state:', { isLoggedIn, isLoading: authLoading, user });
+  }, [isLoggedIn, authLoading, user]);
 
-  // 监听Tauri事件
+  // 监听通知事件
   useEffect(() => {
     const unlisten = listen('notification', (event) => {
-      const { type, data, timestamp } = event.payload as any;
-      
-      console.log('Received notification:', { type, data, timestamp });
-      
-      // 根据事件类型处理通知
-      switch (type) {
+      const { event_type, data } = event.payload as any;
+      console.log('Received notification:', event_type, data);
+
+      switch (event_type) {
         case 'contacts_updated':
-          if (data.contacts) {
-            updateContacts(data.contacts);
-          }
           addNotification({
             type: 'contacts_updated',
             data: { count: data.count },
-            timestamp,
+            timestamp: Date.now(),
           });
           break;
-          
         case 'conversations_updated':
-          if (data.conversations) {
-            updateConversations(data.conversations);
-          }
           addNotification({
             type: 'conversations_updated',
             data: { count: data.count },
-            timestamp,
+            timestamp: Date.now(),
           });
+          // 刷新会话列表
+          refreshConversations();
           break;
-          
         case 'new_message':
           addNotification({
             type: 'new_message',
-            data: { sender: data.sender, message: data.message },
-            timestamp,
+            data: { message: data.message },
+            timestamp: Date.now(),
           });
           break;
-          
         case 'user_status_changed':
           addNotification({
             type: 'user_status_changed',
             data: { user: data.user, status: data.status },
-            timestamp,
+            timestamp: Date.now(),
           });
           break;
-          
-        default:
-          console.warn('Unknown notification type:', type);
       }
     });
 
-    // 设置连接状态为已连接
-    setConnectionStatus(true);
-
     return () => {
       unlisten.then(f => f());
-      setConnectionStatus(false);
     };
-  }, [addNotification, updateContacts, updateConversations, setConnectionStatus]);
+  }, [addNotification, refreshConversations]);
+
+  // 登录成功后加载数据
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      console.log('User logged in, loading data...');
+      refreshConversations();
+    }
+  }, [isLoggedIn, user, refreshConversations]);
+
+  // 当前用户信息
+  const currentUser: User = {
+    id: user?.user_id || 'user1',
+    name: user?.username || 'Current User',
+    avatar: user?.avatar_url || 'https://randomuser.me/api/portraits/men/1.jpg',
+    status: 'online'
+  };
+
+  // 当前选中的会话
+  const selectedConvo = selectedConversation ? getConversationById(selectedConversation) : null;
+
+  // 处理会话选择
+  const handleSelectConversation = (id: string) => {
+    setSelectedConversation(id);
+    const conversation = getConversationById(id);
+    if (conversation) {
+      setMessages(conversation.messages);
+    }
+  };
+
+  // 处理发送消息
+  const handleSendMessage = (content: string) => {
+    const newMessage: Message = {
+      id: `msg_${Date.now()}`,
+      userId: currentUser.id,
+      content,
+      timestamp: new Date().toISOString(),
+      isOwn: true,
+      status: 'sent'
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
 
   // 如果正在加载认证状态，显示加载界面
-  if (isLoading) {
+  if (authLoading) {
     return (
-      <LoadingContainer>
+      <AppContainer>
         <LoadingSpinner />
-        Loading...
-      </LoadingContainer>
+      </AppContainer>
     );
   }
 
@@ -536,46 +570,26 @@ const App: React.FC = () => {
     return <LoginForm />;
   }
 
-  // 登录成功后的主应用界面
-  const currentUser: User = {
-    id: user?.user_id || 'user1',
-    name: user?.username || 'User',
-    avatar: user?.avatar_url || 'https://randomuser.me/api/portraits/men/1.jpg',
-    status: (user?.status as 'online' | 'offline' | 'away') || 'online'
-  };
+  // 如果正在加载会话数据，显示加载界面
+  if (conversationsLoading) {
+    return (
+      <AppContainer>
+        <LoadingSpinner />
+      </AppContainer>
+    );
+  }
 
-  const handleSelectConversation = (id: string) => {
-    setSelectedConversation(id);
-  };
-
-  const handleSendMessage = (content: string) => {
-    const newMessage: Message = {
-      id: `msg${messages.length + 1}`,
-      userId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString(),
-      isOwn: true,
-      status: 'sent'
-    };
-
-    setMessages([...messages, newMessage]);
-
-    // Simulate message delivery
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg =>
-        msg.id === newMessage.id ? { ...msg, status: 'delivered' } : msg
-      ));
-    }, 1000);
-
-    // Simulate message read
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg =>
-        msg.id === newMessage.id ? { ...msg, status: 'read' } : msg
-      ));
-    }, 3000);
-  };
-
-  const selectedConvo = conversations.find(c => c.id === selectedConversation) || conversations[0];
+  // 如果加载会话数据出错，显示错误界面
+  if (conversationsError) {
+    return (
+      <AppContainer>
+        <ErrorMessage 
+          message={conversationsError} 
+          onRetry={refreshConversations}
+        />
+      </AppContainer>
+    );
+  }
 
   return (
     <AppContainer>
@@ -634,7 +648,7 @@ const App: React.FC = () => {
 
         {(selectedConversation || !isMobile) && (
           <ChatArea>
-            <ChatHeader conversation={selectedConvo} />
+            {selectedConvo && <ChatHeader conversation={selectedConvo} />}
             <MessageList
               messages={messages}
               currentUser={currentUser}
@@ -667,139 +681,5 @@ const App: React.FC = () => {
     </AppContainer>
   );
 };
-
-// Mock data
-const mockUsers: User[] = [
-  {
-    id: 'user2',
-    name: 'Jane Smith',
-    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-    status: 'online'
-  },
-  {
-    id: 'user3',
-    name: 'Alex Johnson',
-    avatar: 'https://cdn3.iconfinder.com/data/icons/diversity-avatars/64/doctor-man-asian-128.png',
-    status: 'away'
-  },
-  {
-    id: 'user4',
-    name: 'Sarah Williams',
-    avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-    status: 'offline'
-  }
-];
-
-
-const mockMessages: Message[] = [
-  {
-    id: 'msg1',
-    userId: 'user2',
-    content: 'Hey, how are you doing?',
-    timestamp: '2023-05-15T10:30:00Z'
-  },
-  {
-    id: 'msg2',
-    userId: 'user1',
-    content: "I'm good, thanks! How about you?",
-    timestamp: '2023-05-15T10:32:00Z',
-    isOwn: true,
-    status: 'read'
-  },
-  {
-    id: 'msg3',
-    userId: 'user2',
-    content: "I'm doing great! Just finished that project we were talking about.",
-    timestamp: '2023-05-15T10:33:00Z'
-  },
-  {
-    id: 'msg4',
-    userId: 'user1',
-    content: "That's awesome! Can you share some screenshots?",
-    timestamp: '2023-05-15T10:35:00Z',
-    isOwn: true,
-    status: 'read'
-  },
-  {
-    id: 'msg5',
-    userId: 'user2',
-    content: "Sure, I'll send them over shortly.",
-    timestamp: '2023-05-15T10:36:00Z'
-  },
-  {
-    id: 'msg6',
-    userId: 'user1',
-    content: "I'll send them over shortly.",
-    timestamp: '2023-05-15T10:37:00Z',
-    isOwn: true,
-    status: 'read'
-  },
-  {
-    id: 'msg7',
-    userId: 'user2',
-    content: "I'll send them over shortly.",
-    timestamp: '2023-05-15T10:37:00Z',
-  },
-  {
-    id: 'msg8',
-    userId: 'user1',
-    content: "I'll send them over shortly.",
-    timestamp: '2023-05-15T10:37:00Z',
-    isOwn: true,
-    status: 'read'
-  }
-];
-
-
-const mockConversations: Conversation[] = [
-  {
-    id: 'convo1',
-    name: 'Jane Smith',
-    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-    participants: [mockUsers[0]],
-    mentions: 0,
-    type: 'direct',
-    messages: mockMessages,
-    lastMessage: {
-      id: 'msg1',
-      userId: 'user2',
-      content: 'Hey, how are you doing?',
-      timestamp: '2023-05-15T10:30:00Z'
-    },
-    unreadCount: 0
-  },
-  {
-    id: 'convo2',
-    name: 'Group Chat',
-    avatar: 'https://cdn.dribbble.com/users/7179533/avatars/normal/f422e09d77e62217dc67c457f3cf1807.jpg',
-    mentions: 1,
-    type: 'group',
-    messages: mockMessages,
-    participants: mockUsers,
-    lastMessage: {
-      id: 'msg2',
-      userId: 'user3',
-      content: 'Meeting at 3pm tomorrow',
-      timestamp: '2023-05-15T09:15:00Z'
-    },
-    unreadCount: 2
-  },
-  {
-    id: 'convo3',
-    name: 'Alex Johnson',
-    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-    participants: [mockUsers[1]],
-    mentions: 0,
-    type: 'direct',
-    messages: mockMessages,
-    lastMessage: {
-      id: 'msg3',
-      userId: 'user1',
-      content: 'Thanks for the help!',
-      timestamp: '2023-05-14T16:45:00Z'
-    },
-    unreadCount: 0
-  }
-];
 
 export default App;

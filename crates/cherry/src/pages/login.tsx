@@ -346,8 +346,8 @@ const LoginForm = () => {
     const { login, isLoading, error, clearError } = useAuth();
     
     const [formData, setFormData] = useState<FormData>({
-        email: '',
-        password: '',
+        email: 'alice@example.com',
+        password: 'password123',
         rememberMe: false
     });
 
