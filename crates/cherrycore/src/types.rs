@@ -10,6 +10,7 @@ use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use std::{
     collections::HashMap,
+    fmt::Debug,
     io::{Cursor, Read, Write},
 };
 use uuid::Uuid;
@@ -64,12 +65,24 @@ pub struct StreamReadRequest {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StreamReadResponse {
     pub stream_id: u64,
     pub offset: u64,
     #[serde_as(as = "Base64")]
     pub data: Vec<u8>,
+}
+
+impl Debug for StreamReadResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "StreamReadResponse {{ stream_id: {}, offset: {}, data_len: {} }}",
+            self.stream_id,
+            self.offset,
+            self.data.len()
+        )
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -364,7 +377,7 @@ impl Default for DataFormat {
     }
 }
 
-const MESSAGE_RECORD_META_SIZE: usize = 16;
+pub const MESSAGE_RECORD_META_SIZE: usize = 16;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StreamRecordMeta {
     pub version: u32,

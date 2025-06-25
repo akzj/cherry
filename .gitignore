@@ -7,3 +7,14 @@
 #/target
 /data
 *.bin
+# wal file
+*.wal
+# seg file
+*.seg
+# log file
+*.log
+# pid file
+*.pid
+# lock file
+*.lock
+# lock file

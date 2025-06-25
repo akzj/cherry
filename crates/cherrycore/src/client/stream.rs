@@ -1,16 +1,13 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use crate::types::{
-    Message as CherryMessage, StreamAppendBatchRequest, StreamAppendBatchResponse,
-    StreamAppendRequest, StreamAppendResponse, StreamReadRequest, StreamReadResponse,
+    MESSAGE_RECORD_META_SIZE, Message as CherryMessage, StreamAppendBatchRequest,
+    StreamAppendBatchResponse, StreamAppendRequest, StreamAppendResponse, StreamReadRequest,
+    StreamReadResponse, StreamRecord, StreamRecordMeta,
 };
 use anyhow::Result;
-use async_tungstenite::{
-    WebSocketStream,
-    tokio::ConnectStream,
-    tungstenite::{Message, client::IntoClientRequest},
-};
-use futures_util::{SinkExt, StreamExt};
+use async_tungstenite::tungstenite::{Message, client::IntoClientRequest};
+use futures_util::StreamExt;
 use tokio::select;
 
 #[derive(Clone)]
@@ -149,5 +146,367 @@ impl StreamClient {
         });
 
         Ok((req_tx, msg_rx))
+    }
+}
+
+pub struct StreamRecordDecoder {
+    stream_id: u64,
+    offset: u64,
+    data: Vec<u8>,
+}
+
+impl StreamRecordDecoder {
+    pub fn new(stream_id: u64, offset: u64, data: Vec<u8>) -> Self {
+        Self {
+            stream_id,
+            offset,
+            data,
+        }
+    }
+
+    pub fn decode(&mut self) -> Result<Option<(StreamRecord, u64)>> {
+        if self.data.len() < MESSAGE_RECORD_META_SIZE {
+            return Ok(None);
+        }
+        let meta = StreamRecordMeta::decode(&self.data).unwrap();
+        if meta.content_size as usize + MESSAGE_RECORD_META_SIZE * 2 > self.data.len() {
+            return Ok(None);
+        }
+        let record = StreamRecord::decode(&self.data)?;
+        let offset = self.offset;
+        self.offset += meta.content_size as u64 + MESSAGE_RECORD_META_SIZE as u64 * 2;
+        self.data = self.data[meta.content_size as usize + MESSAGE_RECORD_META_SIZE * 2..].to_vec();
+        Ok(Some((record, offset)))
+    }
+
+    pub fn decode_all(&mut self) -> Result<Option<Vec<(StreamRecord, u64)>>> {
+        let mut records = Vec::new();
+        while let Some((record, offset)) = self.decode()? {
+            records.push((record, offset));
+        }
+        if records.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(records))
+    }
+
+    pub fn append(&mut self, data: &[u8], offset: u64) -> Result<()> {
+        if self.data.len() + self.offset as usize != offset as usize {
+            return Err(anyhow::anyhow!(
+                "offset mismatch, expected: {}, got: {}",
+                self.data.len() + self.offset as usize,
+                offset as usize
+            ));
+        }
+        self.data.extend_from_slice(data);
+        Ok(())
+    }
+}
+
+pub struct StreamRecordDecoderMachine {
+    machines: HashMap<u64, StreamRecordDecoder>,
+}
+
+impl StreamRecordDecoderMachine {
+    pub fn new() -> Self {
+        Self {
+            machines: HashMap::new(),
+        }
+    }
+    pub fn decode(
+        &mut self,
+        stream_id: u64,
+        offset: u64,
+        data: &[u8],
+    ) -> Result<Option<Vec<(StreamRecord, u64)>>, anyhow::Error> {
+        if !self.machines.contains_key(&stream_id) {
+            self.machines.insert(
+                stream_id,
+                StreamRecordDecoder::new(stream_id, offset, data.to_vec()),
+            );
+        } else {
+            let decoder = self.machines.get_mut(&stream_id).unwrap();
+            // Calculate the expected offset for append
+            let expected_offset = decoder.offset + decoder.data.len() as u64;
+            decoder.append(data, expected_offset)?;
+        }
+        let decoder = self.machines.get_mut(&stream_id).unwrap();
+        decoder.decode_all()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{DataFormat, Message, StreamEvent};
+
+    #[test]
+    fn test_stream_record_decoder_machine_new() {
+        let machine = StreamRecordDecoderMachine::new();
+        assert!(machine.machines.is_empty());
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_decode_single_record() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Create a test message
+        let message = Message {
+            id: 1,
+            content: "Hello World".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        // Encode the message
+        let encoded_data = message.encode().unwrap();
+
+        // Test decoding
+        let result = machine.decode(1, 0, &encoded_data).unwrap();
+        assert!(result.is_some());
+
+        let records = result.unwrap();
+        assert_eq!(records.len(), 1);
+
+        let (record, offset) = &records[0];
+        assert_eq!(*offset, 0);
+
+        // Decode the content based on data format
+        match record.meta.data_format {
+            DataFormat::JsonMessage => {
+                let decoded_message: Message = serde_json::from_slice(&record.content).unwrap();
+                assert_eq!(decoded_message.id, 1);
+                assert_eq!(decoded_message.content, "Hello World");
+                assert_eq!(decoded_message.type_, "text");
+            }
+            DataFormat::JsonEvent => {
+                let decoded_event: StreamEvent = serde_json::from_slice(&record.content).unwrap();
+                panic!("Expected message but got event: {:?}", decoded_event);
+            }
+        }
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_decode_multiple_records() {
+        let mut machine = StreamRecordDecoderMachine::new();
+        // Create multiple test messages
+        let message1 = Message {
+            id: 1,
+            content: "First message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+        let message2 = Message {
+            id: 2,
+            content: "Second message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+        // Encode both messages
+        let encoded_data1 = message1.encode().unwrap();
+        let encoded_data2 = message2.encode().unwrap();
+        // 先decode第一个
+        let result1 = machine.decode(1, 0, &encoded_data1).unwrap();
+        assert!(result1.is_some());
+        let records1 = result1.unwrap();
+        assert_eq!(records1.len(), 1);
+        // 再decode第二个
+        let result2 = machine
+            .decode(1, encoded_data1.len() as u64, &encoded_data2)
+            .unwrap();
+        assert!(result2.is_some());
+        let records2 = result2.unwrap();
+        assert_eq!(records2.len(), 1);
+        // 检查内容
+        let (record1, _) = &records1[0];
+        let decoded_message1: Message = serde_json::from_slice(&record1.content).unwrap();
+        assert_eq!(decoded_message1.id, 1);
+        assert_eq!(decoded_message1.content, "First message");
+        let (record2, _) = &records2[0];
+        let decoded_message2: Message = serde_json::from_slice(&record2.content).unwrap();
+        assert_eq!(decoded_message2.id, 2);
+        assert_eq!(decoded_message2.content, "Second message");
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_multiple_streams() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Create test messages for different streams
+        let message1 = Message {
+            id: 1,
+            content: "Stream 1 message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let message2 = Message {
+            id: 2,
+            content: "Stream 2 message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        // Encode messages
+        let encoded_data1 = message1.encode().unwrap();
+        let encoded_data2 = message2.encode().unwrap();
+
+        // Decode for stream 1
+        let result1 = machine.decode(1, 0, &encoded_data1).unwrap();
+        assert!(result1.is_some());
+        let records1 = result1.unwrap();
+        assert_eq!(records1.len(), 1);
+
+        // Decode for stream 2
+        let result2 = machine.decode(2, 0, &encoded_data2).unwrap();
+        assert!(result2.is_some());
+        let records2 = result2.unwrap();
+        assert_eq!(records2.len(), 1);
+
+        // Verify machines are separate
+        assert_eq!(machine.machines.len(), 2);
+        assert!(machine.machines.contains_key(&1));
+        assert!(machine.machines.contains_key(&2));
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_incremental_decode() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Create a test message
+        let message = Message {
+            id: 1,
+            content: "Hello World".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        // Encode the message
+        let encoded_data = message.encode().unwrap();
+
+        // Split the data into chunks
+        let chunk_size = encoded_data.len() / 2;
+        let chunk1 = &encoded_data[..chunk_size];
+        let chunk2 = &encoded_data[chunk_size..];
+
+        // First chunk should not produce any records (incomplete data)
+        let result1 = machine.decode(1, 0, chunk1).unwrap();
+        assert!(result1.is_none());
+
+        // Second chunk should produce the complete record
+        let result2 = machine.decode(1, chunk_size as u64, chunk2).unwrap();
+        assert!(result2.is_some());
+
+        let records = result2.unwrap();
+        assert_eq!(records.len(), 1);
+
+        let (record, _) = &records[0];
+        match record.meta.data_format {
+            DataFormat::JsonMessage => {
+                let decoded_message: Message = serde_json::from_slice(&record.content).unwrap();
+                assert_eq!(decoded_message.id, 1);
+                assert_eq!(decoded_message.content, "Hello World");
+            }
+            _ => panic!("Expected JsonMessage format"),
+        }
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_decode_events() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Create a test event
+        let event = StreamEvent::ConversationCreated {
+            conversation_id: uuid::Uuid::new_v4(),
+        };
+
+        // Encode the event
+        let encoded_data = event.encode().unwrap();
+
+        // Test decoding
+        let result = machine.decode(1, 0, &encoded_data).unwrap();
+        assert!(result.is_some());
+
+        let records = result.unwrap();
+        assert_eq!(records.len(), 1);
+
+        let (record, _) = &records[0];
+        match record.meta.data_format {
+            DataFormat::JsonEvent => {
+                let decoded_event: StreamEvent = serde_json::from_slice(&record.content).unwrap();
+                if let StreamEvent::ConversationCreated { conversation_id } = decoded_event {
+                    assert!(conversation_id != uuid::Uuid::nil());
+                } else {
+                    panic!("Expected ConversationCreated event");
+                }
+            }
+            _ => panic!("Expected JsonEvent format"),
+        }
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_empty_data() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Test with empty data
+        let result = machine.decode(1, 0, &[]).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_incomplete_data() {
+        let mut machine = StreamRecordDecoderMachine::new();
+
+        // Test with incomplete data (less than MESSAGE_RECORD_META_SIZE)
+        let incomplete_data = vec![0x01, 0x02, 0x03];
+        let result = machine.decode(1, 0, &incomplete_data).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_stream_record_decoder_machine_reuse_existing_decoder() {
+        let mut machine = StreamRecordDecoderMachine::new();
+        let message1 = Message {
+            id: 1,
+            content: "First message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+        let message2 = Message {
+            id: 2,
+            content: "Second message".to_string(),
+            timestamp: chrono::Utc::now(),
+            user_id: uuid::Uuid::new_v4(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+        let encoded_data1 = message1.encode().unwrap();
+        let encoded_data2 = message2.encode().unwrap();
+        let result1 = machine.decode(1, 0, &encoded_data1).unwrap();
+        assert!(result1.is_some());
+        let records1 = result1.unwrap();
+        assert_eq!(records1.len(), 1);
+        let result2 = machine
+            .decode(1, encoded_data1.len() as u64, &encoded_data2)
+            .unwrap();
+        assert!(result2.is_some());
+        let records2 = result2.unwrap();
+        assert_eq!(records2.len(), 1);
+        assert_eq!(machine.machines.len(), 1);
+        assert!(machine.machines.contains_key(&1));
     }
 }

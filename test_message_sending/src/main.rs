@@ -1,9 +1,9 @@
 mod simple_test;
 
 use cherrycore::{
-    client::stream::StreamClient,
+    client::stream::{StreamClient, StreamRecordDecoderMachine},
     jwt,
-    types::{Message, StreamEvent, StreamReadRequest},
+    types::{DataFormat, Message, StreamEvent, StreamReadRequest},
 };
 use std::time::Duration;
 use tokio::time::sleep;
@@ -114,6 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sleep(Duration::from_millis(100)).await; // Short delay
     }
 
+    let mut decoder_machine = StreamRecordDecoderMachine::new();
+
     // Test 5: Read messages
     println!("Starting message reading test...");
     match stream_client.open_stream().await {
@@ -131,17 +133,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("✅ Read request sent successfully");
 
-                // Wait for message response
-                let timeout = tokio::time::timeout(Duration::from_secs(5), msg_rx.recv()).await;
-                match timeout {
-                    Ok(Some(response)) => {
-                        println!("✅ Received message response: {:?}", response);
-                    }
-                    Ok(None) => {
-                        println!("❌ Message channel closed");
-                    }
-                    Err(_) => {
-                        println!("❌ Message reading timeout");
+                loop {
+                    // Wait for message response
+                    let timeout = tokio::time::timeout(Duration::from_secs(5), msg_rx.recv()).await;
+                    match timeout {
+                        Ok(Some(response)) => {
+                            println!("✅ Received message response: {:?}", response);
+                            let records = decoder_machine.decode(
+                                response.stream_id,
+                                response.offset,
+                                response.data.as_slice(),
+                            );
+                            match records {
+                                Ok(Some(records)) => {
+                                    for (record, offset) in records {
+                                        println!("✅ Offset: {}", offset);
+                                        match record.meta.data_format {
+                                            DataFormat::JsonMessage => {
+                                                let decoded_message: Message =
+                                                    serde_json::from_slice(&record.content)
+                                                        .unwrap();
+                                                println!(
+                                                    "✅ Decoded message: {:?}",
+                                                    decoded_message
+                                                );
+                                            }
+                                            DataFormat::JsonEvent => {
+                                                let decoded_event: StreamEvent =
+                                                    serde_json::from_slice(&record.content)
+                                                        .unwrap();
+                                                println!("✅ Decoded event: {:?}", decoded_event);
+                                            }
+                                        }
+                                    }
+                                }
+                                Ok(None) => {
+                                    println!("❌ No records decoded");
+                                }
+                                Err(e) => {
+                                    println!("❌ Error decoding records: {}", e);
+                                }
+                            }
+                        }
+                        Ok(None) => {
+                            println!("❌ Message channel closed");
+                        }
+                        Err(_) => {
+                            println!("❌ Message reading timeout");
+                            break;
+                        }
                     }
                 }
             }
