@@ -19,7 +19,7 @@ use cherrycore::{
     },
     types::{
         CherryMessage, Contact, Conversation, DataFormat, LoginResponse, Message, StreamEvent,
-        StreamReadRequest,
+        StreamReadRequest, UserInfo,
     },
 };
 
@@ -67,6 +67,7 @@ struct AppState {
     cherry_client: Mutex<Option<CherryClient>>,
     stream_client: Mutex<Option<StreamClient>>,
     conversations: Mutex<Vec<Conversation>>,
+    user_info: Mutex<Option<UserInfo>>,
 }
 
 impl AppState {
@@ -250,6 +251,8 @@ async fn cmd_login(
     // 启动消息接收
     state.start_receive_message(on_event).await?;
 
+    state.user_info.lock().unwrap().replace(login_response.user_info.clone());
+
     Ok(login_response.user_info)
 }
 
@@ -306,6 +309,61 @@ async fn cmd_refresh_contacts(
 }
 
 #[tauri::command]
+async fn cmd_send_message(
+    conversation_id: String,
+    content: String,
+    message_type: Option<String>,
+    reply_to: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    log::info!("cmd_send_message: conversation_id={}, content={}", conversation_id, content);
+    
+    // 获取会话信息并克隆数据，避免持有 MutexGuard 跨越 async 边界
+    let stream_id = {
+        let conversations = state.conversations.lock().unwrap();
+        let conversation = conversations
+            .iter()
+            .find(|c| c.conversation_id.to_string() == conversation_id)
+            .ok_or_else(|| CommandError {
+                message: "Conversation not found".to_string(),
+            })?;
+        conversation.stream_id
+    };
+    
+    // 获取用户信息
+    let user_id = {
+        let user_info = state.user_info.lock().unwrap();
+        user_info.as_ref().unwrap().user_id
+    };
+    
+    // 创建消息
+    let message = Message {
+        id: 0, // 服务器会分配ID
+        user_id,
+        content,
+        timestamp: chrono::Utc::now(),
+        reply_to,
+        type_: message_type.unwrap_or_else(|| "text".to_string()),
+    };
+    
+    // 获取流客户端
+    let stream_client = state.get_stream_client()?;
+    
+    // 编码消息
+    let encoded_data = message.encode().map_err(CommandError::from)?;
+    
+    // 发送到流服务器
+    let response = stream_client
+        .append_stream(stream_id, encoded_data)
+        .await
+        .map_err(CommandError::from)?;
+    
+    log::info!("Message sent successfully, offset: {}", response.offset);
+    
+    Ok(())
+}
+
+#[tauri::command]
 async fn cmd_refresh_conversations(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
@@ -348,6 +406,7 @@ pub async fn run() {
             conversations: Mutex::new(vec![]),
             stream_client: Mutex::new(None),
             cherry_client: Mutex::new(None),
+            user_info: Mutex::new(None),
             // todo: 需要重新设计
             // repo: Repo::new(db_path.to_str().unwrap()).await,
         })
@@ -357,7 +416,8 @@ pub async fn run() {
             cmd_contact_list_all,
             cmd_conversation_list_all,
             cmd_refresh_contacts,
-            cmd_refresh_conversations
+            cmd_refresh_conversations,
+            cmd_send_message
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

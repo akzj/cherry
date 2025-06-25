@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 
 interface MessageInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => Promise<void>;
+  isLoading?: boolean;
+  disabled?: boolean;
 }
 
 // ==================== Styled Components ====================
@@ -133,21 +135,32 @@ const SendButton = styled.button<{ $disabled: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false }) => {
   const [message, setMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      onSend(message);
-      setMessage('');
+    if (message.trim() && !isSending && !disabled) {
+      setIsSending(true);
+      try {
+        await onSend(message);
+        setMessage('');
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        // 可以在这里添加错误提示
+      } finally {
+        setIsSending(false);
+      }
     }
   };
+
+  const isDisabled = disabled || isLoading || isSending || !message.trim();
 
   return (
     <Container>
       <Form onSubmit={handleSubmit}>
-        <IconButton type="button">
+        <IconButton type="button" disabled={isDisabled}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
@@ -156,11 +169,12 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
         <InputContainer>
           <InputField
             type="text"
-            placeholder="Type a message..."
+            placeholder={isSending ? "Sending..." : "Type a message..."}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            disabled={isDisabled}
           />
-          <EmojiButton type="button">
+          <EmojiButton type="button" disabled={isDisabled}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm3-1a1 1 0 11-2 0 1 1 0 012 0zm3 1a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
@@ -169,11 +183,17 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
 
         <SendButton
           type="submit"
-          $disabled={!message.trim()}
+          $disabled={isDisabled}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
+          {isSending ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          )}
         </SendButton>
       </Form>
     </Container>

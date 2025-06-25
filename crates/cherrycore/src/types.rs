@@ -26,7 +26,7 @@ pub struct LoginRequest {
     pub password: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub user_id: Uuid,
     pub username: String,

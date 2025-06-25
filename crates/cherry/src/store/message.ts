@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 import { Message } from '../types/types';
 
 export interface MessageState {
@@ -14,6 +15,7 @@ export interface MessageState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   getMessages: (conversationId: string) => Message[];
+  sendMessage: (conversationId: string, content: string, messageType?: string, replyTo?: number) => Promise<void>;
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -79,5 +81,58 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   getMessages: (conversationId: string) => {
     return get().messages[conversationId] || [];
+  },
+
+  sendMessage: async (conversationId: string, content: string, messageType?: string, replyTo?: number) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      // 调用后端 API 发送消息
+      await invoke('cmd_send_message', {
+        conversationId,
+        content,
+        messageType: messageType || 'text',
+        replyTo
+      });
+      
+      // 发送成功后，可以添加一个临时消息到本地状态
+      // 实际的消息会通过消息接收机制从后端获取
+      const tempMessage: Message = {
+        id: Date.now(), // 临时ID
+        userId: 'current_user', // 临时用户ID
+        content,
+        timestamp: new Date().toISOString(),
+        type: (messageType || 'text') as Message['type']
+      };
+      
+      // 添加到本地消息列表
+      const state = get();
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = [...conversationMessages, tempMessage];
+      
+      set({
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+        isLoading: false,
+      });
+      
+    } catch (error) {
+      let errorMessage = 'Failed to send message';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+      
+      throw error;
+    }
   },
 }));

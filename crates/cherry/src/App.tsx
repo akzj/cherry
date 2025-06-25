@@ -463,7 +463,7 @@ const App: React.FC = () => {
   } = useConversationStore();
 
   // 消息状态
-  const { addMessage, getMessages } = useMessageStore();
+  const { addMessage, getMessages, sendMessage } = useMessageStore();
 
   // 消息接收
   useMessageReceiver();
@@ -551,18 +551,15 @@ const App: React.FC = () => {
   };
 
   // 处理发送消息
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string) => {
     if (!selectedConversation) return;
     
-    const newMessage: Message = {
-      id: Date.now(), // 使用时间戳作为临时ID
-      userId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString(),
-      type: 'text'
-    };
-    
-    addMessage(selectedConversation, newMessage);
+    try {
+      await sendMessage(selectedConversation, content);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // 可以在这里添加错误提示
+    }
   };
 
   // 如果正在加载认证状态，显示加载界面
@@ -662,7 +659,11 @@ const App: React.FC = () => {
               messages={currentMessages}
               currentUser={currentUser}
             />
-            <MessageInput onSend={handleSendMessage} />
+            <MessageInput 
+              onSend={handleSendMessage} 
+              isLoading={false}
+              disabled={!selectedConversation}
+            />
           </ChatArea>
         )}
         
