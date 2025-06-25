@@ -3,13 +3,16 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+use base64::Engine;
 use chrono::DateTime;
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
+use std::{
+    collections::HashMap,
+    io::{Cursor, Read, Write},
+};
 use uuid::Uuid;
-use std::collections::HashMap;
-use base64::Engine;
 
 use crate::jwt::AuthError;
 
@@ -278,14 +281,26 @@ pub enum StreamEvent {
     },
 }
 
-// export interface Message {
-//     id: number;
-//     userId: string;
-//     content: string;
-//     timestamp: string;
-//     reply_to?: number;
-//     type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
-//   }
+impl StreamEvent {
+    pub fn encode(&self) -> Result<Vec<u8>, anyhow::Error> {
+        let content = serde_json::to_string(&self)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize event: {}", e))?;
+        let record = StreamRecord {
+            meta: StreamRecordMeta::new(DataFormat::JsonEvent),
+            content: content.as_bytes().to_vec(),
+            tail: StreamRecordMeta::new(DataFormat::JsonEvent),
+        };
+        record.encode()
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, anyhow::Error> {
+        let record = StreamRecord::decode(data)?;
+        let content = String::from_utf8(record.content)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize event: {}", e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize event: {}", e))
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
@@ -298,179 +313,180 @@ pub struct Message {
     pub type_: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MessageRecordMeta {
-    pub version: u32,
-    pub content_size: u32,
-    pub crc32: u32,
-    pub data_format: u32, // 0: json, 1: protobuf, 2: text
-}
+impl Message {
+    pub fn encode(&self) -> Result<Vec<u8>, anyhow::Error> {
+        let content = serde_json::to_string(&self)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize message: {}", e))?;
+        let record = StreamRecord {
+            meta: StreamRecordMeta::default(),
+            content: content.as_bytes().to_vec(),
+            tail: StreamRecordMeta::default(),
+        };
+        record.encode()
+    }
 
-pub struct MessageRecord {
-    pub meta: MessageRecordMeta,
-    pub content: Message,
-    pub tail: MessageRecordMeta,
-}
-
-impl Serialize for MessageRecord {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        use std::io::Write;
-        
-        // 创建二进制缓冲区
-        let mut binary_data = Vec::new();
-        
-        // 序列化 meta 为二进制（小端）
-        binary_data.write_all(&self.meta.version.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize meta version: {}", e))
-        })?;
-        binary_data.write_all(&self.meta.content_size.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize meta content_size: {}", e))
-        })?;
-        binary_data.write_all(&self.meta.crc32.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize meta crc32: {}", e))
-        })?;
-        binary_data.write_all(&self.meta.data_format.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize meta data_format: {}", e))
-        })?;
-        
-        // 序列化 content 为 JSON 字符串，然后转换为字节
-        let content_json = serde_json::to_string(&self.content).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize content to JSON: {}", e))
-        })?;
-        let content_bytes = content_json.as_bytes();
-        
-        // 写入 content 长度（小端）
-        binary_data.write_all(&(content_bytes.len() as u32).to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize content length: {}", e))
-        })?;
-        
-        // 写入 content 数据
-        binary_data.write_all(content_bytes).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize content data: {}", e))
-        })?;
-        
-        // 序列化 tail 为二进制（小端）
-        binary_data.write_all(&self.tail.version.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize tail version: {}", e))
-        })?;
-        binary_data.write_all(&self.tail.content_size.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize tail content_size: {}", e))
-        })?;
-        binary_data.write_all(&self.tail.crc32.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize tail crc32: {}", e))
-        })?;
-        binary_data.write_all(&self.tail.data_format.to_le_bytes()).map_err(|e| {
-            serde::ser::Error::custom(format!("Failed to serialize tail data_format: {}", e))
-        })?;
-        
-        // 将二进制数据序列化为 base64 字符串（用于 JSON 兼容性）
-        let base64_data = base64::engine::general_purpose::STANDARD.encode(&binary_data);
-        serializer.serialize_str(&base64_data)
+    pub fn decode(data: &[u8]) -> Result<Self, anyhow::Error> {
+        let record = StreamRecord::decode(data)?;
+        let content = String::from_utf8(record.content)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize message: {}", e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize message: {}", e))
     }
 }
 
-impl<'de> Deserialize<'de> for MessageRecord {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use std::io::{Cursor, Read};
-        
-        // 从 base64 字符串反序列化
-        let base64_str = String::deserialize(deserializer)?;
-        let binary_data = base64::engine::general_purpose::STANDARD.decode(&base64_str)
-            .map_err(|e| serde::de::Error::custom(format!("Failed to decode base64: {}", e)))?;
-        
-        let mut cursor = Cursor::new(&binary_data);
-        
-        // 反序列化 meta
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DataFormat {
+    JsonMessage = 0,
+    JsonEvent = 1,
+}
+
+impl DataFormat {
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            DataFormat::JsonMessage => 0,
+            DataFormat::JsonEvent => 1,
+        }
+    }
+}
+
+impl From<u32> for DataFormat {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => DataFormat::JsonMessage,
+            1 => DataFormat::JsonEvent,
+            _ => DataFormat::JsonMessage,
+        }
+    }
+}
+impl Default for DataFormat {
+    fn default() -> Self {
+        DataFormat::JsonMessage
+    }
+}
+
+const MESSAGE_RECORD_META_SIZE: usize = 16;
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StreamRecordMeta {
+    pub version: u32,
+    pub content_size: u32,
+    pub crc32: u32,
+    pub data_format: DataFormat,
+}
+
+impl StreamRecordMeta {
+    pub fn new(data_format: DataFormat) -> Self {
+        Self {
+            version: 0,
+            content_size: 0,
+            crc32: 0,
+            data_format,
+        }
+    }
+
+    pub fn encode(&self) -> Result<Vec<u8>, anyhow::Error> {
+        let mut binary_data = Vec::new();
+        binary_data.write_all(&self.version.to_le_bytes())?;
+        binary_data.write_all(&self.content_size.to_le_bytes())?;
+        binary_data.write_all(&self.crc32.to_le_bytes())?;
+        binary_data.write_all(&self.data_format.to_u32().to_le_bytes())?;
+        Ok(binary_data)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, anyhow::Error> {
+        if data.len() < MESSAGE_RECORD_META_SIZE {
+            return Err(anyhow::anyhow!(
+                "Invalid data length for MessageRecordMeta, expected: {}, got: {}",
+                MESSAGE_RECORD_META_SIZE,
+                data.len()
+            ));
+        }
+
+        let mut cursor = Cursor::new(data);
         let mut version_bytes = [0u8; 4];
-        cursor.read_exact(&mut version_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read meta version: {}", e))
-        })?;
-        let version = u32::from_le_bytes(version_bytes);
-        
+        cursor.read_exact(&mut version_bytes)?;
         let mut content_size_bytes = [0u8; 4];
-        cursor.read_exact(&mut content_size_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read meta content_size: {}", e))
-        })?;
-        let content_size = u32::from_le_bytes(content_size_bytes);
-        
+        cursor.read_exact(&mut content_size_bytes)?;
         let mut crc32_bytes = [0u8; 4];
-        cursor.read_exact(&mut crc32_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read meta crc32: {}", e))
-        })?;
-        let crc32 = u32::from_le_bytes(crc32_bytes);
-        
+        cursor.read_exact(&mut crc32_bytes)?;
         let mut data_format_bytes = [0u8; 4];
-        cursor.read_exact(&mut data_format_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read meta data_format: {}", e))
-        })?;
+        cursor.read_exact(&mut data_format_bytes)?;
+        let version = u32::from_le_bytes(version_bytes);
+        let content_size = u32::from_le_bytes(content_size_bytes);
+        let crc32 = u32::from_le_bytes(crc32_bytes);
         let data_format = u32::from_le_bytes(data_format_bytes);
-        
-        let meta = MessageRecordMeta {
+        Ok(StreamRecordMeta {
             version,
             content_size,
             crc32,
-            data_format,
-        };
-        
-        // 反序列化 content
-        let mut content_len_bytes = [0u8; 4];
-        cursor.read_exact(&mut content_len_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read content length: {}", e))
-        })?;
-        let content_len = u32::from_le_bytes(content_len_bytes) as usize;
-        
-        let mut content_bytes = vec![0u8; content_len];
-        cursor.read_exact(&mut content_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read content data: {}", e))
-        })?;
-        
-        let content_json = String::from_utf8(content_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to convert content to string: {}", e))
-        })?;
-        
-        let content: Message = serde_json::from_str(&content_json).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to parse content JSON: {}", e))
-        })?;
-        
-        // 反序列化 tail
-        let mut tail_version_bytes = [0u8; 4];
-        cursor.read_exact(&mut tail_version_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read tail version: {}", e))
-        })?;
-        let tail_version = u32::from_le_bytes(tail_version_bytes);
-        
-        let mut tail_content_size_bytes = [0u8; 4];
-        cursor.read_exact(&mut tail_content_size_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read tail content_size: {}", e))
-        })?;
-        let tail_content_size = u32::from_le_bytes(tail_content_size_bytes);
-        
-        let mut tail_crc32_bytes = [0u8; 4];
-        cursor.read_exact(&mut tail_crc32_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read tail crc32: {}", e))
-        })?;
-        let tail_crc32 = u32::from_le_bytes(tail_crc32_bytes);
-        
-        let mut tail_data_format_bytes = [0u8; 4];
-        cursor.read_exact(&mut tail_data_format_bytes).map_err(|e| {
-            serde::de::Error::custom(format!("Failed to read tail data_format: {}", e))
-        })?;
-        let tail_data_format = u32::from_le_bytes(tail_data_format_bytes);
-        
-        let tail = MessageRecordMeta {
-            version: tail_version,
-            content_size: tail_content_size,
-            crc32: tail_crc32,
-            data_format: tail_data_format,
-        };
-        
-        Ok(MessageRecord { meta, content, tail })
+            data_format: data_format.into(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct StreamRecord {
+    pub meta: StreamRecordMeta,
+    pub content: Vec<u8>,
+    pub tail: StreamRecordMeta,
+}
+
+impl StreamRecord {
+    pub fn encode(&self) -> Result<Vec<u8>, anyhow::Error> {
+        use std::io::Write;
+
+        // 序列化 content 为 JSON 字符串，然后转换为字节
+        let content_bytes = &self.content;
+
+        let mut meta = StreamRecordMeta::default();
+        // 计算 crc32
+        let crc32 = crc32fast::hash(&content_bytes);
+        meta.crc32 = crc32;
+        meta.content_size = content_bytes.len() as u32;
+        meta.data_format = self.meta.data_format.clone();
+        meta.version = self.meta.version;
+
+        let mut data = Vec::new();
+        data.write_all(&meta.encode()?)?;
+        data.write_all(&content_bytes)?;
+        data.write_all(&meta.encode()?)?;
+        Ok(data)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<StreamRecord, anyhow::Error> {
+        let meta = StreamRecordMeta::decode(data)?;
+        let data = &data[MESSAGE_RECORD_META_SIZE..];
+        if data.len() < meta.content_size as usize {
+            return Err(anyhow::anyhow!(
+                "Invalid data length, expected: {}, got: {}",
+                meta.content_size,
+                data.len()
+            ));
+        }
+        let content_bytes = &data[..meta.content_size as usize];
+        let content_crc32 = crc32fast::hash(content_bytes);
+        if content_crc32 != meta.crc32 {
+            return Err(anyhow::anyhow!(
+                "Invalid crc32, expected: {}, got: {}",
+                meta.crc32,
+                content_crc32
+            ));
+        }
+
+        let data = &data[meta.content_size as usize..];
+        if data.len() < MESSAGE_RECORD_META_SIZE {
+            return Err(anyhow::anyhow!(
+                "Invalid data length, expected: {}, got: {}",
+                MESSAGE_RECORD_META_SIZE,
+                data.len()
+            ));
+        }
+        let tail = StreamRecordMeta::decode(data)?;
+
+        Ok(StreamRecord {
+            meta,
+            content: content_bytes.to_vec(),
+            tail,
+        })
     }
 }
 
@@ -900,16 +916,52 @@ mod tests {
         assert_eq!(deserialized.is_new, true);
     }
 
+    // MessageRecordMeta 测试
     #[test]
-    fn test_message_record_serialization() {
-        let meta = MessageRecordMeta {
+    fn test_message_record_meta_encode_decode() {
+        let meta = StreamRecordMeta {
             version: 1,
             content_size: 100,
             crc32: 12345,
-            data_format: 1,
+            data_format: DataFormat::JsonEvent,
         };
 
-        let content = Message {
+        let encoded = meta.encode().unwrap();
+        assert_eq!(encoded.len(), MESSAGE_RECORD_META_SIZE);
+
+        let decoded = StreamRecordMeta::decode(&encoded).unwrap();
+        assert_eq!(decoded.version, 1);
+        assert_eq!(decoded.content_size, 100);
+        assert_eq!(decoded.crc32, 12345);
+        assert_eq!(decoded.data_format.to_u32(), DataFormat::JsonEvent.to_u32());
+    }
+
+    #[test]
+    fn test_message_record_meta_decode_invalid_length() {
+        let invalid_data = vec![1, 2, 3]; // 长度不足
+        let result = StreamRecordMeta::decode(&invalid_data);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid data length")
+        );
+    }
+
+    #[test]
+    fn test_message_record_meta_default() {
+        let meta = StreamRecordMeta::default();
+        assert_eq!(meta.version, 0);
+        assert_eq!(meta.content_size, 0);
+        assert_eq!(meta.crc32, 0);
+        assert_eq!(meta.data_format.to_u32(), DataFormat::JsonMessage.to_u32());
+    }
+
+    // Message 编码解码测试
+    #[test]
+    fn test_message_encode_decode() {
+        let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
             content: "Hello, World!".to_string(),
@@ -918,37 +970,372 @@ mod tests {
             type_: "text".to_string(),
         };
 
-        let tail = MessageRecordMeta {
-            version: 1,
-            content_size: 100,
-            crc32: 67890,
-            data_format: 1,
+        let encoded = message.encode().unwrap();
+        let decoded = Message::decode(&encoded).unwrap();
+
+        // 验证 content 字段
+        assert_eq!(decoded.id, message.id);
+        assert_eq!(decoded.user_id, message.user_id);
+        assert_eq!(decoded.content, message.content);
+        assert_eq!(decoded.type_, message.type_);
+    }
+
+    #[test]
+    fn test_message_encode_decode_with_reply() {
+        let message = Message {
+            id: 2,
+            user_id: Uuid::new_v4(),
+            content: "This is a reply message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: Some(1),
+            type_: "text".to_string(),
         };
 
-        let record = MessageRecord { meta, content, tail };
+        let encoded = message.encode().unwrap();
+        let decoded = Message::decode(&encoded).unwrap();
 
-        // 测试序列化
-        let serialized = serde_json::to_string(&record).unwrap();
-        println!("Serialized (base64): {}", serialized);
+        assert_eq!(decoded.id, message.id);
+        assert_eq!(decoded.reply_to, message.reply_to);
+        assert_eq!(decoded.content, message.content);
+    }
 
-        // 测试反序列化
-        let deserialized: MessageRecord = serde_json::from_str(&serialized).unwrap();
+    #[test]
+    fn test_message_decode_invalid_crc32() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
 
-        // 验证数据完整性
-        assert_eq!(deserialized.meta.version, 1);
-        assert_eq!(deserialized.meta.content_size, 100);
-        assert_eq!(deserialized.meta.crc32, 12345);
-        assert_eq!(deserialized.meta.data_format, 1);
+        let mut encoded = message.encode().unwrap();
 
-        assert_eq!(deserialized.content.id, 1);
-        assert_eq!(deserialized.content.content, "Hello, World!");
-        assert_eq!(deserialized.content.type_, "text");
+        // 修改 content 数据来破坏 CRC32
+        let meta_size = MESSAGE_RECORD_META_SIZE;
+        let content_start = meta_size;
+        if encoded.len() > content_start + 5 {
+            encoded[content_start + 5] = encoded[content_start + 5].wrapping_add(1);
+        }
 
-        assert_eq!(deserialized.tail.version, 1);
-        assert_eq!(deserialized.tail.content_size, 100);
-        assert_eq!(deserialized.tail.crc32, 67890);
-        assert_eq!(deserialized.tail.data_format, 1);
+        let result = Message::decode(&encoded);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid crc32"));
+    }
 
-        println!("Binary serialization test passed!");
+    #[test]
+    fn test_message_decode_invalid_length() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let mut encoded = message.encode().unwrap();
+
+        // 截断数据
+        encoded.truncate(encoded.len() - 10);
+
+        let result = Message::decode(&encoded);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid data length")
+        );
+    }
+
+    #[test]
+    fn test_message_decode_invalid_json() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let mut encoded = message.encode().unwrap();
+
+        // 修改 content 数据来破坏 JSON
+        let meta_size = MESSAGE_RECORD_META_SIZE;
+        let content_start = meta_size;
+        if encoded.len() > content_start + 10 {
+            encoded[content_start + 10] = b'X'; // 插入无效字符
+        }
+
+        let result = Message::decode(&encoded);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        println!("Actual error message: {}", error_msg);
+        assert!(error_msg.contains("Invalid crc32"));
+    }
+
+    #[test]
+    fn test_message_encode_decode_empty_content() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let encoded = message.encode().unwrap();
+        let decoded = Message::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.content, "");
+    }
+
+    #[test]
+    fn test_message_encode_decode_large_content() {
+        let large_content = "A".repeat(10000);
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: large_content.clone(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let encoded = message.encode().unwrap();
+        let decoded = Message::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.content, large_content);
+    }
+
+    #[test]
+    fn test_message_record_meta_serialize_deserialize() {
+        let meta = StreamRecordMeta {
+            version: 2,
+            content_size: 200,
+            crc32: 54321,
+            data_format: DataFormat::JsonEvent,
+        };
+
+        let json = serde_json::to_string(&meta).unwrap();
+        let deserialized: StreamRecordMeta = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.version, meta.version);
+        assert_eq!(deserialized.content_size, meta.content_size);
+        assert_eq!(deserialized.crc32, meta.crc32);
+        assert_eq!(deserialized.data_format.to_u32(), meta.data_format.to_u32());
+    }
+
+    #[test]
+    fn test_message_serialize_deserialize() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let json = serde_json::to_string(&message).unwrap();
+        let deserialized: Message = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.id, message.id);
+        assert_eq!(deserialized.user_id, message.user_id);
+        assert_eq!(deserialized.content, message.content);
+        assert_eq!(deserialized.type_, message.type_);
+    }
+
+    // StreamEvent 编码解码测试
+    #[test]
+    fn test_stream_event_encode_decode() {
+        let event = StreamEvent::ConversationCreated {
+            conversation_id: Uuid::new_v4(),
+        };
+
+        let encoded = event.encode().unwrap();
+        let decoded = StreamEvent::decode(&encoded).unwrap();
+
+        match (event, decoded) {
+            (
+                StreamEvent::ConversationCreated {
+                    conversation_id: id1,
+                },
+                StreamEvent::ConversationCreated {
+                    conversation_id: id2,
+                },
+            ) => {
+                assert_eq!(id1, id2);
+            }
+            _ => panic!("Event types don't match"),
+        }
+    }
+
+    #[test]
+    fn test_stream_event_member_added_encode_decode() {
+        let event = StreamEvent::ConversationMemberAdded {
+            conversation_id: Uuid::new_v4(),
+            member_id: Uuid::new_v4(),
+        };
+
+        let encoded = event.encode().unwrap();
+        let decoded = StreamEvent::decode(&encoded).unwrap();
+
+        match (event, decoded) {
+            (
+                StreamEvent::ConversationMemberAdded {
+                    conversation_id: conv_id1,
+                    member_id: member_id1,
+                },
+                StreamEvent::ConversationMemberAdded {
+                    conversation_id: conv_id2,
+                    member_id: member_id2,
+                },
+            ) => {
+                assert_eq!(conv_id1, conv_id2);
+                assert_eq!(member_id1, member_id2);
+            }
+            _ => panic!("Event types don't match"),
+        }
+    }
+
+    #[test]
+    fn test_stream_event_member_removed_encode_decode() {
+        let event = StreamEvent::ConversationMemberRemoved {
+            conversation_id: Uuid::new_v4(),
+            member_id: Uuid::new_v4(),
+        };
+
+        let encoded = event.encode().unwrap();
+        let decoded = StreamEvent::decode(&encoded).unwrap();
+
+        match (event, decoded) {
+            (
+                StreamEvent::ConversationMemberRemoved {
+                    conversation_id: conv_id1,
+                    member_id: member_id1,
+                },
+                StreamEvent::ConversationMemberRemoved {
+                    conversation_id: conv_id2,
+                    member_id: member_id2,
+                },
+            ) => {
+                assert_eq!(conv_id1, conv_id2);
+                assert_eq!(member_id1, member_id2);
+            }
+            _ => panic!("Event types don't match"),
+        }
+    }
+
+    #[test]
+    fn test_stream_event_decode_invalid_json() {
+        let event = StreamEvent::ConversationCreated {
+            conversation_id: Uuid::new_v4(),
+        };
+
+        let mut encoded = event.encode().unwrap();
+
+        // 修改 content 数据来破坏 JSON
+        let meta_size = MESSAGE_RECORD_META_SIZE;
+        let content_start = meta_size;
+        if encoded.len() > content_start + 10 {
+            encoded[content_start + 10] = b'X'; // 插入无效字符
+        }
+
+        let result = StreamEvent::decode(&encoded);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Invalid crc32"));
+    }
+
+    // DataFormat 测试
+    #[test]
+    fn test_data_format_values() {
+        assert_eq!(DataFormat::JsonMessage.to_u32(), 0);
+        assert_eq!(DataFormat::JsonEvent.to_u32(), 1);
+    }
+
+    #[test]
+    fn test_data_format_from_u32() {
+        assert_eq!(DataFormat::from(0), DataFormat::JsonMessage);
+        assert_eq!(DataFormat::from(1), DataFormat::JsonEvent);
+        assert_eq!(DataFormat::from(999), DataFormat::JsonMessage); // 默认值
+    }
+
+    #[test]
+    fn test_data_format_partial_eq() {
+        assert_eq!(DataFormat::JsonMessage, DataFormat::from(0));
+        assert_eq!(DataFormat::JsonEvent, DataFormat::from(1));
+        assert_ne!(DataFormat::JsonMessage, DataFormat::from(1));
+        assert_ne!(DataFormat::JsonEvent, DataFormat::from(0));
+    }
+
+    #[test]
+    fn test_data_format_default() {
+        assert_eq!(DataFormat::default(), DataFormat::JsonMessage);
+    }
+
+    #[test]
+    fn test_data_format_serialize_deserialize() {
+        let formats = vec![DataFormat::JsonMessage, DataFormat::JsonEvent];
+
+        for format in formats {
+            let json = serde_json::to_string(&format).unwrap();
+            let deserialized: DataFormat = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, format);
+        }
+    }
+
+    // StreamRecord 与 DataFormat 集成测试
+    #[test]
+    fn test_stream_record_with_data_format() {
+        let content = b"test content".to_vec();
+        let content_len = content.len();
+        let content_crc32 = crc32fast::hash(&content);
+
+        let record = StreamRecord {
+            meta: StreamRecordMeta {
+                version: 1,
+                content_size: content_len as u32,
+                crc32: content_crc32,
+                data_format: DataFormat::JsonEvent,
+            },
+            content: content.clone(),
+            tail: StreamRecordMeta {
+                version: 1,
+                content_size: content_len as u32,
+                crc32: content_crc32,
+                data_format: DataFormat::JsonEvent,
+            },
+        };
+
+        let encoded = record.encode().unwrap();
+        let decoded = StreamRecord::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.meta.data_format, DataFormat::JsonEvent);
+        assert_eq!(decoded.tail.data_format, DataFormat::JsonEvent);
+        assert_eq!(decoded.content, b"test content");
+    }
+
+    #[test]
+    fn test_message_with_data_format() {
+        let message = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Test message".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
+        };
+
+        let encoded = message.encode().unwrap();
+        let decoded = Message::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.id, message.id);
+        assert_eq!(decoded.content, message.content);
     }
 }

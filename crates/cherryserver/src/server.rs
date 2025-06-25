@@ -50,7 +50,9 @@ impl ServerConfig {
         Self {
             db_conn: other.db_conn.or(self.db_conn),
             stream_server_url: other.stream_server_url.or(self.stream_server_url),
-            jwt_token_expire_seconds: other.jwt_token_expire_seconds.or(self.jwt_token_expire_seconds),
+            jwt_token_expire_seconds: other
+                .jwt_token_expire_seconds
+                .or(self.jwt_token_expire_seconds),
             jwt_secret: other.jwt_secret.or(self.jwt_secret),
             listen_addr: other.listen_addr.or(self.listen_addr),
         }
@@ -138,7 +140,11 @@ async fn login(
     server: State<CherryServer>,
     body: Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ResponseError> {
-    log::info!("login: email={}, password={}", body.email.as_ref().unwrap(), body.password.as_ref().unwrap());
+    log::info!(
+        "login: email={}, password={}",
+        body.email.as_ref().unwrap(),
+        body.password.as_ref().unwrap()
+    );
     let user = server
         .db
         .check_password(
@@ -156,7 +162,11 @@ async fn login(
         .user_get_by_email(body.email.as_ref().unwrap())
         .await?;
 
-    let jwt_token = JwtClaims::new(user.user_id, server.config.jwt_token_expire_seconds.unwrap()).to_token()?;
+    let jwt_token = JwtClaims::new(
+        user.user_id,
+        server.config.jwt_token_expire_seconds.unwrap(),
+    )
+    .to_token()?;
 
     Ok(Json(LoginResponse {
         jwt_token,
@@ -263,10 +273,10 @@ async fn create_conversation(
             batch.push(StreamAppendRequest {
                 stream_id: stream_id as u64,
                 data: Some(
-                    serde_json::to_vec(&StreamEvent::ConversationCreated {
+                    StreamEvent::ConversationCreated {
                         conversation_id: conversation.conversation_id,
-                    })
-                    .unwrap(),
+                    }
+                    .encode()?,
                 ),
             });
         }
@@ -288,8 +298,9 @@ async fn create_conversation(
 impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_conn.as_ref().unwrap()).await;
-        let stream_client =
-            cherrycore::client::stream::StreamClient::new(&config.stream_server_url.as_ref().unwrap());
+        let stream_client = cherrycore::client::stream::StreamClient::new(
+            &config.stream_server_url.as_ref().unwrap(),
+        );
         Self {
             inner: Arc::new(CherryServerInner {
                 db,
@@ -312,6 +323,8 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/conversations/create", post(create_conversation))
         .with_state(server.clone());
 
-    let listener = TcpListener::bind(server.config.listen_addr.as_ref().unwrap()).await.unwrap();
+    let listener = TcpListener::bind(server.config.listen_addr.as_ref().unwrap())
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }
