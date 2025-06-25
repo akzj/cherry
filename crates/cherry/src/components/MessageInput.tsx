@@ -1,7 +1,8 @@
 // src/components/MessageInput.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import ReplyMessage from './ReplyMessage';
+import EmojiPicker from './EmojiPicker';
 import { useMessageStore } from '../store/message';
 
 interface MessageInputProps {
@@ -13,135 +14,143 @@ interface MessageInputProps {
 
 // ==================== Styled Components ====================
 const Container = styled.div`
-  padding: 1.25rem 1.5rem;
-  background: rgba(38, 116, 22, 0.1);
-  backdrop-filter: blur(15px);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0 0 20px 20px;
+  position: relative;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const Form = styled.form`
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
+  position: relative;
 `;
 
 const IconButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   padding: 0.75rem;
   color: rgba(255, 255, 255, 0.7);
-  transition: all 0.3s ease;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  min-width: 48px;
+  height: 48px;
   
-  &:hover {
-    color: rgba(255, 255, 255, 0.9);
+  &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.15);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
   }
   
-  &:active {
-    transform: translateY(0);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  &.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    color: #6366f1;
   }
 `;
 
 const InputContainer = styled.div`
   flex: 1;
   position: relative;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.75rem;
+  transition: all 0.2s ease;
+  
+  &:focus-within {
+    border-color: rgba(134, 239, 172, 0.5);
+    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.1);
+  }
 `;
 
-const InputField = styled.input`
-  width: 100%;
-  padding: 1rem 1.25rem 1rem 3.5rem;
-  border-radius: 20px;
-  background: rgba(129, 250, 95, 0);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-  font-size: 1rem;
-  color: rgb(38, 72, 66);
-  font-weight: 400;
+const InputField = styled.textarea`
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  resize: none;
+  min-height: 20px;
+  max-height: 120px;
+  font-family: inherit;
   
   &::placeholder {
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.5);
   }
   
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 
-      0 0 0 3px rgba(99, 102, 241, 0.1),
-      0 4px 20px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
 const EmojiButton = styled(IconButton)`
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 0.5rem;
-  border-radius: 12px;
-  
-  &:hover {
-    transform: translateY(-50%) scale(1.1);
-  }
+  position: relative;
+  margin-left: 0.5rem;
 `;
 
 const SendButton = styled.button<{ $disabled: boolean }>`
-  padding: 1rem 1.25rem;
-  border-radius: 20px;
-  background: ${({ $disabled }) =>
-    $disabled
-      ? 'rgba(255, 255, 255, 0.1)'
-      : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+  background: ${props => props.$disabled 
+    ? 'rgba(255, 255, 255, 0.1)' 
+    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
   };
-  color: white;
-  transition: all 0.3s ease;
+  border: 1px solid ${props => props.$disabled 
+    ? 'rgba(255, 255, 255, 0.2)' 
+    : 'transparent'
+  };
+  border-radius: 12px;
+  padding: 0.75rem;
+  color: ${props => props.$disabled ? 'rgba(255, 255, 255, 0.5)' : 'white'};
+  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
-  font-weight: 600;
-  box-shadow: ${({ $disabled }) =>
-    $disabled
-      ? 'none'
-      : '0 4px 20px rgba(99, 102, 241, 0.3), 0 2px 10px rgba(139, 92, 246, 0.2)'
-  };
+  min-width: 48px;
+  height: 48px;
   
-  &:hover {
-    ${({ $disabled }) => !$disabled && `
-      transform: translateY(-2px);
-      box-shadow: 
-        0 6px 25px rgba(99, 102, 241, 0.4),
-        0 3px 15px rgba(139, 92, 246, 0.3);
-    `}
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   }
   
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
-  ${({ $disabled }) => $disabled && `
-    opacity: 0.5;
-    cursor: not-allowed;
-  `}
 `;
 
 // ==================== Component Implementation ====================
 const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false, conversationId }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const { replyingTo, setReplyingTo } = useMessageStore();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 自动调整文本框高度
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [message]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +161,10 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
         await onSend(message, replyTo);
         setMessage('');
         setReplyingTo(null); // 清除回复状态
+        // 重置文本框高度
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
       } catch (error) {
         console.error('Failed to send message:', error);
         // 可以在这里添加错误提示
@@ -163,6 +176,29 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
 
   const handleCancelReply = () => {
     setReplyingTo(null);
+  };
+
+  const handleEmojiSelect = (emoji: any) => {
+    const emojiText = emoji.native || emoji.colons || emoji.unified;
+    const cursorPosition = textareaRef.current?.selectionStart || 0;
+    const textBefore = message.substring(0, cursorPosition);
+    const textAfter = message.substring(cursorPosition);
+    
+    const newMessage = textBefore + emojiText + textAfter;
+    setMessage(newMessage);
+    
+    // 设置光标位置到表情后面
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPosition = cursorPosition + emojiText.length;
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+        textareaRef.current.focus();
+      }
+    }, 0);
+  };
+
+  const toggleEmojiPicker = () => {
+    setIsEmojiPickerOpen(!isEmojiPickerOpen);
   };
 
   const isDisabled = disabled || isLoading || isSending || !message.trim();
@@ -186,13 +222,19 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
 
         <InputContainer>
           <InputField
-            type="text"
+            ref={textareaRef}
             placeholder={replyingTo ? `回复 ${replyingTo.userId}...` : (isSending ? "Sending..." : "Type a message...")}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={isDisabled}
+            rows={1}
           />
-          <EmojiButton type="button" disabled={isDisabled}>
+          <EmojiButton 
+            type="button" 
+            disabled={isDisabled}
+            onClick={toggleEmojiPicker}
+            className={isEmojiPickerOpen ? 'active' : ''}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm3-1a1 1 0 11-2 0 1 1 0 012 0zm3 1a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
@@ -214,6 +256,13 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
           )}
         </SendButton>
       </Form>
+
+      {/* 表情选择器 */}
+      <EmojiPicker
+        isOpen={isEmojiPickerOpen}
+        onEmojiSelect={handleEmojiSelect}
+        onClose={() => setIsEmojiPickerOpen(false)}
+      />
     </Container>
   );
 };

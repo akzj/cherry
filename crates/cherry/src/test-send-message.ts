@@ -100,6 +100,49 @@ export async function testSendMessageWithReply() {
   }
 }
 
+// 测试发送表情消息
+export async function testSendEmojiMessage() {
+  try {
+    const result = await invoke('cmd_send_message', {
+      conversationId: 'test-conversation-1',
+      content: '😊 Hello with emoji! 🎉',
+      messageType: 'text'
+    });
+    console.log('Emoji message sent successfully:', result);
+  } catch (error) {
+    console.error('Failed to send emoji message:', error);
+  }
+}
+
+// 测试发送纯表情消息
+export async function testSendPureEmojiMessage() {
+  try {
+    const result = await invoke('cmd_send_message', {
+      conversationId: 'test-conversation-1',
+      content: '😀😍🎉🚀💯',
+      messageType: 'emoji'
+    });
+    console.log('Pure emoji message sent successfully:', result);
+  } catch (error) {
+    console.error('Failed to send pure emoji message:', error);
+  }
+}
+
+// 测试发送带表情的回复消息
+export async function testSendEmojiReplyMessage() {
+  try {
+    const result = await invoke('cmd_send_message', {
+      conversationId: 'test-conversation-1',
+      content: '😄 This is an emoji reply! 👍',
+      messageType: 'text',
+      replyTo: 1
+    });
+    console.log('Emoji reply message sent successfully:', result);
+  } catch (error) {
+    console.error('Failed to send emoji reply message:', error);
+  }
+}
+
 // 导出所有测试函数
 export { testMessageReceiving };
 
@@ -110,5 +153,8 @@ if (typeof window !== 'undefined') {
   (window as any).testSendReplyMessage = testSendReplyMessage;
   (window as any).testSendMessageWithReply = testSendMessageWithReply;
   (window as any).testMessageReceiving = testMessageReceiving;
+  (window as any).testSendEmojiMessage = testSendEmojiMessage;
+  (window as any).testSendPureEmojiMessage = testSendPureEmojiMessage;
+  (window as any).testSendEmojiReplyMessage = testSendEmojiReplyMessage;
   console.log('测试函数已挂载到 window 对象');
 } 

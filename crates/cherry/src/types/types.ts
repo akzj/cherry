@@ -16,6 +16,11 @@ export interface Message {
   type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
   replyToMessage?: Message;
   isReply?: boolean;
+  emojiData?: {
+    native: string;
+    unified: string;
+    shortcodes: string;
+  };
 }
 
 // 后端消息类型
