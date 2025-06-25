@@ -4,7 +4,7 @@ use axum::{
 };
 
 use chrono::DateTime;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use uuid::Uuid;
@@ -318,49 +318,159 @@ impl Serialize for MessageRecord {
         S: Serializer,
     {
         use std::io::Write;
-        use serde::ser::SerializeStruct;
+        
+        // 创建二进制缓冲区
+        let mut binary_data = Vec::new();
         
         // 序列化 meta 为二进制（小端）
-        let mut meta_bytes = Vec::new();
-        meta_bytes.write_all(&self.meta.version.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.meta.version.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize meta version: {}", e))
         })?;
-        meta_bytes.write_all(&self.meta.content_size.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.meta.content_size.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize meta content_size: {}", e))
         })?;
-        meta_bytes.write_all(&self.meta.crc32.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.meta.crc32.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize meta crc32: {}", e))
         })?;
-        meta_bytes.write_all(&self.meta.data_format.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.meta.data_format.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize meta data_format: {}", e))
         })?;
         
-        // 序列化 content 为 JSON
+        // 序列化 content 为 JSON 字符串，然后转换为字节
         let content_json = serde_json::to_string(&self.content).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize content to JSON: {}", e))
         })?;
+        let content_bytes = content_json.as_bytes();
+        
+        // 写入 content 长度（小端）
+        binary_data.write_all(&(content_bytes.len() as u32).to_le_bytes()).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize content length: {}", e))
+        })?;
+        
+        // 写入 content 数据
+        binary_data.write_all(content_bytes).map_err(|e| {
+            serde::ser::Error::custom(format!("Failed to serialize content data: {}", e))
+        })?;
         
         // 序列化 tail 为二进制（小端）
-        let mut tail_bytes = Vec::new();
-        tail_bytes.write_all(&self.tail.version.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.tail.version.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize tail version: {}", e))
         })?;
-        tail_bytes.write_all(&self.tail.content_size.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.tail.content_size.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize tail content_size: {}", e))
         })?;
-        tail_bytes.write_all(&self.tail.crc32.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.tail.crc32.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize tail crc32: {}", e))
         })?;
-        tail_bytes.write_all(&self.tail.data_format.to_le_bytes()).map_err(|e| {
+        binary_data.write_all(&self.tail.data_format.to_le_bytes()).map_err(|e| {
             serde::ser::Error::custom(format!("Failed to serialize tail data_format: {}", e))
         })?;
         
-        // 序列化为结构体
-        let mut state = serializer.serialize_struct("MessageRecord", 3)?;
-        state.serialize_field("meta", &base64::engine::general_purpose::STANDARD.encode(&meta_bytes))?;
-        state.serialize_field("content", &content_json)?;
-        state.serialize_field("tail", &base64::engine::general_purpose::STANDARD.encode(&tail_bytes))?;
-        state.end()
+        // 将二进制数据序列化为 base64 字符串（用于 JSON 兼容性）
+        let base64_data = base64::engine::general_purpose::STANDARD.encode(&binary_data);
+        serializer.serialize_str(&base64_data)
+    }
+}
+
+impl<'de> Deserialize<'de> for MessageRecord {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use std::io::{Cursor, Read};
+        
+        // 从 base64 字符串反序列化
+        let base64_str = String::deserialize(deserializer)?;
+        let binary_data = base64::engine::general_purpose::STANDARD.decode(&base64_str)
+            .map_err(|e| serde::de::Error::custom(format!("Failed to decode base64: {}", e)))?;
+        
+        let mut cursor = Cursor::new(&binary_data);
+        
+        // 反序列化 meta
+        let mut version_bytes = [0u8; 4];
+        cursor.read_exact(&mut version_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read meta version: {}", e))
+        })?;
+        let version = u32::from_le_bytes(version_bytes);
+        
+        let mut content_size_bytes = [0u8; 4];
+        cursor.read_exact(&mut content_size_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read meta content_size: {}", e))
+        })?;
+        let content_size = u32::from_le_bytes(content_size_bytes);
+        
+        let mut crc32_bytes = [0u8; 4];
+        cursor.read_exact(&mut crc32_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read meta crc32: {}", e))
+        })?;
+        let crc32 = u32::from_le_bytes(crc32_bytes);
+        
+        let mut data_format_bytes = [0u8; 4];
+        cursor.read_exact(&mut data_format_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read meta data_format: {}", e))
+        })?;
+        let data_format = u32::from_le_bytes(data_format_bytes);
+        
+        let meta = MessageRecordMeta {
+            version,
+            content_size,
+            crc32,
+            data_format,
+        };
+        
+        // 反序列化 content
+        let mut content_len_bytes = [0u8; 4];
+        cursor.read_exact(&mut content_len_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read content length: {}", e))
+        })?;
+        let content_len = u32::from_le_bytes(content_len_bytes) as usize;
+        
+        let mut content_bytes = vec![0u8; content_len];
+        cursor.read_exact(&mut content_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read content data: {}", e))
+        })?;
+        
+        let content_json = String::from_utf8(content_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to convert content to string: {}", e))
+        })?;
+        
+        let content: Message = serde_json::from_str(&content_json).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to parse content JSON: {}", e))
+        })?;
+        
+        // 反序列化 tail
+        let mut tail_version_bytes = [0u8; 4];
+        cursor.read_exact(&mut tail_version_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read tail version: {}", e))
+        })?;
+        let tail_version = u32::from_le_bytes(tail_version_bytes);
+        
+        let mut tail_content_size_bytes = [0u8; 4];
+        cursor.read_exact(&mut tail_content_size_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read tail content_size: {}", e))
+        })?;
+        let tail_content_size = u32::from_le_bytes(tail_content_size_bytes);
+        
+        let mut tail_crc32_bytes = [0u8; 4];
+        cursor.read_exact(&mut tail_crc32_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read tail crc32: {}", e))
+        })?;
+        let tail_crc32 = u32::from_le_bytes(tail_crc32_bytes);
+        
+        let mut tail_data_format_bytes = [0u8; 4];
+        cursor.read_exact(&mut tail_data_format_bytes).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to read tail data_format: {}", e))
+        })?;
+        let tail_data_format = u32::from_le_bytes(tail_data_format_bytes);
+        
+        let tail = MessageRecordMeta {
+            version: tail_version,
+            content_size: tail_content_size,
+            crc32: tail_crc32,
+            data_format: tail_data_format,
+        };
+        
+        Ok(MessageRecord { meta, content, tail })
     }
 }
 
@@ -792,38 +902,53 @@ mod tests {
 
     #[test]
     fn test_message_record_serialization() {
-        use uuid::Uuid;
-        use chrono::Utc;
-        
-        let message = Message {
-            id: 123,
-            user_id: Uuid::new_v4(),
-            content: "Hello, world!".to_string(),
-            timestamp: Utc::now(),
-            reply_to: None,
-            type_: "text".to_string(),
-        };
-        
         let meta = MessageRecordMeta {
             version: 1,
             content_size: 100,
-            crc32: 0x12345678,
-            data_format: 0, // JSON
+            crc32: 12345,
+            data_format: 1,
         };
-        
-        let message_record = MessageRecord {
-            meta: meta.clone(),
-            content: message,
-            tail: meta,
+
+        let content = Message {
+            id: 1,
+            user_id: Uuid::new_v4(),
+            content: "Hello, World!".to_string(),
+            timestamp: chrono::Utc::now(),
+            reply_to: None,
+            type_: "text".to_string(),
         };
-        
-        let json = serde_json::to_string(&message_record).unwrap();
-        println!("Serialized MessageRecord: {}", json);
-        
-        // 验证 JSON 包含正确的字段
-        assert!(json.contains("\"meta\""));
-        assert!(json.contains("\"content\""));
-        assert!(json.contains("\"tail\""));
-        assert!(json.contains("Hello, world!"));
+
+        let tail = MessageRecordMeta {
+            version: 1,
+            content_size: 100,
+            crc32: 67890,
+            data_format: 1,
+        };
+
+        let record = MessageRecord { meta, content, tail };
+
+        // 测试序列化
+        let serialized = serde_json::to_string(&record).unwrap();
+        println!("Serialized (base64): {}", serialized);
+
+        // 测试反序列化
+        let deserialized: MessageRecord = serde_json::from_str(&serialized).unwrap();
+
+        // 验证数据完整性
+        assert_eq!(deserialized.meta.version, 1);
+        assert_eq!(deserialized.meta.content_size, 100);
+        assert_eq!(deserialized.meta.crc32, 12345);
+        assert_eq!(deserialized.meta.data_format, 1);
+
+        assert_eq!(deserialized.content.id, 1);
+        assert_eq!(deserialized.content.content, "Hello, World!");
+        assert_eq!(deserialized.content.type_, "text");
+
+        assert_eq!(deserialized.tail.version, 1);
+        assert_eq!(deserialized.tail.content_size, 100);
+        assert_eq!(deserialized.tail.crc32, 67890);
+        assert_eq!(deserialized.tail.data_format, 1);
+
+        println!("Binary serialization test passed!");
     }
 }
