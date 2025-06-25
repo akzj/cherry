@@ -10,6 +10,7 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use std::{io::Read, sync::Arc, time};
+use streamstore::StreamId;
 use tokio::{select, sync::Semaphore};
 
 use cherrycore::{jwt::JwtClaims, types::*};
@@ -75,13 +76,13 @@ async fn append_stream(
 
 struct AclChecker<'a> {
     user_id: uuid::Uuid,
-    stream_id: u64,
+    stream_id: StreamId,
     server: &'a StreamServer,
     check_ts: time::Instant,
 }
 
 impl<'a> AclChecker<'a> {
-    fn new(user_id: uuid::Uuid, stream_id: u64, server: &'a StreamServer) -> Self {
+    fn new(user_id: uuid::Uuid, stream_id: StreamId, server: &'a StreamServer) -> Self {
         Self {
             user_id,
             stream_id,

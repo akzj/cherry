@@ -14,6 +14,7 @@ use anyhow::Result;
 use arc_swap::ArcSwap;
 
 use crate::{
+    StreamId,
     entry::{AppendEntryResultFn, DataType, Entry},
     errors::{self, new_stream_not_found},
     futures::AppendFuture,
@@ -39,7 +40,7 @@ pub struct StreamStoreInner {
     pub(crate) table: ArcSwap<MemTable>,
     pub(crate) mem_tables: std::sync::RwLock<VecDeque<MemTableArc>>,
     pub(crate) segment_files: RwLock<VecDeque<SegmentArc>>,
-    pub(crate) offsets: Arc<Mutex<HashMap<u64, u64>>>,
+    pub(crate) offsets: Arc<Mutex<HashMap<StreamId, u64>>>,
     pub(crate) is_readonly: Arc<atomic::AtomicBool>,
 }
 
@@ -119,7 +120,7 @@ impl StreamStoreInner {
         }
     }
 
-    pub(crate) fn find_segment(&self, stream_id: u64, offset: u64) -> Option<SegmentArc> {
+    pub(crate) fn find_segment(&self, stream_id: StreamId, offset: u64) -> Option<SegmentArc> {
         self.segment_files
             .read()
             .unwrap()
@@ -131,7 +132,7 @@ impl StreamStoreInner {
             .cloned()
     }
 
-    pub fn get_stream_begin(&self, stream_id: u64) -> Result<u64> {
+    pub fn get_stream_begin(&self, stream_id: StreamId) -> Result<u64> {
         let mut begin = self
             .segment_files
             .read()
@@ -163,7 +164,7 @@ impl StreamStoreInner {
         }
         Ok(begin.unwrap())
     }
-    pub fn get_stream_end(&self, stream_id: u64) -> Result<u64> {
+    pub fn get_stream_end(&self, stream_id: StreamId) -> Result<u64> {
         // reverse the order
         let mut end = match self.table.load().get_stream_range(stream_id) {
             Some((_begin, end)) => Some(end),
@@ -443,7 +444,7 @@ impl StreamStoreInner {
         }
     }
 
-    pub fn get_stream_range(&self, stream_id: u64) -> Result<(u64, u64)> {
+    pub fn get_stream_range(&self, stream_id: StreamId) -> Result<(u64, u64)> {
         let res = self.get_stream_begin(stream_id);
         match res {
             Ok(begin) => match self.get_stream_end(stream_id) {
@@ -458,7 +459,7 @@ impl StreamStoreInner {
 impl Store {
     pub fn append(
         &self,
-        stream_id: u64,
+        stream_id: StreamId,
         data: DataType,
         callback: Option<AppendEntryResultFn>,
     ) -> Result<()> {
@@ -479,7 +480,7 @@ impl Store {
         })
     }
 
-    pub async fn append_async(&self, stream_id: u64, data: DataType) -> Result<u64> {
+    pub async fn append_async(&self, stream_id: StreamId, data: DataType) -> Result<u64> {
         // Check if the store is read-only
         if self.is_readonly.load(atomic::Ordering::SeqCst) {
             return Err(errors::new_store_is_read_only());
@@ -509,22 +510,22 @@ impl Store {
         f.await
     }
 
-    pub fn new_stream_reader(&self, stream_id: u64) -> Result<StreamReader> {
+    pub fn new_stream_reader(&self, stream_id: StreamId) -> Result<StreamReader> {
         self.offsets.lock().unwrap().get(&stream_id).map_or_else(
             || Err(new_stream_not_found(stream_id)),
             |_offset| Ok(StreamReader::new(self.inner.clone(), stream_id)),
         )
     }
 
-    pub fn get_stream_end(&self, stream_id: u64) -> Result<u64> {
+    pub fn get_stream_end(&self, stream_id: StreamId) -> Result<u64> {
         self.inner.get_stream_end(stream_id)
     }
 
-    pub fn get_stream_begin(&self, stream_id: u64) -> Result<u64> {
+    pub fn get_stream_begin(&self, stream_id: StreamId) -> Result<u64> {
         self.inner.get_stream_begin(stream_id)
     }
 
-    pub fn get_stream_range(&self, stream_id: u64) -> Result<(u64, u64)> {
+    pub fn get_stream_range(&self, stream_id: StreamId) -> Result<(u64, u64)> {
         self.inner.get_stream_range(stream_id)
     }
 

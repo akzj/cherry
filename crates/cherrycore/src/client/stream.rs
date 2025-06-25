@@ -8,6 +8,7 @@ use crate::types::{
 use anyhow::Result;
 use async_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 use futures_util::StreamExt;
+use streamstore::StreamId;
 use tokio::select;
 
 #[derive(Clone)]
@@ -34,7 +35,7 @@ impl StreamClient {
 
     pub async fn append_stream(
         &self,
-        stream_id: u64,
+        stream_id: StreamId,
         data: Vec<u8>,
     ) -> Result<StreamAppendResponse, anyhow::Error> {
         let url = format!("{}/api/v1/stream/append", self.stream_server_url);
@@ -54,7 +55,7 @@ impl StreamClient {
 
     pub async fn send_message(
         &self,
-        stream_id: u64,
+        stream_id: StreamId,
         message: CherryMessage,
     ) -> Result<(), anyhow::Error> {
         let data = message.encode()?;
@@ -150,13 +151,13 @@ impl StreamClient {
 }
 
 pub struct StreamRecordDecoder {
-    stream_id: u64,
+    stream_id: i64,
     offset: u64,
     data: Vec<u8>,
 }
 
 impl StreamRecordDecoder {
-    pub fn new(stream_id: u64, offset: u64, data: Vec<u8>) -> Self {
+    pub fn new(stream_id: i64, offset: u64, data: Vec<u8>) -> Self {
         Self {
             stream_id,
             offset,
@@ -204,7 +205,7 @@ impl StreamRecordDecoder {
 }
 
 pub struct StreamRecordDecoderMachine {
-    machines: HashMap<u64, StreamRecordDecoder>,
+    machines: HashMap<StreamId, StreamRecordDecoder>,
 }
 
 impl StreamRecordDecoderMachine {
@@ -215,10 +216,10 @@ impl StreamRecordDecoderMachine {
     }
     pub fn decode(
         &mut self,
-        stream_id: u64,
+        stream_id: StreamId,
         offset: u64,
         data: &[u8],
-    ) -> Result<Option<Vec<(StreamRecord, u64)>>, anyhow::Error> {
+    ) -> Result<Option<Vec<(StreamRecord, u64)>>> {
         if !self.machines.contains_key(&stream_id) {
             self.machines.insert(
                 stream_id,

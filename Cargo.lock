@@ -719,6 +719,7 @@ dependencies = [
  "serde_with",
  "serde_yaml",
  "sqlx",
+ "streamstore",
  "tokio",
  "uuid",
 ]

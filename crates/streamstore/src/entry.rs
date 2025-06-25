@@ -1,11 +1,8 @@
-use std::{
-    fs::File,
-    io::Read,
-};
+use std::{fs::File, io::Read};
 
 use anyhow::{Error, anyhow};
 
-use crate::errors;
+use crate::{StreamId, errors};
 use anyhow::{Context, Result};
 
 pub type AppendEntryResultFn = Box<dyn Fn(Result<u64>) -> () + Send + Sync>;
@@ -15,7 +12,7 @@ pub struct Entry {
     // auto increment id
     pub version: u8,
     pub id: u64,
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub data: DataType,
     pub callback: Option<AppendEntryResultFn>,
 }
@@ -71,7 +68,7 @@ impl<'a> Decoder<'a> for File {
                 let mut stream_id_buf = [0u8; 8];
                 self.read_exact(&mut stream_id_buf)
                     .context("Failed to read stream_id")?;
-                entry.stream_id = u64::from_le_bytes(stream_id_buf);
+                entry.stream_id = i64::from_le_bytes(stream_id_buf);
 
                 let mut data_size_buf = [0u8; 4];
                 self.read_exact(&mut data_size_buf)
@@ -121,8 +118,8 @@ impl std::fmt::Debug for Entry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::fs;
+    use std::io::Write;
 
     #[test]
     fn test_entry_encode() {
@@ -199,12 +196,33 @@ mod tests {
         };
 
         let encoded = entry.encode();
-        
+
         // Check the encoded format
         assert_eq!(encoded[0], 1); // version
-        assert_eq!(u64::from_le_bytes([encoded[1], encoded[2], encoded[3], encoded[4], encoded[5], encoded[6], encoded[7], encoded[8]]), 100); // id
-        assert_eq!(u64::from_le_bytes([encoded[9], encoded[10], encoded[11], encoded[12], encoded[13], encoded[14], encoded[15], encoded[16]]), 200); // stream_id
-        assert_eq!(u32::from_le_bytes([encoded[17], encoded[18], encoded[19], encoded[20]]), 3); // data length
+        assert_eq!(
+            u64::from_le_bytes([
+                encoded[1], encoded[2], encoded[3], encoded[4], encoded[5], encoded[6], encoded[7],
+                encoded[8]
+            ]),
+            100
+        ); // id
+        assert_eq!(
+            u64::from_le_bytes([
+                encoded[9],
+                encoded[10],
+                encoded[11],
+                encoded[12],
+                encoded[13],
+                encoded[14],
+                encoded[15],
+                encoded[16]
+            ]),
+            200
+        ); // stream_id
+        assert_eq!(
+            u32::from_le_bytes([encoded[17], encoded[18], encoded[19], encoded[20]]),
+            3
+        ); // data length
         assert_eq!(&encoded[21..24], &[0x41, 0x42, 0x43]); // data
     }
 
@@ -250,7 +268,8 @@ mod tests {
         // Encode all entries to a file
         let mut file = File::create("test_multiple_entries.bin").expect("Failed to create file");
         for entry in &entries {
-            file.write_all(&entry.encode()).expect("Failed to write entry");
+            file.write_all(&entry.encode())
+                .expect("Failed to write entry");
         }
         file.sync_all().expect("Failed to flush file");
         drop(file);
@@ -258,14 +277,15 @@ mod tests {
         // Decode all entries
         let mut file = File::open("test_multiple_entries.bin").expect("Failed to open file");
         let mut decoded_entries = Vec::new();
-        
+
         file.decode(Box::new(|entry| {
             decoded_entries.push(entry);
             Ok(true)
-        })).expect("Failed to decode entries");
+        }))
+        .expect("Failed to decode entries");
 
         assert_eq!(decoded_entries.len(), 3);
-        
+
         for (i, decoded) in decoded_entries.iter().enumerate() {
             assert_eq!(decoded.version, entries[i].version);
             assert_eq!(decoded.id, entries[i].id);
@@ -285,11 +305,12 @@ mod tests {
 
         let mut file = File::open("test_empty.bin").expect("Failed to open file");
         let mut count = 0;
-        
+
         file.decode(Box::new(|_entry| {
             count += 1;
             Ok(true)
-        })).expect("Failed to decode empty file");
+        }))
+        .expect("Failed to decode empty file");
 
         assert_eq!(count, 0);
 
@@ -319,7 +340,8 @@ mod tests {
         // Encode entries to a file
         let mut file = File::create("test_early_term.bin").expect("Failed to create file");
         for entry in &entries {
-            file.write_all(&entry.encode()).expect("Failed to write entry");
+            file.write_all(&entry.encode())
+                .expect("Failed to write entry");
         }
         file.sync_all().expect("Failed to flush file");
         drop(file);
@@ -327,7 +349,7 @@ mod tests {
         // Decode with early termination
         let mut file = File::open("test_early_term.bin").expect("Failed to open file");
         let mut count = 0;
-        
+
         file.decode(Box::new(|_entry| {
             count += 1;
             if count == 1 {
@@ -335,7 +357,8 @@ mod tests {
             } else {
                 Ok(true)
             }
-        })).expect("Failed to decode with early termination");
+        }))
+        .expect("Failed to decode with early termination");
 
         assert_eq!(count, 1);
 
@@ -355,7 +378,7 @@ mod tests {
         };
 
         let encoded = entry.encode();
-        
+
         // Write and read back
         let mut file = File::create("test_large_entry.bin").expect("Failed to create file");
         file.write_all(&encoded).expect("Failed to write to file");
@@ -370,7 +393,8 @@ mod tests {
             assert_eq!(decoded_entry.data.len(), 1024 * 1024);
             assert_eq!(decoded_entry.data, large_data);
             Ok(true)
-        })).expect("Failed to decode large entry");
+        }))
+        .expect("Failed to decode large entry");
 
         // Clean up
         let _ = fs::remove_file("test_large_entry.bin");

@@ -2,16 +2,18 @@ use std::{io, slice::Iter};
 
 use anyhow::Result;
 
+use crate::StreamId;
+
 const STREAM_DATA_BUFFER_CAP: u64 = 128 << 10; // 128KB
 
 pub struct StreamData {
-    stream_id: u64,
+    stream_id: StreamId,
     offset: u64,
     data: Vec<u8>,
 }
 
 impl StreamData {
-    pub fn new(stream_id: u64, offset: u64, buffer_cap: u64) -> Self {
+    pub fn new(stream_id: StreamId, offset: u64, buffer_cap: u64) -> Self {
         StreamData {
             stream_id,
             offset,
@@ -58,14 +60,14 @@ impl StreamData {
 }
 
 pub struct StreamTable {
-    stream_id: u64,
+    stream_id: StreamId,
     offset: u64,
     size: u64,
     stream_datas: Vec<StreamData>,
 }
 
 impl StreamTable {
-    pub fn new(stream_id: u64, offset: u64) -> Self {
+    pub fn new(stream_id: StreamId, offset: u64) -> Self {
         StreamTable {
             stream_id,
             offset: offset,
@@ -74,7 +76,7 @@ impl StreamTable {
         }
     }
 
-    pub fn stream_id(&self) -> u64 {
+    pub fn stream_id(&self) -> StreamId {
         self.stream_id
     }
     pub fn offset(&self) -> u64 {
@@ -217,7 +219,7 @@ mod tests {
     fn test_stream_data_fill() {
         let buffer_cap = 100u64;
         let mut stream_data = StreamData::new(1, 0, buffer_cap);
-        
+
         // Fill with data that fits
         let data1 = b"hello world";
         let (filled, remaining) = stream_data.fill(data1).unwrap();
@@ -226,7 +228,7 @@ mod tests {
         assert_eq!(stream_data.size(), 11);
         assert_eq!(stream_data.cap_remaining(), (buffer_cap as usize) - 11);
         assert_eq!(stream_data.get_stream_range(), Some((0, 11)));
-        
+
         // Fill with more data
         let data2 = b" how are you?";
         let (filled, remaining) = stream_data.fill(data2).unwrap();
@@ -241,7 +243,7 @@ mod tests {
     fn test_stream_data_fill_overflow() {
         let buffer_cap = 10u64;
         let mut stream_data = StreamData::new(1, 0, buffer_cap);
-        
+
         // Fill with data that exceeds capacity
         let data = b"this is a very long string that exceeds capacity";
         let (filled, remaining) = stream_data.fill(data).unwrap();
@@ -285,15 +287,15 @@ mod tests {
     #[test]
     fn test_stream_table_append_multiple() {
         let mut table = StreamTable::new(1, 100);
-        
+
         let data1 = b"first";
         let offset1 = table.append(data1).unwrap();
         assert_eq!(offset1, 105); // 100 + 5
-        
+
         let data2 = b"second";
         let offset2 = table.append(data2).unwrap();
         assert_eq!(offset2, 111); // 100 + 5 + 6
-        
+
         assert_eq!(table.size(), 11);
         assert_eq!(table.stream_datas().count(), 1);
         assert_eq!(table.get_stream_range(), Some((100, 111)));
@@ -302,7 +304,7 @@ mod tests {
     #[test]
     fn test_stream_table_append_large_data() {
         let mut table = StreamTable::new(1, 0);
-        
+
         // Create data larger than STREAM_DATA_BUFFER_CAP
         let large_data = vec![0x42; (STREAM_DATA_BUFFER_CAP + 1000) as usize];
         let offset = table.append(&large_data).unwrap();
@@ -317,9 +319,9 @@ mod tests {
         let mut table = StreamTable::new(1, 0);
         let data = b"test data for crc";
         table.append(data).unwrap();
-        
+
         let crc = table.crc64();
-        
+
         // Verify CRC is calculated correctly
         let crc64 = crc::Crc::<u64>::new(&crc::CRC_64_REDIS);
         let expected_crc = crc64.checksum(data);
@@ -331,31 +333,31 @@ mod tests {
         let mut table = StreamTable::new(1, 0);
         let data = b"hello world test data";
         table.append(data).unwrap();
-        
+
         // Read entire data
         let mut buf = vec![0u8; data.len()];
         let bytes_read = table.read_stream(0, &mut buf).unwrap();
         assert_eq!(bytes_read, data.len());
         assert_eq!(&buf, data);
-        
+
         // Read partial data from start
         let mut buf = vec![0u8; 5];
         let bytes_read = table.read_stream(0, &mut buf).unwrap();
         assert_eq!(bytes_read, 5);
         assert_eq!(&buf, b"hello");
-        
+
         // Read partial data from middle
         let mut buf = vec![0u8; 5];
         let bytes_read = table.read_stream(6, &mut buf).unwrap();
         assert_eq!(bytes_read, 5);
         assert_eq!(&buf, b"world");
-        
+
         // Read from end
         let mut buf = vec![0u8; 4];
         let bytes_read = table.read_stream(17, &mut buf).unwrap();
         assert_eq!(bytes_read, 4);
         assert_eq!(&buf, b"data");
-        
+
         // Read beyond end
         let mut buf = vec![0u8; 10];
         let bytes_read = table.read_stream(100, &mut buf).unwrap();
@@ -365,25 +367,28 @@ mod tests {
     #[test]
     fn test_stream_table_read_stream_multiple_buffers() {
         let mut table = StreamTable::new(1, 0);
-        
+
         // Add data that will span multiple buffers
         let data_size = (STREAM_DATA_BUFFER_CAP + 1000) as usize;
         let large_data = (0..data_size).map(|i| (i % 256) as u8).collect::<Vec<u8>>();
         table.append(&large_data).unwrap();
-        
+
         // Read entire data
         let mut buf = vec![0u8; data_size];
         let bytes_read = table.read_stream(0, &mut buf).unwrap();
         assert_eq!(bytes_read, data_size);
         assert_eq!(buf, large_data);
-        
+
         // Read across buffer boundaries
         let start_offset = STREAM_DATA_BUFFER_CAP - 100;
         let read_size = 200;
         let mut buf = vec![0u8; read_size as usize];
         let bytes_read = table.read_stream(start_offset, &mut buf).unwrap();
         assert_eq!(bytes_read, read_size as usize);
-        assert_eq!(buf, large_data[start_offset as usize..(start_offset + read_size) as usize]);
+        assert_eq!(
+            buf,
+            large_data[start_offset as usize..(start_offset + read_size) as usize]
+        );
     }
 
     #[test]
@@ -436,12 +441,12 @@ mod tests {
     #[test]
     fn test_stream_table_print_stream_meta() {
         let mut table = StreamTable::new(1, 0);
-        
+
         // Add enough data to create multiple buffers
         let data_size = (STREAM_DATA_BUFFER_CAP * 2 + 100) as usize;
         let large_data = vec![0x42; data_size];
         table.append(&large_data).unwrap();
-        
+
         // This should not panic
         table.print_stream_meta();
     }

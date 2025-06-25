@@ -1,35 +1,83 @@
-import { createSlice } from '@reduxjs/toolkit'
-import type { PayloadAction } from '@reduxjs/toolkit'
+import { create } from 'zustand';
+import { Message } from '../types/types';
 
-export interface CounterState {
-  value: number
+export interface MessageState {
+  messages: Record<string, Message[]>; // conversationId -> messages
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  addMessage: (conversationId: string, message: Message) => void;
+  addMessages: (conversationId: string, messages: Message[]) => void;
+  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message>) => void;
+  clearMessages: (conversationId: string) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  getMessages: (conversationId: string) => Message[];
 }
 
-const initialState: CounterState = {
-  value: 0,
-}
+export const useMessageStore = create<MessageState>((set, get) => ({
+  messages: {},
+  isLoading: false,
+  error: null,
 
-export const counterSlice = createSlice({
-  name: 'counter',
-  initialState,
-  reducers: {
-    increment: (state) => {
-      // Redux Toolkit allows us to write "mutating" logic in reducers. It
-      // doesn't actually mutate the state because it uses the Immer library,
-      // which detects changes to a "draft state" and produces a brand new
-      // immutable state based off those changes
-      state.value += 1
-    },
-    decrement: (state) => {
-      state.value -= 1
-    },
-    incrementByAmount: (state, action: PayloadAction<number>) => {
-      state.value += action.payload
-    },
+  addMessage: (conversationId: string, message: Message) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = [...conversationMessages, message];
+      
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
   },
-})
 
-// Action creators are generated for each case reducer function
-export const { increment, decrement, incrementByAmount } = counterSlice.actions
+  addMessages: (conversationId: string, messages: Message[]) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = [...conversationMessages, ...messages];
+      
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
+  },
 
-export default counterSlice.reducer
+  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message>) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = conversationMessages.map((msg) =>
+        msg.id === messageId ? { ...msg, ...updates } : msg
+      );
+      
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
+  },
+
+  clearMessages: (conversationId: string) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: [],
+      },
+    }));
+  },
+
+  setLoading: (loading: boolean) => set({ isLoading: loading }),
+  setError: (error: string | null) => set({ error }),
+
+  getMessages: (conversationId: string) => {
+    return get().messages[conversationId] || [];
+  },
+}));
