@@ -10,7 +10,7 @@ use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use std::{
     collections::HashMap,
-    fmt::Debug,
+    fmt::{Debug, Display},
     io::{Cursor, Read, Write},
 };
 use streamstore::StreamId;
@@ -132,6 +132,20 @@ impl IntoResponse for ResponseError {
 impl From<anyhow::Error> for ResponseError {
     fn from(error: anyhow::Error) -> Self {
         Self::InternalError(error)
+    }
+}
+
+impl Display for ResponseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InternalError(error) => write!(f, "Internal error: {}", error),
+            Self::AuthError(error) => write!(f, "Auth error: {}", error),
+            Self::DataEmpty => write!(f, "Data is empty"),
+            Self::DataTooLarge => write!(f, "Data is too large"),
+            Self::DataInvalid => write!(f, "Data is invalid"),
+            Self::StreamNotFound => write!(f, "Stream not found"),
+            Self::Forbidden => write!(f, "Forbidden"),
+        }
     }
 }
 

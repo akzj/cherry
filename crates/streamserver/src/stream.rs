@@ -70,9 +70,17 @@ async fn append_stream(
     if !acl_checker.check_acl().await.unwrap_or(false) {
         return Err(ResponseError::Forbidden);
     }
-    let offset = server
-        .append_stream(request.stream_id, request.data.take().unwrap_or_default())
-        .await?;
+    let offset = match server
+        .append_stream(request.stream_id, request.data.take().unwrap_or_default())  
+        .await
+    {
+        Ok(offset) => offset,   
+        Err(e) => {
+            log::error!("append stream error: {}", e);
+            return Err(e);
+        }
+    };
+    log::info!("append stream success, stream_id: {}, offset: {}", request.stream_id, offset);
     Ok(Json(StreamAppendResponse {
         stream_id: request.stream_id,
         offset,
@@ -214,8 +222,8 @@ async fn read_one_stream_handler(
                     );
                     let response = StreamReadResponse {
                         stream_id,
-                        offset,
-                        data,
+                        offset: offset - data.len() as u64,
+                        data,   
                     };
                     select! {
                         _ = sender.send(response) => {

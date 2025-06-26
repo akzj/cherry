@@ -9,7 +9,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use uuid::Uuid;
 
-pub(crate) const JWT_SECRET: &str = "cherryjwt_secret_test";
+pub(crate) const JWT_SECRET: &str = "cherryjwt_secret";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

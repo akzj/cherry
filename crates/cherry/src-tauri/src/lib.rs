@@ -445,18 +445,23 @@ async fn cmd_send_message(
     };
 
     // 获取流客户端
-    let stream_client = state.get_stream_client()?;
+    let stream_client = state.get_stream_client().unwrap();
 
     // 编码消息
-    let encoded_data = message.encode().map_err(CommandError::from)?;
+    let encoded_data = message.encode().unwrap();
 
     // 发送到流服务器
-    let response = stream_client
+    match stream_client
         .append_stream(stream_id, encoded_data)
         .await
-        .map_err(CommandError::from)?;
-
-    log::info!("Message sent successfully, offset: {}", response.offset);
+    {
+        Ok(response) => {
+            log::info!("Message sent successfully, offset: {}", response.offset);
+        }
+        Err(e) => {
+            log::error!("Failed to send message: {:?}", e);
+        }
+    }
 
     Ok(())
 }

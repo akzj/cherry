@@ -28,6 +28,7 @@ impl StreamClient {
                 .pool_max_idle_per_host(3)
                 .connect_timeout(Duration::from_secs(10))
                 .connection_verbose(true)
+                .no_proxy()
                 .build()
                 .unwrap(),
         }
@@ -207,13 +208,13 @@ impl StreamRecordDecoder {
     }
 
     pub fn append(&mut self, data: &[u8], offset: u64) -> Result<()> {
-        // if self.data.len() + self.offset as usize != offset as usize {
-        //     return Err(anyhow::anyhow!(
-        //         "offset mismatch, expected: {}, got: {}",
-        //         self.data.len() + self.offset as usize,
-        //         offset as usize
-        //     ));
-        // }
+        if self.data.len() + self.offset as usize != offset as usize {
+            return Err(anyhow::anyhow!(
+                "offset mismatch, expected: {}, got: {}",
+                self.data.len() + self.offset as usize,
+                offset as usize
+            ));
+        }
         self.data.extend_from_slice(data);
         Ok(())
     }
