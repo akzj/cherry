@@ -12,7 +12,7 @@ import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
 import MessageTest from './components/MessageTest';
 import LoginForm from './pages/login';
-import { Message, User } from './types/types';
+import { User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
 import { useNotifications } from './store/notification';
@@ -72,17 +72,6 @@ const AppContainer = styled.div`
   a:focus {
     outline: none !important;
   }
-`;
-
-const LoadingContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 1.2rem;
-  font-weight: 600;
 `;
 
 const LoadingSpinner = styled.div`
@@ -451,7 +440,7 @@ const App: React.FC = () => {
   const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
   
   // 通知状态
-  const { addNotification, updateContacts, updateConversations, setConnectionStatus } = useNotifications();
+  const { addNotification } = useNotifications();
 
   // 会话状态
   const { 
@@ -463,7 +452,7 @@ const App: React.FC = () => {
   } = useConversationStore();
 
   // 消息状态
-  const { addMessage, getMessages } = useMessageStore();
+  const { getMessages, sendMessage } = useMessageStore();
 
   // 消息接收
   useMessageReceiver();
@@ -551,18 +540,15 @@ const App: React.FC = () => {
   };
 
   // 处理发送消息
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string, replyTo?: number) => {
     if (!selectedConversation) return;
     
-    const newMessage: Message = {
-      id: Date.now(), // 使用时间戳作为临时ID
-      userId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString(),
-      type: 'text'
-    };
-    
-    addMessage(selectedConversation, newMessage);
+    try {
+      await sendMessage(selectedConversation, content, 'text', replyTo);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // 可以在这里添加错误提示
+    }
   };
 
   // 如果正在加载认证状态，显示加载界面
@@ -660,9 +646,13 @@ const App: React.FC = () => {
             {selectedConvo && <ChatHeader conversation={selectedConvo} />}
             <MessageList
               messages={currentMessages}
-              currentUser={currentUser}
+              currentUserId={currentUser.id}
             />
-            <MessageInput onSend={handleSendMessage} />
+            <MessageInput 
+              onSend={handleSendMessage} 
+              isLoading={false}
+              disabled={!selectedConversation}
+            />
           </ChatArea>
         )}
         

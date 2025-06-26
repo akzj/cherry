@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import type { ThemePreference } from '../../types/settings';
 
 interface AppearanceSettingsProps {
-  setDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+  setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 // ==================== Styled Components ====================
@@ -203,9 +203,9 @@ const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ setDarkMode }) 
   const handleThemeChange = (theme: ThemePreference) => {
     setSettings(prev => ({ ...prev, theme }));
     if (theme === 'dark') {
-      setDarkMode(true);
+      setDarkMode?.(true);
     } else if (theme === 'light') {
-      setDarkMode(false);
+      setDarkMode?.(false);
     }
   };
 

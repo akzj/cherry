@@ -8,11 +8,11 @@ interface AvatarProps {
   status?: Contact['status'];
 }
 
-const statusColors = {
+const statusColors: { [key: string]: string } = {
   online: 'bg-green-500',
-  offline: 'bg-gray-400',
+  offline: 'bg-gray-500',
   busy: 'bg-red-500',
-  away: 'bg-yellow-500',
+  away: 'bg-yellow-500'
 };
 
 const Avatar: React.FC<AvatarProps> = ({ 

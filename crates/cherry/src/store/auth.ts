@@ -78,8 +78,16 @@ export const useAuthStore = create<AuthState>()(
           // 设置事件监听器
           onEvent.onmessage = (message) => {
             console.log('Received message from backend:', message);
-            // 触发全局事件，供其他组件监听
-            window.dispatchEvent(new CustomEvent('cherry-message', { detail: message }));
+            try {
+              // 触发全局事件，供其他组件监听
+              window.dispatchEvent(new CustomEvent('cherry-message', { 
+                detail: message,
+                bubbles: true, // 允许事件冒泡
+                cancelable: true // 允许事件被取消
+              }));
+            } catch (error) {
+              console.error('Failed to dispatch cherry-message event:', error);
+            }
           };
           
           // 调用Tauri命令进行登录，传递事件通道

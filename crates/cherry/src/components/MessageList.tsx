@@ -1,169 +1,200 @@
 // src/components/MessageList.tsx
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { Message, User } from '../types/types';
+import { Message } from '../types/types';
+import { useMessageStore } from '../store/message';
 
 interface MessageListProps {
   messages: Message[];
-  currentUser: User;
+  currentUserId: string;
 }
 
 // ==================== Styled Components ====================
-const MessageContainer = styled.div<{ $isOwn: boolean }>`
+const Container = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%);
   
-  /* 隐藏滚动条 */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  
+  /* Custom scrollbar */
   &::-webkit-scrollbar {
-    display: none;
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
   }
 `;
 
-const MessageBubbleWrapper = styled.div<{ $isOwn: boolean }>`
+const MessageContainer = styled.div<{ $isOwn: boolean }>`
   display: flex;
-  justify-content: ${({ $isOwn }) => ($isOwn ? 'flex-end' : 'flex-start')};
-  animation: slideIn 0.3s ease-out;
-  
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 70%;
+  align-self: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
 `;
 
-const MessageBubble = styled.div<{ $isOwn: boolean }>`
-  max-width: 18rem;
-  
-  @media (min-width: 768px) {
-    max-width: 24rem;
-  }
-  
-  @media (min-width: 1024px) {
-    max-width: 32rem;
-  }
-  
-  padding: 0.875rem 1.25rem;
-  border-radius: 20px;
+const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
+  background: ${props => props.$isOwn 
+    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' 
+    : 'rgba(255, 255, 255, 0.1)'
+  };
+  color: ${props => props.$isOwn ? '#ffffff' : 'rgba(255, 255, 255, 0.9)'};
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border-bottom-right-radius: ${props => props.$isOwn ? '0.25rem' : '1rem'};
+  border-bottom-left-radius: ${props => props.$isOwn ? '1rem' : '0.25rem'};
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
-  transition: all 0.3s ease;
-  
-  ${({ $isOwn }) => $isOwn 
-    ? `
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: white;
-      border-top-right-radius: 8px;
-      box-shadow: 
-        0 4px 20px rgba(99, 102, 241, 0.3),
-        0 2px 10px rgba(139, 92, 246, 0.2);
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 
-          0 6px 25px rgba(99, 102, 241, 0.4),
-          0 3px 15px rgba(139, 92, 246, 0.3);
-      }
-    ` 
-    : `
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-top-left-radius: 8px;
-      box-shadow: 
-        0 4px 20px rgba(0, 0, 0, 0.1),
-        0 2px 10px rgba(0, 0, 0, 0.05);
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 
-          0 6px 25px rgba(0, 0, 0, 0.15),
-          0 3px 15px rgba(0, 0, 0, 0.1);
-      }
-    `
-  }
-`;
-
-const MessageContent = styled.p`
-  font-size: 0.875rem;
-  line-height: 1.4;
   word-wrap: break-word;
-  margin: 0;
-  font-weight: 400;
+  max-width: 100%;
+  
+  ${props => props.$isReply && `
+    border-left: 3px solid #6366f1;
+    margin-left: 0.5rem;
+  `}
 `;
 
-const TimestampContainer = styled.div<{ $isOwn: boolean }>`
+const MessageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
   font-size: 0.75rem;
-  margin-top: 0.5rem;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.25rem;
-  color: ${({ $isOwn }) => $isOwn ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.6)'};
-  font-weight: 500;
+  opacity: 0.7;
 `;
 
-const StatusIndicator = styled.span`
+const Username = styled.span`
+  font-weight: 600;
+  color: #6366f1;
+`;
+
+const Timestamp = styled.span`
+  font-size: 0.625rem;
+  opacity: 0.6;
+`;
+
+const MessageContent = styled.div`
+  line-height: 1.4;
+  white-space: pre-wrap;
+`;
+
+const MessageActions = styled.div`
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  
+  ${MessageContainer}:hover & {
+    opacity: 1;
+  }
+`;
+
+const ActionButton = styled.button`
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: white;
+  padding: 0.25rem;
+  border-radius: 50%;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  font-size: 0.875rem;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
   
-  &.sent {
-    color: rgba(255, 255, 255, 0.7);
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
   }
-  
-  &.delivered {
-    color: rgba(255, 255, 255, 0.8);
-  }
-  
-  &.read {
-    color: #10b981;
-  }
+`;
+
+const ReplyIndicator = styled.div`
+  font-size: 0.75rem;
+  color: #6366f1;
+  margin-bottom: 0.25rem;
+  font-style: italic;
 `;
 
 // ==================== Component Implementation ====================
-const MessageList: React.FC<MessageListProps> = ({ messages, currentUser }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { setReplyingTo } = useMessageStore();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const renderMessage = (message: Message) => {
+    const isOwn = message.userId === currentUserId;
+    
+    return (
+      <MessageContainer key={message.id} $isOwn={isOwn}>
+        <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
+          <MessageActions>
+            <ActionButton onClick={() => handleReply(message)} title="回复">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9,17 15,17 15,11 21,11 21,5 15,5 15,11 9,11"></polyline>
+                <path d="M3,13 L3,19 L9,19"></path>
+              </svg>
+            </ActionButton>
+          </MessageActions>
+          
+          <MessageHeader>
+            <Username>{message.userId}</Username>
+            <Timestamp>{formatTime(message.timestamp)}</Timestamp>
+          </MessageHeader>
+          
+          {message.isReply && message.replyToMessage && (
+            <ReplyIndicator>
+              回复 {message.replyToMessage.userId}: {message.replyToMessage.content.substring(0, 30)}...
+            </ReplyIndicator>
+          )}
+          
+          <MessageContent>{message.content}</MessageContent>
+        </MessageBubble>
+      </MessageContainer>
+    );
+  };
+
   return (
-    <MessageContainer $isOwn={false}>
-      {messages.map(message => {
-        const isOwn = message.userId === currentUser.id;
-        
-        return (
-          <MessageBubbleWrapper key={message.id} $isOwn={isOwn}>
-            <MessageBubble $isOwn={isOwn}>
-              <MessageContent>{message.content}</MessageContent>
-              
-              <TimestampContainer $isOwn={isOwn}>
-                <span>
-                  {new Date(message.timestamp).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </span>
-                {isOwn && message.status && (
-                  <StatusIndicator className={message.status}>
-                    {message.status === 'sent' ? '✓' : 
-                     message.status === 'delivered' ? '✓✓' : '✓✓✓'}
-                  </StatusIndicator>
-                )}
-              </TimestampContainer>
-            </MessageBubble>
-          </MessageBubbleWrapper>
-        );
-      })}
-    </MessageContainer>
+    <Container>
+      {messages.map(renderMessage)}
+      <div ref={messagesEndRef} />
+    </Container>
   );
 };
 
