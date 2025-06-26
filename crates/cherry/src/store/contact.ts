@@ -72,7 +72,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      console.error('Failed to refresh contacts:', error);
+      // Failed to refresh contacts
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load contacts',
         isLoading: false 
@@ -96,7 +96,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      console.error('Failed to refresh groups:', error);
+      // Failed to refresh groups
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load groups',
         isLoading: false 
@@ -126,7 +126,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      console.error('Failed to search contacts:', error);
+      // Failed to search contacts
       set({ 
         error: error instanceof Error ? error.message : 'Failed to search contacts',
         isLoading: false 

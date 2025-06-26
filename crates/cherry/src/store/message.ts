@@ -34,14 +34,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const conversationMessages = state.messages[conversationId] || [];
       const updatedMessages = [...conversationMessages, message];
       
-      console.log('MessageStore.addMessage:', {
-        conversationId,
-        messageId: message.id,
-        content: message.content,
-        previousCount: conversationMessages.length,
-        newCount: updatedMessages.length,
-        allConversations: Object.keys(state.messages)
-      });
+      // Adding message to conversation
       
       return {
         messages: {
@@ -96,11 +89,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   getMessages: (conversationId: string) => {
     const messages = get().messages[conversationId] || [];
-    console.log('MessageStore.getMessages:', {
-      conversationId,
-      messageCount: messages.length,
-      allConversations: Object.keys(get().messages)
-    });
+    // Getting messages for conversation
     return messages;
   },
 
