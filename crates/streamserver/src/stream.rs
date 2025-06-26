@@ -9,7 +9,12 @@ use axum::{
     routing::{get, post},
 };
 use futures_util::{SinkExt, StreamExt};
-use std::{io::Read, sync::Arc, time};
+use std::{
+    collections::HashSet,
+    io::Read,
+    sync::{Arc, Mutex},
+    time,
+};
 use streamstore::StreamId;
 use tokio::{select, sync::Semaphore};
 
@@ -274,6 +279,7 @@ async fn read_stream_handler(
 
     // Spawn a task to handle incoming messages from the WebSocket
     let receiver_task = tokio::spawn(async move {
+        let mut stream_ids = HashSet::<StreamId>::new();
         while let Some(msg) = socket_receiver.next().await {
             log::info!("read stream, msg: {:?}", msg);
             match msg {
@@ -290,6 +296,17 @@ async fn read_stream_handler(
                                 "read stream, spawn read_one_stream_handler, request: {:?}",
                                 request
                             );
+
+                            if !stream_ids.contains(&request.stream_id) {
+                                stream_ids.insert(request.stream_id);
+                            } else {
+                                log::info!(
+                                    "read stream, stream_id already exists: {:?}",
+                                    request.stream_id
+                                );
+                                continue;
+                            }
+
                             tokio::spawn(async move {
                                 if let Err(e) = read_one_stream_handler(
                                     user_id,
