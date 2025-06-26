@@ -12,25 +12,23 @@ export const useMessageReceiver = () => {
     // 监听后端发送的cherry-message事件
     const unlisten = listen('cherry-message', (event) => {
       const cherryMessage = event.payload as CherryMessage;
-      console.log('Received cherry message:', cherryMessage);
+      // Received cherry message
 
       if ('Message' in cherryMessage) {
         const { message: backendMessage, conversation_id } = cherryMessage.Message;
-        const frontendMessage = convertBackendMessage(backendMessage);
+        
+        // 获取当前会话的所有消息，用于建立回复关系
+        const existingMessages = getMessages(conversation_id);
+        const frontendMessage = convertBackendMessage(backendMessage, existingMessages);
         
         // 使用后端提供的 conversation_id 直接添加消息
-        console.log('Adding message to conversation:', {
-          conversationId: conversation_id,
-          messageId: frontendMessage.id,
-          content: frontendMessage.content,
-          userId: frontendMessage.userId
-        });
+        // Adding message to conversation
         
         addMessage(conversation_id, frontendMessage);
         
         // 验证消息是否正确添加
-        const currentMessages = getMessages(conversation_id);
-        console.log('Current messages in conversation', conversation_id, ':', currentMessages.length);
+        const updatedMessages = getMessages(conversation_id);
+        // Current messages in conversation
         
         // 添加新消息通知
         addNotification({
@@ -42,10 +40,10 @@ export const useMessageReceiver = () => {
           timestamp: Date.now(),
         });
         
-        console.log('Added new message to conversation:', conversation_id, frontendMessage);
+        // Added new message to conversation
       } else if ('Event' in cherryMessage) {
         const { event: streamEvent } = cherryMessage.Event;
-        console.log('Received stream event:', streamEvent);
+        // Received stream event
         
         // 处理流事件
         if (streamEvent.ConversationCreated) {
@@ -81,11 +79,14 @@ export const useMessageReceiver = () => {
     // 同时监听全局的cherry-message事件（从auth store发送的）
     const handleGlobalMessage = (event: CustomEvent) => {
       const cherryMessage = event.detail as CherryMessage;
-      console.log('Received global cherry message:', cherryMessage);
+      // Received global cherry message
 
       if ('Message' in cherryMessage) {
         const { message: backendMessage, conversation_id } = cherryMessage.Message;
-        const frontendMessage = convertBackendMessage(backendMessage);
+        
+        // 获取当前会话的所有消息，用于建立回复关系
+        const allMessages = getMessages(conversation_id);
+        const frontendMessage = convertBackendMessage(backendMessage, allMessages);
         
         // 使用后端提供的 conversation_id 直接添加消息
         addMessage(conversation_id, frontendMessage);
@@ -114,7 +115,11 @@ export const useMessageReceiver = () => {
   const handleMessage = (message: CherryMessage) => {
     if ('Message' in message) {
       const { message: backendMessage, conversation_id } = message.Message;
-      const frontendMessage = convertBackendMessage(backendMessage);
+      
+      // 获取当前会话的所有消息，用于建立回复关系
+      const conversationMessages = getMessages(conversation_id);
+      const frontendMessage = convertBackendMessage(backendMessage, conversationMessages);
+      
       addMessage(conversation_id, frontendMessage);
     }
   };

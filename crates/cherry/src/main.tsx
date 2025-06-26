@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./App.css";
+import "./test-reply-display";
 
 // 开发模式下的调试工具
 if (import.meta.env.DEV) {
