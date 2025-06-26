@@ -9,7 +9,6 @@ interface MessageInputProps {
   onSend: (message: string, replyTo?: number) => Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
-  conversationId: string;
 }
 
 // ==================== Styled Components ====================
@@ -137,7 +136,7 @@ const SendButton = styled.button<{ $disabled: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false, conversationId }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);

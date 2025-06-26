@@ -155,7 +155,6 @@ const ContentDescription = styled.p`
 
 const SettingsPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<SettingCategory>('general');
-  const [darkMode, setDarkMode] = useState(false);
 
   const getCategoryInfo = (category: SettingCategory) => {
     switch (category) {
@@ -181,7 +180,7 @@ const SettingsPage: React.FC = () => {
       case 'notifications':
         return <NotificationSettings />;
       case 'appearance':
-        return <AppearanceSettings setDarkMode={setDarkMode} />;
+        return <AppearanceSettings />;
       default:
         return <GeneralSettings />;
     }

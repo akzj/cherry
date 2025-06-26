@@ -3,12 +3,10 @@ import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Message } from '../types/types';
 import { useMessageStore } from '../store/message';
-import ReplyMessage from './ReplyMessage';
 
 interface MessageListProps {
   messages: Message[];
   currentUserId: string;
-  conversationId: string;
 }
 
 // ==================== Styled Components ====================
@@ -136,7 +134,7 @@ const ReplyIndicator = styled.div`
 `;
 
 // ==================== Component Implementation ====================
-const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conversationId }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { setReplyingTo } = useMessageStore();
 

@@ -12,7 +12,7 @@ import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
 import MessageTest from './components/MessageTest';
 import LoginForm from './pages/login';
-import { Message, User } from './types/types';
+import { User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
 import { useNotifications } from './store/notification';
@@ -72,17 +72,6 @@ const AppContainer = styled.div`
   a:focus {
     outline: none !important;
   }
-`;
-
-const LoadingContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 1.2rem;
-  font-weight: 600;
 `;
 
 const LoadingSpinner = styled.div`
@@ -451,7 +440,7 @@ const App: React.FC = () => {
   const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
   
   // 通知状态
-  const { addNotification, updateContacts, updateConversations, setConnectionStatus } = useNotifications();
+  const { addNotification } = useNotifications();
 
   // 会话状态
   const { 
@@ -463,7 +452,7 @@ const App: React.FC = () => {
   } = useConversationStore();
 
   // 消息状态
-  const { addMessage, getMessages, sendMessage } = useMessageStore();
+  const { getMessages, sendMessage } = useMessageStore();
 
   // 消息接收
   useMessageReceiver();
@@ -658,13 +647,11 @@ const App: React.FC = () => {
             <MessageList
               messages={currentMessages}
               currentUserId={currentUser.id}
-              conversationId={selectedConversation || ''}
             />
             <MessageInput 
               onSend={handleSendMessage} 
               isLoading={false}
               disabled={!selectedConversation}
-              conversationId={selectedConversation || ''}
             />
           </ChatArea>
         )}

@@ -120,9 +120,9 @@ const ContactGroup: React.FC<ContactGroupProps> = ({ group }) => {
       <ContactListContainer $expanded={isExpanded}>
         {group.contacts.map(contact => (
           <ContactItem
-            key={contact.id}
+            key={contact.contact_id}
             contact={contact}
-            onClick={() => console.log('Contact clicked', contact.id)}
+            onClick={() => console.log('Contact clicked', contact.contact_id)}
           />
         ))}
       </ContactListContainer>
