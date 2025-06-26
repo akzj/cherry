@@ -1,8 +1,5 @@
 use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    path::PathBuf,
-    sync::{Arc, Mutex},
+    collections::HashMap, env, net::SocketAddr, path::PathBuf, sync::{Arc, Mutex}
 };
 
 use anyhow::Result;
@@ -95,7 +92,26 @@ async fn main() {
     let cli = Cli::parse();
     let config = StreamServerConfig::load(cli.config).await.unwrap();
 
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+    // set rust_log to use the environment variable RUST_LOG
+    let log_level = "RUST_LOG";
+    let env = env::var(log_level).unwrap_or_else(|_| "debug".to_string());
+    unsafe {
+        env::set_var(log_level, env);
+    }
+
+    use std::io::Write;
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} level:{} {}",
+                record.file().unwrap(),
+                record.line().unwrap(),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
     if let Some(jwt_secret) = config.jwt_secret.as_deref() {
         // set jwt secret to env

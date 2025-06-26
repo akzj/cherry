@@ -207,13 +207,13 @@ impl StreamRecordDecoder {
     }
 
     pub fn append(&mut self, data: &[u8], offset: u64) -> Result<()> {
-        if self.data.len() + self.offset as usize != offset as usize {
-            return Err(anyhow::anyhow!(
-                "offset mismatch, expected: {}, got: {}",
-                self.data.len() + self.offset as usize,
-                offset as usize
-            ));
-        }
+        // if self.data.len() + self.offset as usize != offset as usize {
+        //     return Err(anyhow::anyhow!(
+        //         "offset mismatch, expected: {}, got: {}",
+        //         self.data.len() + self.offset as usize,
+        //         offset as usize
+        //     ));
+        // }
         self.data.extend_from_slice(data);
         Ok(())
     }

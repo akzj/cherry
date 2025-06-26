@@ -139,7 +139,7 @@ async fn read_one_stream_handler(
                 return Err(anyhow::anyhow!("offset or length is out of range"));
             }
             log::info!(
-                "read_one_stream_handler, stream_id: {:?}, offset: {:?}, begin: {:?}, end: {:?}",
+                "get_stream_range, stream_id: {:?}, offset: {:?}, begin: {:?}, end: {:?}",
                 stream_id,
                 offset,
                 begin,
@@ -164,11 +164,11 @@ async fn read_one_stream_handler(
                     return Err(anyhow::anyhow!("acl check failed"));
                 }
 
-                let mut reader = reader.clone();
+                let mut reader_clone = reader.clone();
                 let data = select! {
                     data = tokio::task::spawn_blocking(move || {
                         let mut data = vec![0; 128 * 1024];
-                        match reader.read(&mut data) {
+                        match reader_clone.read(&mut data) {
                             Ok(read_bytes) => {
                                 log::info!(
                                     "read_one_stream_handler, stream_id: {:?}, offset: {:?}, read_bytes: {:?}",
@@ -198,21 +198,20 @@ async fn read_one_stream_handler(
                         return Ok(());
                     }
                 };
-
+                offset = reader.offset();
                 if let Ok(data) = data {
                     if data.is_empty() {
                         log::info!("read stream end, stream_id: {}", stream_id);
                         break;
                     }
 
-                    offset += data.len() as u64;
+                    let data_len = data.len();
                     log::info!(
-                        "read_one_stream_handler, stream_id: {:?}, offset: {:?}, data: {:?}",
+                        "read success, stream_id: {:?}, offset: {:?}, data_len: {:?}",
                         stream_id,
                         offset,
-                        data.len()
+                        data_len
                     );
-                    let data_len = data.len();
                     let response = StreamReadResponse {
                         stream_id,
                         offset,
@@ -221,7 +220,7 @@ async fn read_one_stream_handler(
                     select! {
                         _ = sender.send(response) => {
                             log::info!(
-                                "read_one_stream_handler, stream_id: {:?}, offset: {:?}, data: {:?}",
+                                "send response, stream_id: {:?}, offset: {:?}, data_len: {:?}",
                                 stream_id,
                                 offset,
                                 data_len
