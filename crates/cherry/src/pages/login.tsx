@@ -22,7 +22,7 @@ const LoginContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg,rgb(169, 231, 168) 0%,rgb(75, 150, 162) 100%);
   position: relative;
   overflow: hidden;
   padding: 1rem;
@@ -45,7 +45,7 @@ const LoginContainer = styled.div`
 const LoginCard = styled.div`
   width: 100%;
   max-width: 28rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(234, 232, 232, 0.17);
   backdrop-filter: blur(20px);
   border-radius: 24px;
   box-shadow: 
@@ -65,7 +65,7 @@ const LoginCard = styled.div`
 `;
 
 const HeaderSection = styled.div`
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg,rgb(163, 164, 198) 0%, #8b5cf6 100%);
   padding: 2rem;
   text-align: center;
   position: relative;
@@ -79,7 +79,7 @@ const HeaderSection = styled.div`
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 30% 70%, rgba(136, 218, 192, 0.59) 0%, transparent 50%),
       radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
   }
 `;

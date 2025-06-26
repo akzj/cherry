@@ -39,6 +39,26 @@ const Container = styled.div`
       background: rgba(255, 255, 255, 0.3);
     }
   }
+  
+  /* 高亮动画效果 */
+  .highlight {
+    animation: highlightPulse 2s ease-in-out;
+  }
+  
+  @keyframes highlightPulse {
+    0% {
+      background-color: rgba(99, 102, 241, 0.2);
+      transform: scale(1);
+    }
+    50% {
+      background-color: rgba(99, 102, 241, 0.3);
+      transform: scale(1.02);
+    }
+    100% {
+      background-color: transparent;
+      transform: scale(1);
+    }
+  }
 `;
 
 const MessageContainer = styled.div<{ $isOwn: boolean }>`
@@ -51,7 +71,10 @@ const MessageContainer = styled.div<{ $isOwn: boolean }>`
 `;
 
 const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
-  
+  background: ${props => props.$isOwn
+    ? 'linear-gradient(135deg,rgba(117, 211, 80, 0.15) 0%,rgba(109, 186, 161, 0.59) 100%)'
+    : 'linear-gradient(135deg,rgba(90, 186, 83, 0.1) 0%,rgba(255, 255, 255, 0.1) 100%)'
+  };
   color: ${props => props.$isOwn ? 'rgba(0, 0, 0, 0.71)' : 'rgba(15, 6, 6, 0.72)'};
   padding: 0.75rem 1rem;
   border-radius: 1rem;
@@ -63,8 +86,7 @@ const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
   max-width: 100%;
   
   ${props => props.$isReply && `
-    border-left: 3px solid #6366f1;
-    margin-left: 0.5rem;
+    margin-top: 0.25rem;
   `}
 `;
 
@@ -125,11 +147,96 @@ const ActionButton = styled.button`
   }
 `;
 
-const ReplyIndicator = styled.div`
-  font-size: 0.75rem;
-  color: #6366f1;
+// 回复消息的引用显示
+const ReplyQuote = styled.div<{ $isOwn: boolean }>`
+  background: ${props => props.$isOwn 
+    ? 'rgba(255, 255, 255, 0.3)' 
+    : 'rgba(0, 0, 0, 0.05)'
+  };
+  border-left: 3px solid #6366f1;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$isOwn 
+      ? 'rgba(255, 255, 255, 0.4)' 
+      : 'rgba(0, 0, 0, 0.08)'
+    };
+    transform: translateX(2px);
+  }
+`;
+
+const ReplyQuoteHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.25rem;
-  font-style: italic;
+`;
+
+const ReplyQuoteAuthor = styled.span`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const ReplyQuoteIcon = styled.div`
+  width: 12px;
+  height: 12px;
+  color: #6366f1;
+  opacity: 0.7;
+`;
+
+const ReplyQuoteContent = styled.div`
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-height: 2.6em;
+`;
+
+// 连接线样式
+const ReplyConnection = styled.div<{ $isOwn: boolean }>`
+  position: absolute;
+  left: ${props => props.$isOwn ? 'auto' : '-8px'};
+  right: ${props => props.$isOwn ? '-8px' : 'auto'};
+  top: -12px;
+  width: 16px;
+  height: 16px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border: 2px solid #6366f1;
+    border-radius: 50%;
+    background: white;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    ${props => props.$isOwn ? 'right: 8px;' : 'left: 8px;'}
+    transform: translateY(-50%);
+    width: 8px;
+    height: 2px;
+    background: #6366f1;
+    border-radius: 1px;
+  }
 `;
 
 // ==================== Component Implementation ====================
@@ -139,7 +246,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
   const prevMessagesLengthRef = useRef<number>(0);
   const { setReplyingTo } = useMessageStore();
 
-  console.log(`MessageList render for conversation ${conversationId}: ${messages.length} messages`);
+  // MessageList render
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -154,16 +261,16 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     const prevLength = prevMessagesLengthRef.current;
     const currentLength = messages.length;
 
-    console.log(`Messages changed for conversation ${conversationId}: ${prevLength} -> ${currentLength}`);
+    // Messages changed for conversation
 
     // 如果有新消息添加，滚动到底部
     if (currentLength > prevLength && prevLength > 0) {
-      console.log('New messages detected, scrolling to bottom');
+      // New messages detected, scrolling to bottom
       scrollToBottom();
     }
     // 如果是第一次加载消息，立即滚动到底部
     else if (prevLength === 0 && currentLength > 0) {
-      console.log('Initial messages loaded, scrolling to bottom instantly');
+      // Initial messages loaded, scrolling to bottom instantly
       setTimeout(() => scrollToBottomInstant(), 100);
     }
 
@@ -182,12 +289,28 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     });
   };
 
+  const handleScrollToMessage = (messageId: number) => {
+    // 滚动到被回复的消息
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 添加高亮效果
+      messageElement.classList.add('highlight');
+      setTimeout(() => {
+        messageElement.classList.remove('highlight');
+      }, 2000);
+    }
+  };
+
   const renderMessage = (message: Message) => {
     const isOwn = message.userId === currentUserId;
 
     return (
-      <MessageContainer key={message.id} $isOwn={isOwn}>
+      <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id}>
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
+          {/* 回复连接线 */}
+          {message.isReply && <ReplyConnection $isOwn={isOwn} />}
+          
           <MessageActions>
             <ActionButton onClick={() => handleReply(message)} title="回复">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -202,10 +325,25 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
             <Timestamp>{formatTime(message.timestamp)}</Timestamp>
           </MessageHeader>
 
+          {/* 新的回复引用显示 */}
           {message.isReply && message.replyToMessage && (
-            <ReplyIndicator>
-              回复 {message.replyToMessage.userId}: {message.replyToMessage.content.substring(0, 30)}...
-            </ReplyIndicator>
+            <ReplyQuote 
+              $isOwn={isOwn}
+              onClick={() => handleScrollToMessage(message.replyToMessage!.id)}
+            >
+              <ReplyQuoteHeader>
+                <ReplyQuoteIcon>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z"/>
+                    <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z"/>
+                  </svg>
+                </ReplyQuoteIcon>
+                <ReplyQuoteAuthor>{message.replyToMessage.userId}</ReplyQuoteAuthor>
+              </ReplyQuoteHeader>
+              <ReplyQuoteContent>
+                {message.replyToMessage.content}
+              </ReplyQuoteContent>
+            </ReplyQuote>
           )}
 
           <MessageContent>{message.content}</MessageContent>

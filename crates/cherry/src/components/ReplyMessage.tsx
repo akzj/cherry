@@ -12,12 +12,21 @@ interface ReplyMessageProps {
 }
 
 const ReplyContainer = styled.div`
-  background: rgba(99, 102, 241, 0.1);
-  border-left: 3px solid #6366f1;
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-left: 4px solid #6366f1;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
   position: relative;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  }
 `;
 
 const ReplyHeader = styled.div`
@@ -33,6 +42,22 @@ const ReplyLabel = styled.span`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  
+  &::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: url("data:image/svg+xml,${encodeURIComponent(`
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z" fill="#6366f1"/>
+        <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z" fill="white"/>
+      </svg>
+    `)}") no-repeat center;
+    background-size: contain;
+  }
 `;
 
 const CancelButton = styled.button`
@@ -51,12 +76,15 @@ const CancelButton = styled.button`
 
 const ReplyContent = styled.div`
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.75);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   max-width: 100%;
+  font-weight: 500;
 `;
 
 const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
