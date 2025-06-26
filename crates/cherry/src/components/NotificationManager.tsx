@@ -108,9 +108,9 @@ const NotificationManager: React.FC = () => {
       </ConnectionStatus> */}
       
       <NotificationStack>
-        {currentNotifications.map((notification) => (
+        {currentNotifications.map((notification, index) => (
           <NotificationToast
-            key={notification.timestamp}
+            key={`${notification.timestamp}-${index}`}
             notification={notification}
             onClose={() => removeNotification(notification.timestamp)}
           />

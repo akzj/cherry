@@ -33,70 +33,79 @@ interface NotificationState {
 }
 
 // 创建通知状态管理
-export const useNotificationStore = create<NotificationState>((set, get) => ({
-  // 初始状态
-  notifications: [],
-  isConnected: false,
-  contacts: [],
-  conversations: [],
+export const useNotificationStore = create<NotificationState>((set, get) => {
+  let timestampCounter = 0;
+  
+  const getUniqueTimestamp = () => {
+    timestampCounter += 1;
+    return Date.now() + timestampCounter;
+  };
 
-  // 添加通知
-  addNotification: (notification: NotificationData) => {
-    set((state) => ({
-      notifications: [...state.notifications, notification].slice(-50), // 保留最近50条
-    }));
-  },
+  return {
+    // 初始状态
+    notifications: [],
+    isConnected: false,
+    contacts: [],
+    conversations: [],
 
-  // 清除通知
-  clearNotifications: () => {
-    set({ notifications: [] });
-  },
+    // 添加通知
+    addNotification: (notification: NotificationData) => {
+      set((state) => ({
+        notifications: [...state.notifications, notification].slice(-50), // 保留最近50条
+      }));
+    },
 
-  // 更新联系人列表
-  updateContacts: (contacts: Contact[]) => {
-    set({ contacts });
-    get().addNotification({
-      type: 'contacts_updated',
-      data: { count: contacts.length },
-      timestamp: Date.now(),
-    });
-  },
+    // 清除通知
+    clearNotifications: () => {
+      set({ notifications: [] });
+    },
 
-  // 更新会话列表
-  updateConversations: (conversations: Conversation[]) => {
-    set({ conversations });
-    get().addNotification({
-      type: 'conversations_updated',
-      data: { count: conversations.length },
-      timestamp: Date.now(),
-    });
-  },
+    // 更新联系人列表
+    updateContacts: (contacts: Contact[]) => {
+      set({ contacts });
+      get().addNotification({
+        type: 'contacts_updated',
+        data: { count: contacts.length },
+        timestamp: getUniqueTimestamp(),
+      });
+    },
 
-  // 设置连接状态
-  setConnectionStatus: (status: boolean) => {
-    set({ isConnected: status });
-  },
+    // 更新会话列表
+    updateConversations: (conversations: Conversation[]) => {
+      set({ conversations });
+      get().addNotification({
+        type: 'conversations_updated',
+        data: { count: conversations.length },
+        timestamp: getUniqueTimestamp(),
+      });
+    },
 
-  // 刷新联系人列表
-  refreshContacts: async () => {
-    try {
-      const contacts = await invoke('cmd_contact_list_all') as Contact[];
-      get().updateContacts(contacts);
-    } catch (error) {
-      console.error('Failed to refresh contacts:', error);
-    }
-  },
+    // 设置连接状态
+    setConnectionStatus: (status: boolean) => {
+      set({ isConnected: status });
+    },
 
-  // 刷新会话列表
-  refreshConversations: async () => {
-    try {
-      const conversations = await invoke('cmd_conversation_list_all') as Conversation[];
-      get().updateConversations(conversations);
-    } catch (error) {
-      console.error('Failed to refresh conversations:', error);
-    }
-  },
-}));
+    // 刷新联系人列表
+    refreshContacts: async () => {
+      try {
+        const contacts = await invoke('cmd_contact_list_all') as Contact[];
+        get().updateContacts(contacts);
+      } catch (error) {
+        console.error('Failed to refresh contacts:', error);
+      }
+    },
+
+    // 刷新会话列表
+    refreshConversations: async () => {
+      try {
+        const conversations = await invoke('cmd_conversation_list_all') as Conversation[];
+        get().updateConversations(conversations);
+      } catch (error) {
+        console.error('Failed to refresh conversations:', error);
+      }
+    },
+  };
+});
 
 // 导出便捷的hooks
 export const useNotifications = () => {

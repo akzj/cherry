@@ -19,9 +19,9 @@ const LoadingContainer = styled.div`
   gap: 1rem;
 `;
 
-const Spinner = styled.div`
-  width: 40px;
-  height: 40px;
+const Spinner = styled.div.attrs<{ $size: string }>(({ $size }) => ({
+  style: { width: $size, height: $size }
+}))<{ $size: string }>`
   border: 4px solid rgba(99, 102, 241, 0.2);
   border-top: 4px solid #6366f1;
   border-radius: 50%;
@@ -42,13 +42,13 @@ const LoadingDots = styled.div`
   align-items: center;
 `;
 
-const Dot = styled.div<{ delay: number }>`
+const Dot = styled.div<{ $delay: number }>`
   width: 6px;
   height: 6px;
   background: #6366f1;
   border-radius: 50%;
   animation: ${pulse} 1.4s ease-in-out infinite;
-  animation-delay: ${props => props.delay}s;
+  animation-delay: ${props => props.$delay}s;
 `;
 
 interface LoadingSpinnerProps {
@@ -66,19 +66,14 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     large: '60px'
   }[size];
 
-  const StyledSpinner = styled(Spinner)`
-    width: ${spinnerSize};
-    height: ${spinnerSize};
-  `;
-
   return (
     <LoadingContainer>
-      <StyledSpinner />
+      <Spinner $size={spinnerSize} />
       <LoadingText>{text}</LoadingText>
       <LoadingDots>
-        <Dot delay={0} />
-        <Dot delay={0.2} />
-        <Dot delay={0.4} />
+        <Dot $delay={0} />
+        <Dot $delay={0.2} />
+        <Dot $delay={0.4} />
       </LoadingDots>
     </LoadingContainer>
   );

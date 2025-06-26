@@ -26,7 +26,7 @@ const slideOut = keyframes`
 `;
 
 // 样式组件
-const ToastContainer = styled.div<{ isVisible: boolean; type: NotificationType }>`
+const ToastContainer = styled.div<{ $isVisible: boolean; type: NotificationType }>`
   position: fixed;
   top: 80px;
   right: 20px;
@@ -38,9 +38,9 @@ const ToastContainer = styled.div<{ isVisible: boolean; type: NotificationType }
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: ${({ isVisible }) => (isVisible ? slideIn : slideOut)} 0.3s ease-in-out;
-  transform: translateX(${({ isVisible }) => (isVisible ? '0' : '100%')});
-  opacity: ${({ isVisible }) => (isVisible ? 1 : 0)};
+  animation: ${({ $isVisible }) => ($isVisible ? slideIn : slideOut)} 0.3s ease-in-out;
+  transform: translateX(${({ $isVisible }) => ($isVisible ? '0' : '100%')});
+  opacity: ${({ $isVisible }) => ($isVisible ? 1 : 0)};
   
   background: ${({ type }) => {
     switch (type) {
@@ -90,7 +90,7 @@ const ToastTitle = styled.h4`
   gap: 6px;
 `;
 
-const ToastIcon = styled.div<{ type: NotificationType }>`
+const ToastIcon = styled.div<{ $type: NotificationType }>`
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -99,8 +99,8 @@ const ToastIcon = styled.div<{ type: NotificationType }>`
   justify-content: center;
   font-size: 11px;
   
-  background: ${({ type }) => {
-    switch (type) {
+  background: ${({ $type }) => {
+    switch ($type) {
       case 'contacts_updated':
         return 'linear-gradient(135deg, #22c55e, #16a34a)';
       case 'conversations_updated':
@@ -138,12 +138,13 @@ const CloseButton = styled.button`
   }
 `;
 
-const ProgressBar = styled.div<{ progress: number }>`
+const ProgressBar = styled.div.attrs<{ $progress: number }>(({ $progress }) => ({
+  style: { width: `${$progress}%` }
+})) <{ $progress: number }>`
   position: absolute;
   bottom: 0;
   left: 0;
   height: 3px;
-  width: ${({ progress }) => progress}%;
   background: linear-gradient(90deg, #3b82f6, #1d4ed8);
   border-radius: 0 0 12px 12px;
   transition: width 0.1s linear;
@@ -200,7 +201,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
       const elapsed = now - startTime;
       const remaining = Math.max(0, duration - elapsed);
       const newProgress = (remaining / duration) * 100;
-      
+
       setProgress(newProgress);
 
       if (remaining <= 0) {
@@ -226,7 +227,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
       }
       return notification.data.message;
     }
-    
+
     switch (notification.type) {
       case 'contacts_updated':
         return `已更新 ${notification.data?.count || 0} 个联系人`;
@@ -240,10 +241,10 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
   };
 
   return (
-    <ToastContainer isVisible={isVisible} type={notification.type}>
+    <ToastContainer $isVisible={isVisible} type={notification.type}>
       <ToastHeader>
         <ToastTitle>
-          <ToastIcon type={notification.type}>{config.icon}</ToastIcon>
+          <ToastIcon $type={notification.type}>{config.icon}</ToastIcon>
           {config.title}
         </ToastTitle>
         <CloseButton onClick={() => {
@@ -254,9 +255,9 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
         </CloseButton>
       </ToastHeader>
       <ToastMessage>{getMessage()}</ToastMessage>
-      <ProgressBar progress={progress} />
+      <ProgressBar $progress={progress} />
     </ToastContainer>
   );
 };
 
-export default NotificationToast; 
+export default NotificationToast;   

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { Message } from '../types/types';
+import { Message, buildReplyRelations } from '../types/types';
 
 export interface MessageState {
   messages: Record<string, Message[]>; // conversationId -> messages
@@ -46,10 +46,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   addMessages: (conversationId: string, messages: Message[]) => {
+    // 先建立 reply 关系
+    buildReplyRelations(messages);
     set((state) => {
       const conversationMessages = state.messages[conversationId] || [];
       const updatedMessages = [...conversationMessages, ...messages];
-      
       return {
         messages: {
           ...state.messages,

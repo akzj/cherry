@@ -240,8 +240,8 @@ impl AppState {
                                 }
                                 let mut decoded_message: Message =
                                     serde_json::from_slice(&record.content).unwrap();
-                                log::info!("Decoded message: {:?}", decoded_message);
-                                decoded_message.id = offset as i64;
+                                    decoded_message.id = offset as i64;
+                                log::info!("Decoded message: stream_id={}, offset={}, {:?}", response.stream_id, offset, decoded_message);
                                 on_event
                                     .send(CherryMessage::Message {
                                         message: decoded_message,

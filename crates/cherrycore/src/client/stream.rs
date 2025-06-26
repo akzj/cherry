@@ -175,29 +175,34 @@ impl StreamRecordDecoder {
         }
     }
 
-    pub fn decode(&mut self) -> Result<Option<(StreamRecord, u64)>> {
-        if self.data.len() < MESSAGE_RECORD_META_SIZE {
-            return Ok(None);
-        }
-        let meta = StreamRecordMeta::decode(&self.data).unwrap();
-        if meta.content_size as usize + MESSAGE_RECORD_META_SIZE * 2 > self.data.len() {
-            return Ok(None);
-        }
-        let record = StreamRecord::decode(&self.data)?;
-        let offset = self.offset;
-        self.offset += meta.content_size as u64 + MESSAGE_RECORD_META_SIZE as u64 * 2;
-        self.data = self.data[meta.content_size as usize + MESSAGE_RECORD_META_SIZE * 2..].to_vec();
-        Ok(Some((record, offset)))
-    }
-
     pub fn decode_all(&mut self) -> Result<Option<Vec<(StreamRecord, u64)>>> {
         let mut records = Vec::new();
-        while let Some((record, offset)) = self.decode()? {
+        let mut data = self.data.as_slice();
+        loop {
+            if data.len() < MESSAGE_RECORD_META_SIZE * 2 {
+                break;
+            }
+            let meta = StreamRecordMeta::decode(data).unwrap();
+
+            let expected_size = meta.content_size as usize + MESSAGE_RECORD_META_SIZE * 2;
+            if data.len() < expected_size {
+                break;
+            }
+            let record = StreamRecord::decode(data).unwrap();
+            data = &data[expected_size..];
+
+            let offset = self.offset;
+            self.offset += expected_size as u64;
+
             records.push((record, offset));
         }
+
         if records.is_empty() {
             return Ok(None);
         }
+
+        self.data = data.to_vec();
+
         Ok(Some(records))
     }
 
@@ -237,9 +242,7 @@ impl StreamRecordDecoderMachine {
             );
         } else {
             let decoder = self.machines.get_mut(&stream_id).unwrap();
-            // Calculate the expected offset for append
-            let expected_offset = decoder.offset + decoder.data.len() as u64;
-            decoder.append(data, expected_offset)?;
+            decoder.append(data, offset).unwrap();
         }
         let decoder = self.machines.get_mut(&stream_id).unwrap();
         decoder.decode_all()

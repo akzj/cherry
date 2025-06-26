@@ -11,8 +11,8 @@ const EmptyContainer = styled.div`
   text-align: center;
 `;
 
-const EmptyIcon = styled.div<{ color?: string }>`
-  color: ${props => props.color || '#9ca3af'};
+const EmptyIcon = styled.div<{ $color?: string }>`
+  color: ${props => props.$color || '#9ca3af'};
   font-size: 3rem;
   margin-bottom: 1rem;
   opacity: 0.6;
@@ -121,7 +121,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <EmptyContainer>
-      <EmptyIcon color={content.color}>
+      <EmptyIcon $color={content.color}>
         {content.icon}
       </EmptyIcon>
       <EmptyTitle>{title || content.defaultTitle}</EmptyTitle>
