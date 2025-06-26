@@ -13,7 +13,6 @@ textarea:focus,
 div:focus,
 span:focus {
   outline: none !important;
-  border-color: rgba(134, 239, 172, 0.3) !important;
 }
 
 /* 移除链接的焦点样式 */
@@ -33,6 +32,8 @@ button {
 }
 
 /* 移除输入框的默认样式 */
-input, textarea, select {
+input,
+textarea,
+select {
   -webkit-app-region: no-drag;
 }

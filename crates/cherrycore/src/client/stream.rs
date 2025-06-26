@@ -115,7 +115,6 @@ impl StreamClient {
                     Some(msg) = ws_stream.next() => {
                         match msg {
                             Ok(Message::Text(text)) => {
-                                log::debug!("Received text message: {}", text);
                                 let msg: StreamReadResponse = serde_json::from_str(&text).unwrap();
                                 if let Err(e) = tx.send(msg).await {
                                     log::error!("send stream read response error: {:?}", e);

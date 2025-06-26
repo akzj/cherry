@@ -23,17 +23,8 @@ const UserInfo = styled.div`
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  background: rgba(255, 255, 255, 0.8);
   padding: 0.15rem 1rem;
-  border-radius: 16px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-  }
 `;
 
 const AvatarContainer = styled.div`
@@ -115,17 +106,11 @@ const OnlineStatus = styled.p`
 const ActionButtons = styled.div`
   display: flex;
   gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.8);
   padding: 0.75rem 1rem;
-  border-radius: 16px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const IconButton = styled.button`
-  color: #6b7280;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  color:rgb(74, 151, 186);
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 10px;

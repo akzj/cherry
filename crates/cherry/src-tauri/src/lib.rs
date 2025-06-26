@@ -239,6 +239,11 @@ impl AppState {
         let conversations = self.conversations.lock().unwrap().clone();
         for conversation in conversations {
             let stream_id = conversation.stream_id;
+            log::info!(
+                "start_receive_message: conversation_id={}, stream_id={}",
+                conversation.conversation_id,
+                stream_id
+            );
             sender
                 .send(StreamReadRequest {
                     stream_id,

@@ -24,9 +24,6 @@ const WindowControlButton = styled.button<{ $variant: 'minimize' | 'maximize' | 
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(134, 239, 172, 0.2);
   color: rgba(34, 197, 94, 0.8);
   
   &:hover {

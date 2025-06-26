@@ -103,9 +103,9 @@ const NotificationManager: React.FC = () => {
 
   return (
     <>
-      <ConnectionStatus $isConnected={isConnected}>
+      {/* <ConnectionStatus $isConnected={isConnected}>
         {isConnected ? '已连接' : '连接断开'}
-      </ConnectionStatus>
+      </ConnectionStatus> */}
       
       <NotificationStack>
         {currentNotifications.map((notification) => (

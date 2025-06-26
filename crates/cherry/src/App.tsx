@@ -8,7 +8,7 @@ import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
-import MessageTest from './components/MessageTest';
+// import MessageTest from './components/MessageTest';
 import LoginForm from './pages/login';
 import { User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
@@ -19,19 +19,17 @@ import { useMessageStore } from './store/message';
 import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
 import { useAuthStore } from './store/auth';
-import DebugPanel from './components/DebugPanel';
-import MessageDebug from './components/MessageDebug';
-import ScrollTest from './components/ScrollTest';
+// import DebugPanel from './components/DebugPanel';
+// import MessageDebug from './components/MessageDebug';
+//import ScrollTest from './components/ScrollTest';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(135deg,rgba(134, 239, 172, 0.1) 0%,rgba(147, 197, 253, 0.05) 100%);
   position: relative;
   overflow: hidden;
-  
   &::before {
     content: '';
     position: absolute;
@@ -67,7 +65,6 @@ const AppContainer = styled.div`
   select:focus,
   textarea:focus {
     outline: none !important;
-    border-color: rgba(134, 239, 172, 0.3) !important;
   }
 
   /* 移除链接的默认焦点样式 */
@@ -104,7 +101,7 @@ const TitleBar = styled.div`
   user-select: none;
   position: relative;
   z-index: 1000;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px -1px rgba(100, 156, 105, 0.1), 0 2px 4px -1px rgba(144, 182, 196, 0.06);
   
   /* 确保按钮不可拖拽 */
   button, input, select, textarea {
@@ -123,17 +120,8 @@ const AvatarContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.8);
   padding: 0.5rem 0.75rem;
   border-radius: 12px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
 `;
 
 const AvatarWrapper = styled.div`
@@ -253,11 +241,7 @@ const ActionContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.8);
   padding: 0.5rem 0.75rem;
-  border-radius: 12px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-right: 0.5rem;
 `;
 
@@ -417,23 +401,23 @@ const App: React.FC = () => {
 
   // 认证状态
   const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
-  
+
   // 强制重新渲染的状态
   const [forceUpdate, setForceUpdate] = useState(0);
-  
+
   // 调试面板状态
   const [isDebugVisible, setIsDebugVisible] = useState(false);
-  
+
   // 通知状态
   const { addNotification } = useNotifications();
 
   // 会话状态
-  const { 
-    conversations, 
-    isLoading: conversationsLoading, 
-    error: conversationsError, 
+  const {
+    conversations,
+    isLoading: conversationsLoading,
+    error: conversationsError,
     refreshConversations,
-    getConversationById 
+    getConversationById
   } = useConversationStore();
 
   // 消息状态
@@ -532,7 +516,7 @@ const App: React.FC = () => {
   const handleSelectConversation = (id: string) => {
     console.log('Selecting conversation:', id);
     console.log('Previous conversation:', selectedConversation);
-    
+
     setSelectedConversation(id);
   };
 
@@ -578,8 +562,8 @@ const App: React.FC = () => {
   if (conversationsError) {
     return (
       <AppContainer>
-        <ErrorMessage 
-          message={conversationsError} 
+        <ErrorMessage
+          message={conversationsError}
           onRetry={refreshConversations}
         />
       </AppContainer>
@@ -602,9 +586,7 @@ const App: React.FC = () => {
           </AvatarContainer>
         </LeftSection>
 
-        <CenterSection>
-          <TitleText>Cherry Chat</TitleText>
-        </CenterSection>
+
 
         <RightSection>
           <ActionContainer>
@@ -647,9 +629,9 @@ const App: React.FC = () => {
           currentUserId={currentUser.id}
           onSendMessage={handleSendMessage}
         />
-        
+
         {/* 临时添加消息测试组件 */}
-        <MessageTest />
+        {/* <MessageTest /> */}
       </MainContent>
 
       {/* Settings Modal */}
@@ -674,16 +656,16 @@ const App: React.FC = () => {
       <NotificationManager />
 
       {/* Debug Panel */}
-      <DebugPanel 
+      {/* <DebugPanel 
         isVisible={isDebugVisible} 
         onToggle={() => setIsDebugVisible(!isDebugVisible)} 
-      />
+      /> */}
 
       {/* Message Debug */}
-      <MessageDebug selectedConversation={selectedConversation} />
+      {/* <MessageDebug selectedConversation={selectedConversation} /> */}
 
       {/* Scroll Test */}
-      <ScrollTest />
+      {/* <ScrollTest /> */}
     </AppContainer>
   );
 };

@@ -24,14 +24,11 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 `;
 
 const Header = styled.div`
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -52,10 +49,6 @@ const IconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  
   &:hover {
     background-color: rgba(99, 102, 241, 0.1);
     transform: translateY(-1px);
@@ -118,15 +111,9 @@ const ContentContainer = styled.div`
 `;
 
 const VerticalNav = styled.div`
-  width: 80px;
-  background-color: rgba(249, 250, 251, 0.8);
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  padding: 1rem 0.5rem;
   margin-right: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const NavButton = styled.button<{ $active?: boolean }>`
@@ -140,7 +127,6 @@ const NavButton = styled.button<{ $active?: boolean }>`
   background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.1)' : 'transparent'};
   border-radius: 12px;
   margin-bottom: 0.5rem;
-  border: 1px solid ${props => props.$active ? 'rgba(99, 102, 241, 0.2)' : 'transparent'};
   
   &:hover {
     background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.05)'};
@@ -190,17 +176,10 @@ const NavSpacer = styled.div`
 const MainContent = styled.div`
   flex: 1;
   overflow-y: auto;
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 16px;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const ContentHeader = styled.div`
-  padding: 1.5rem 1.5rem 1rem;
-  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
-  background: linear-gradient(135deg, rgba(249, 250, 251, 0.8), rgba(243, 244, 246, 0.8));
-  border-radius: 16px 16px 0 0;
+  padding: 0.5rem 1.5rem 1rem;
 `;
 
 const Title = styled.h2`
@@ -209,7 +188,6 @@ const Title = styled.h2`
   display: flex;
   align-items: center;
   color:rgb(63, 149, 73);
-  margin: 0;
 `;
 
 const StatusBadge = styled.span<{ $color?: string, $bgColor?: string }>`
@@ -452,18 +430,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </VerticalNav>
 
                     <MainContent>
-                        <ContentHeader>
-                            <Title>
-                                {getTabLabel(activeTab)}
-                                {activeTab === 'unread' && unreadCount > 0 && (
-                                    <StatusBadge $bgColor="#ef4444">{unreadCount} 未读</StatusBadge>
-                                )}
-                                {activeTab === 'mentions' && mentionCount > 0 && (
-                                    <StatusBadge $bgColor="#fef3c7" $color="#92400e">{mentionCount} 提及</StatusBadge>
-                                )}
-                            </Title>
-                        </ContentHeader>
-
                         {filteredConversations.length > 0 ? (
                             <ContactList
                                 conversations={filteredConversations}

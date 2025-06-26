@@ -22,14 +22,14 @@ const float = keyframes`
 // ==================== Styled Components ====================
 const StatusBarContainer = styled.div`
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(249, 250, 251, 0.95));
-  backdrop-filter: blur(20px);
-  color: #1f2937;
+  // backdrop-filter: blur(20px);
+  color:rgb(218, 234, 255);
   padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  // box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  // border-bottom: 1px solid rgba(229, 231, 235, 0.5);
   position: relative;
   z-index: 100;
 `;
@@ -231,7 +231,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ currentUser }) => {
 
       <ActionContainer>
 
-        
+
         <ActionButton className={hasNotifications ? 'has-notification' : ''}>
           <ActionIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />

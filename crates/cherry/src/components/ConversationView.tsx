@@ -17,15 +17,6 @@ const Container = styled.div<{ $isVisible: boolean }>`
   flex: 1;
   display: ${props => props.$isVisible ? 'flex' : 'none'};
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  margin: 16px;
-  margin-left: 8px;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(229, 231, 235, 0.2);
   overflow: hidden;
   height: 100%;
   min-height: 0; /* 重要：允许flex子元素收缩 */
@@ -73,8 +64,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         currentUserId={currentUserId}
         conversationId={conversation.id}
       />
-      <MessageInput 
-        onSend={handleSendMessage} 
+      <MessageInput
+        onSend={handleSendMessage}
         isLoading={isLoading}
         disabled={false}
       />

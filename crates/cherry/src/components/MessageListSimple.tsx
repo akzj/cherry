@@ -18,7 +18,6 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: linear-gradient(135deg,rgb(228, 255, 229) 0%,rgba(97, 183, 130, 0) 100%);
   min-height: 0; /* 重要：允许在flex容器中正确收缩 */
   height: 100%;
   
@@ -157,9 +156,9 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
   useEffect(() => {
     const prevLength = prevMessagesLengthRef.current;
     const currentLength = messages.length;
-    
+
     console.log(`Messages changed for conversation ${conversationId}: ${prevLength} -> ${currentLength}`);
-    
+
     // 如果有新消息添加，滚动到底部
     if (currentLength > prevLength && prevLength > 0) {
       console.log('New messages detected, scrolling to bottom');
@@ -170,7 +169,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
       console.log('Initial messages loaded, scrolling to bottom instantly');
       setTimeout(() => scrollToBottomInstant(), 100);
     }
-    
+
     prevMessagesLengthRef.current = currentLength;
   }, [messages, conversationId]);
 

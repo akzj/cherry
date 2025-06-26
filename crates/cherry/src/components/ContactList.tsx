@@ -13,7 +13,7 @@ const ContactListContainer = styled.div`
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
 `;
 
 const ContactItem = styled.div`
@@ -24,9 +24,7 @@ const ContactItem = styled.div`
   align-items: center;
   gap: 0.65rem;
   border-radius: 10px;
-  background: rgba(102, 162, 172, 0.15);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(205, 230, 220, 0.19);
   
   &:hover {
     background: rgba(255, 255, 255, 0.1);
