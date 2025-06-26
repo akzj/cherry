@@ -179,15 +179,45 @@ impl AppState {
     }
 
     async fn start_receive_message(&self, on_event: Channel<CherryMessage>) -> Result<()> {
-        let stream_client = self.get_stream_client()?;
-        let (sender, mut receiver) = stream_client
-            .open_stream()
-            .await
-            .context("Failed to open stream")?;
-
-        let mut decoder_machine = StreamRecordDecoderMachine::new();
         let state = self.clone();
         tokio::spawn(async move {
+            let mut decoder_machine = StreamRecordDecoderMachine::new();
+            // state.init(&app).await.map_err(CommandError::from)?;
+            let stream_client = state.get_stream_client().unwrap();
+            let (sender, mut receiver) = stream_client
+                .open_stream()
+                .await
+                .context("Failed to open stream")
+                .unwrap();
+
+            let cherry_client = state.get_cherry_client().unwrap();
+            let conversations = cherry_client
+                .get_conversations()
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to get conversations: {}", e))
+                .unwrap();
+            log::info!("start_receive_message: conversations={:?}", conversations);
+            *state.conversations.lock().unwrap() = conversations;
+
+            // Collect conversations into a local variable to avoid holding MutexGuard across async boundary
+            let conversations = state.conversations.lock().unwrap().clone();
+            for conversation in conversations {
+                let stream_id = conversation.stream_id;
+                log::info!(
+                    "start_receive_message: conversation_id={}, stream_id={}",
+                    conversation.conversation_id,
+                    stream_id
+                );
+                sender
+                    .send(StreamReadRequest {
+                        stream_id,
+                        offset: 0,
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to send StreamReadRequest: {}", e))
+                    .unwrap();
+            }
+
             while let Some(response) = receiver.recv().await {
                 log::info!("Received message: {:?}", response);
                 let records = decoder_machine.decode(
@@ -234,23 +264,6 @@ impl AppState {
                 }
             }
         });
-
-        // Collect conversations into a local variable to avoid holding MutexGuard across async boundary
-        let conversations = self.conversations.lock().unwrap().clone();
-        for conversation in conversations {
-            let stream_id = conversation.stream_id;
-            log::info!(
-                "start_receive_message: conversation_id={}, stream_id={}",
-                conversation.conversation_id,
-                stream_id
-            );
-            sender
-                .send(StreamReadRequest {
-                    stream_id,
-                    offset: 0,
-                })
-                .await?;
-        }
 
         Ok(())
     }
@@ -308,7 +321,6 @@ async fn cmd_login(
     state.stream_client.lock().unwrap().replace(stream_client);
 
     // 登录成功后初始化数据并通知前端
-    state.init(&app).await.map_err(CommandError::from)?;
 
     // 启动消息接收
     match state.start_receive_message(on_event).await {
