@@ -35,7 +35,7 @@ const NotificationStack = styled.div`
   }
 `;
 
-const ConnectionStatus = styled.div<{ isConnected: boolean }>`
+const ConnectionStatus = styled.div<{ $isConnected: boolean }>`
   position: fixed;
   top: 20px;
   right: 20px;
@@ -44,13 +44,13 @@ const ConnectionStatus = styled.div<{ isConnected: boolean }>`
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
-  background: ${({ isConnected }) =>
-    isConnected
+  background: ${({ $isConnected }) =>
+    $isConnected
       ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1))'
       : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))'};
-  border: 1px solid ${({ isConnected }) =>
-    isConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'};
-  color: ${({ isConnected }) => (isConnected ? '#16a34a' : '#dc2626')};
+  border: 1px solid ${({ $isConnected }) =>
+    $isConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'};
+  color: ${({ $isConnected }) => ($isConnected ? '#16a34a' : '#dc2626')};
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -61,8 +61,8 @@ const ConnectionStatus = styled.div<{ isConnected: boolean }>`
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: ${({ isConnected }) => (isConnected ? '#16a34a' : '#dc2626')};
-    animation: ${({ isConnected }) => (isConnected ? 'pulse' : 'none')} 2s infinite;
+    background: ${({ $isConnected }) => ($isConnected ? '#16a34a' : '#dc2626')};
+    animation: ${({ $isConnected }) => ($isConnected ? 'pulse' : 'none')} 2s infinite;
   }
   
   @keyframes pulse {
@@ -103,7 +103,7 @@ const NotificationManager: React.FC = () => {
 
   return (
     <>
-      <ConnectionStatus isConnected={isConnected}>
+      <ConnectionStatus $isConnected={isConnected}>
         {isConnected ? '已连接' : '连接断开'}
       </ConnectionStatus>
       

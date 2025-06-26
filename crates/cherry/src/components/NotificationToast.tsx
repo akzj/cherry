@@ -31,12 +31,12 @@ const ToastContainer = styled.div<{ isVisible: boolean; type: NotificationType }
   top: 80px;
   right: 20px;
   z-index: 10000;
-  min-width: 300px;
-  max-width: 400px;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(20px);
+  min-width: 240px;
+  max-width: 320px;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   animation: ${({ isVisible }) => (isVisible ? slideIn : slideOut)} 0.3s ease-in-out;
   transform: translateX(${({ isVisible }) => (isVisible ? '0' : '100%')});
@@ -77,27 +77,27 @@ const ToastHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 `;
 
 const ToastTitle = styled.h4`
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1f2937;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 `;
 
 const ToastIcon = styled.div<{ type: NotificationType }>`
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   
   background: ${({ type }) => {
     switch (type) {
@@ -118,9 +118,9 @@ const ToastIcon = styled.div<{ type: NotificationType }>`
 
 const ToastMessage = styled.p`
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: #6b7280;
-  line-height: 1.4;
+  line-height: 1.3;
 `;
 
 const CloseButton = styled.button`
@@ -191,29 +191,39 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
     // 显示动画
     setIsVisible(true);
 
-    // 自动关闭计时器
     const duration = 5000; // 5秒
+    const startTime = notification.timestamp;
     const interval = 100; // 每100ms更新一次进度条
-    const steps = duration / interval;
-    let currentStep = 0;
 
-    const timer = setInterval(() => {
-      currentStep++;
-      const newProgress = Math.max(0, 100 - (currentStep / steps) * 100);
+    const updateProgress = () => {
+      const now = Date.now();
+      const elapsed = now - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      const newProgress = (remaining / duration) * 100;
+      
       setProgress(newProgress);
 
-      if (currentStep >= steps) {
+      if (remaining <= 0) {
         setIsVisible(false);
         setTimeout(onClose, 300); // 等待动画完成
-        clearInterval(timer);
+        return;
       }
-    }, interval);
+    };
+
+    // 立即更新一次进度
+    updateProgress();
+
+    const timer = setInterval(updateProgress, interval);
 
     return () => clearInterval(timer);
-  }, [onClose]);
+  }, [notification.timestamp, onClose]);
 
   const getMessage = () => {
+    // 如果是对象，序列化为字符串
     if (notification.data?.message) {
+      if (typeof notification.data.message === 'object') {
+        return JSON.stringify(notification.data.message.content);
+      }
       return notification.data.message;
     }
     

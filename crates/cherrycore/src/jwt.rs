@@ -96,11 +96,13 @@ where
     type Rejection = AuthError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        log::info!("from_request_parts");
         // Extract the token from the authorization header
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
             .map_err(|_| AuthError::InvalidToken)?;
+        log::info!("from_request_parts: bearer={}", bearer.token());
         // Decode the user data
         let token_data =
             decode::<JwtClaims>(bearer.token(), &KEYS.decoding, &Validation::default())

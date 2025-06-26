@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滚动位置测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .test-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .test-step {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .test-step:before {
+            content: "▶";
+            position: absolute;
+            left: 0;
+            color: #4ade80;
+        }
+        
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            color: #4ade80;
+            overflow-x: auto;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status.working {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+        }
+        
+        .status.issue {
+            background: rgba(248, 113, 113, 0.2);
+            color: #f87171;
+        }
+        
+        .expected-behavior {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .expected-title {
+            color: #3b82f6;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .expected-text {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 滚动位置功能测试指南</h1>
+        
+        <div class="test-section">
+            <div class="test-title">📋 测试前准备</div>
+            <div class="test-step">启动应用并登录</div>
+            <div class="test-step">确保有多个会话和足够多的消息</div>
+            <div class="test-step">打开浏览器开发者工具查看控制台日志</div>
+            
+            <div class="code-block">
+# 启动应用
+cd crates/cherry
+npm run tauri dev
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🧪 测试步骤 1: 基本滚动位置保存</div>
+            <div class="test-step">选择一个有很多消息的会话</div>
+            <div class="test-step">滚动到会话的中间位置</div>
+            <div class="test-step">等待500ms让系统保存位置</div>
+            <div class="test-step">切换到另一个会话</div>
+            <div class="test-step">再切换回原会话</div>
+            
+            <div class="expected-behavior">
+                <div class="expected-title">期望行为:</div>
+                <div class="expected-text">
+                    应该自动滚动到之前查看的位置，而不是滚动到顶部或底部
+                </div>
+            </div>
+            
+            <div class="code-block">
+// 控制台应该显示以下日志:
+"Scroll stopped, checking visible messages..."
+"Saving read position: conversation xxx, message xxx"
+"Scroll restore attempt 1 for conversation xxx"
+"Got read position: xxx"
+"Successfully scrolled to message xxx"
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🧪 测试步骤 2: 新消息滚动</div>
+            <div class="test-step">在当前会话中发送一条新消息</div>
+            <div class="test-step">观察是否自动滚动到底部显示新消息</div>
+            
+            <div class="expected-behavior">
+                <div class="expected-title">期望行为:</div>
+                <div class="expected-text">
+                    发送消息后应该平滑滚动到底部显示新消息
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🧪 测试步骤 3: 首次打开会话</div>
+            <div class="test-step">重启应用并重新登录</div>
+            <div class="test-step">选择一个之前有保存位置的会话</div>
+            
+            <div class="expected-behavior">
+                <div class="expected-title">期望行为:</div>
+                <div class="expected-text">
+                    由于重启后内存中的位置丢失，应该滚动到底部
+                    （等服务器端存储实现后，这里应该恢复到保存的位置）
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🔍 调试信息检查</div>
+            
+            <div class="test-step">在浏览器控制台中检查以下日志:</div>
+            
+            <div class="code-block">
+// 可见消息检测
+"Checking visible messages, container bounds: {top: xxx, bottom: xxx}"
+"Found visible message xxx at position: {messageTop: xxx, messageBottom: xxx}"
+
+// 滚动位置保存
+"Saving read position: conversation xxx, message xxx"
+
+// 滚动位置恢复
+"Scroll restore attempt 1 for conversation xxx"
+"Got read position: xxx"
+"Attempting to scroll to message xxx"
+"Successfully scrolled to message xxx"
+
+// 后端日志 (终端中)
+"cmd_save_read_position: conversation_id=xxx, last_read_message_id=xxx"
+"cmd_get_read_position: conversation_id=xxx"
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">⚠️ 常见问题排查</div>
+            
+            <div class="test-step">如果滚动位置没有恢复:</div>
+            <div style="margin-left: 40px;">
+                <div class="test-step">检查消息是否正确加载到DOM</div>
+                <div class="test-step">查看是否有JavaScript错误</div>
+                <div class="test-step">确认后端API调用成功</div>
+            </div>
+            
+            <div class="test-step">如果滚动到错误位置:</div>
+            <div style="margin-left: 40px;">
+                <div class="test-step">检查可见消息检测逻辑</div>
+                <div class="test-step">确认消息ID是否正确</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">✅ 成功标准</div>
+            <div class="test-step">会话切换时能准确恢复到之前的阅读位置</div>
+            <div class="test-step">新消息发送后自动滚动到底部</div>
+            <div class="test-step">滚动时能正确检测和保存可见的最后一条消息</div>
+            <div class="test-step">控制台日志显示正确的调试信息</div>
+            <div class="test-step">后端API调用成功且返回正确数据</div>
+        </div>
+    </div>
+</body>
+</html> 

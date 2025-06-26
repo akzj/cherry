@@ -90,23 +90,32 @@ impl StreamClient {
             "{}/api/v1/stream/read",
             self.stream_server_url.replace("http", "ws")
         );
+
+        log::info!("Attempting WebSocket connection to: {}", url);
         let mut request = url.into_client_request().unwrap();
         if let Some(jwt_token) = &self.jwt_token {
-            request.headers_mut().insert(
-                "Authorization",
-                format!("Bearer {}", jwt_token).parse().unwrap(),
-            );
+            let auth_header = format!("Bearer {}", jwt_token);
+            log::info!("Setting Authorization header: {}", auth_header);
+            request
+                .headers_mut()
+                .insert("Authorization", auth_header.parse().unwrap());
+        } else {
+            log::warn!("No JWT token provided for WebSocket connection");
         }
 
         let (mut ws_stream, _) = async_tungstenite::tokio::connect_async(request).await?;
+        log::info!("WebSocket connection established successfully");
+
         let (tx, msg_rx) = tokio::sync::mpsc::channel(100);
         let (req_tx, mut req_rx) = tokio::sync::mpsc::channel::<StreamReadRequest>(100);
         tokio::spawn(async move {
+            log::info!("WebSocket message handler started");
             loop {
                 select! {
                     Some(msg) = ws_stream.next() => {
                         match msg {
                             Ok(Message::Text(text)) => {
+                                log::debug!("Received text message: {}", text);
                                 let msg: StreamReadResponse = serde_json::from_str(&text).unwrap();
                                 if let Err(e) = tx.send(msg).await {
                                     log::error!("send stream read response error: {:?}", e);
@@ -136,7 +145,9 @@ impl StreamClient {
                     }
 
                     Some(msg) = req_rx.recv() => {
-                        let msg = Message::Text(serde_json::to_string(&msg).unwrap().into());
+                        let msg_text = serde_json::to_string(&msg).unwrap();
+                        log::debug!("Sending request: {}", msg_text);
+                        let msg = Message::Text(msg_text.into());
                         if let Err(e) = ws_stream.send(msg).await {
                             log::error!("send stream read request error: {:?}", e);
                             break;

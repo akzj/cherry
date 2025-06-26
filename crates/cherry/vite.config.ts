@@ -17,7 +17,7 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    host: host || true,
     hmr: host
       ? {
           protocol: "ws",
@@ -29,5 +29,15 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+  },
+  
+  // 启用源码映射以支持调试
+  build: {
+    sourcemap: true,
+  },
+  
+  // 开发模式下的配置
+  define: {
+    __DEV__: true,
   },
 }));

@@ -19,7 +19,18 @@ export const useMessageReceiver = () => {
         const frontendMessage = convertBackendMessage(backendMessage);
         
         // 使用后端提供的 conversation_id 直接添加消息
+        console.log('Adding message to conversation:', {
+          conversationId: conversation_id,
+          messageId: frontendMessage.id,
+          content: frontendMessage.content,
+          userId: frontendMessage.userId
+        });
+        
         addMessage(conversation_id, frontendMessage);
+        
+        // 验证消息是否正确添加
+        const currentMessages = getMessages(conversation_id);
+        console.log('Current messages in conversation', conversation_id, ':', currentMessages.length);
         
         // 添加新消息通知
         addNotification({

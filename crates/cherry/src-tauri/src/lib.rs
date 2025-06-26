@@ -2,13 +2,19 @@
 
 mod db;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use env_logger;
 use serde::Serialize;
-use std::sync::{Arc, Mutex};
-use tauri::{ipc::Channel, Emitter, Manager, State};
+use std::collections::HashMap;
+use std::io::Write;
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 use streamstore::StreamId;
+use tauri::{ipc::Channel, Emitter, Manager, State};
 use uuid;
+use uuid::Uuid;
 
 use crate::db::{
     models::{Contact as DbContact, User},
@@ -69,17 +75,18 @@ struct AppStateInner {
     stream_client: Mutex<Option<StreamClient>>,
     conversations: Mutex<Vec<Conversation>>,
     user_info: Mutex<Option<UserInfo>>,
+    conversation_read_position: Mutex<HashMap<Uuid, i64>>,
 }
 
 #[derive(Clone)]
 struct AppState {
-    inner: Arc<AppStateInner>
+    inner: Arc<AppStateInner>,
 }
 
 impl std::ops::Deref for AppState {
     type Target = AppStateInner;
     fn deref(&self) -> &Self::Target {
-        return &self.inner
+        return &self.inner;
     }
 }
 
@@ -102,7 +109,8 @@ impl AppState {
 
     fn find_conversation_id(&self, stream_id: StreamId) -> Result<uuid::Uuid> {
         let guard = self.conversations.lock().unwrap();
-        guard.iter()
+        guard
+            .iter()
             .find_map(|c| {
                 if c.stream_id == stream_id {
                     Some(c.conversation_id)
@@ -172,7 +180,10 @@ impl AppState {
 
     async fn start_receive_message(&self, on_event: Channel<CherryMessage>) -> Result<()> {
         let stream_client = self.get_stream_client()?;
-        let (sender, mut receiver) = stream_client.open_stream().await?;
+        let (sender, mut receiver) = stream_client
+            .open_stream()
+            .await
+            .context("Failed to open stream")?;
 
         let mut decoder_machine = StreamRecordDecoderMachine::new();
         let state = self.clone();
@@ -188,9 +199,13 @@ impl AppState {
                     for (record, offset) in records {
                         match record.meta.data_format {
                             DataFormat::JsonMessage => {
-                                let conversation_id = state.find_conversation_id(response.stream_id);
-                                if conversation_id.is_err(){
-                                    log::info!("find_conversation_id error: {:?}",conversation_id.err());
+                                let conversation_id =
+                                    state.find_conversation_id(response.stream_id);
+                                if conversation_id.is_err() {
+                                    log::info!(
+                                        "find_conversation_id error: {:?}",
+                                        conversation_id.err()
+                                    );
                                     continue;
                                 }
                                 let mut decoded_message: Message =
@@ -198,9 +213,9 @@ impl AppState {
                                 log::info!("Decoded message: {:?}", decoded_message);
                                 decoded_message.id = offset as i64;
                                 on_event
-                                    .send(CherryMessage::Message{
-                                        message:decoded_message,
-                                        conversation_id:conversation_id.unwrap()
+                                    .send(CherryMessage::Message {
+                                        message: decoded_message,
+                                        conversation_id: conversation_id.unwrap(),
                                     })
                                     .unwrap();
                             }
@@ -208,7 +223,11 @@ impl AppState {
                                 let decoded_event: StreamEvent =
                                     serde_json::from_slice(&record.content).unwrap();
                                 log::info!("Decoded event: {:?}", decoded_event);
-                                on_event.send(CherryMessage::Event{event:decoded_event}).unwrap();
+                                on_event
+                                    .send(CherryMessage::Event {
+                                        event: decoded_event,
+                                    })
+                                    .unwrap();
                             }
                         }
                     }
@@ -257,10 +276,10 @@ impl AppState {
 async fn cmd_login(
     email: String,
     password: String,
+    on_event: Channel<CherryMessage>,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
-    on_event: Channel<CherryMessage>,
-) -> Result<cherrycore::types::UserInfo, CommandError> {
+) -> Result<serde_json::Value, CommandError> {
     log::info!("cmd_login: username={}, password={}", email, password);
     let cherry_client = CherryClient::new().expect("Failed to create Cherry client");
 
@@ -268,6 +287,8 @@ async fn cmd_login(
         .login(&email, &password)
         .await
         .map_err(CommandError::from)?;
+
+    log::info!("login_response: {:?}", login_response);
 
     let cherry_client = cherry_client.with_auth(AuthCredentials {
         user_id: login_response.user_info.user_id,
@@ -283,13 +304,28 @@ async fn cmd_login(
 
     // 登录成功后初始化数据并通知前端
     state.init(&app).await.map_err(CommandError::from)?;
-    
+
     // 启动消息接收
-    state.start_receive_message(on_event).await?;
+    match state.start_receive_message(on_event).await {
+        Ok(_) => log::info!("Message receiver started"),
+        Err(e) => log::error!("Failed to start message receiver: {:?}", e),
+    }
 
-    state.user_info.lock().unwrap().replace(login_response.user_info.clone());
+    // 克隆user_info以避免移动问题
+    let user_info = login_response.user_info.clone();
+    state.user_info.lock().unwrap().replace(user_info.clone());
 
-    Ok(login_response.user_info)
+    // 返回包含jwt_token的完整响应
+    let response = serde_json::json!({
+        "user_id": user_info.user_id.to_string(),
+        "username": user_info.username,
+        "email": user_info.email,
+        "avatar_url": user_info.avatar_url,
+        "status": user_info.status,
+        "jwt_token": login_response.jwt_token
+    });
+
+    Ok(response)
 }
 
 #[tauri::command]
@@ -352,26 +388,35 @@ async fn cmd_send_message(
     reply_to: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    log::info!("cmd_send_message: conversation_id={}, content={}", conversation_id, content);
-    
+    log::info!(
+        "cmd_send_message: conversation_id={}, content={}",
+        conversation_id,
+        content
+    );
+
+    // 将字符串转换为UUID
+    let conversation_uuid = Uuid::parse_str(&conversation_id).map_err(|e| CommandError {
+        message: format!("Invalid conversation ID format: {}", e),
+    })?;
+
     // 获取会话信息并克隆数据，避免持有 MutexGuard 跨越 async 边界
     let stream_id = {
         let conversations = state.conversations.lock().unwrap();
         let conversation = conversations
             .iter()
-            .find(|c| c.conversation_id.to_string() == conversation_id)
+            .find(|c| c.conversation_id == conversation_uuid)
             .ok_or_else(|| CommandError {
-                message: "Conversation not found".to_string(),
+                message: format!("Conversation not found: {}", conversation_id),
             })?;
         conversation.stream_id
     };
-    
+
     // 获取用户信息
     let user_id = {
         let user_info = state.user_info.lock().unwrap();
         user_info.as_ref().unwrap().user_id
     };
-    
+
     // 创建消息
     let message = Message {
         id: 0, // 服务器会分配ID
@@ -381,21 +426,21 @@ async fn cmd_send_message(
         reply_to,
         type_: message_type.unwrap_or_else(|| "text".to_string()),
     };
-    
+
     // 获取流客户端
     let stream_client = state.get_stream_client()?;
-    
+
     // 编码消息
     let encoded_data = message.encode().map_err(CommandError::from)?;
-    
+
     // 发送到流服务器
     let response = stream_client
         .append_stream(stream_id, encoded_data)
         .await
         .map_err(CommandError::from)?;
-    
+
     log::info!("Message sent successfully, offset: {}", response.offset);
-    
+
     Ok(())
 }
 
@@ -429,9 +474,125 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+async fn cmd_validate_token(
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<bool, CommandError> {
+    log::info!("cmd_validate_token: validating token");
+
+    // 检查token是否为空
+    if token.is_empty() {
+        return Ok(false);
+    }
+
+    // 这里可以添加JWT验证逻辑
+    // 暂时返回false，强制重新登录以确保安全
+    log::info!("Token validation: returning false for security");
+    Ok(false)
+}
+
+#[tauri::command]
+async fn cmd_save_read_position(
+    conversation_id: String,
+    last_read_message_id: i64,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    log::info!(
+        "cmd_save_read_position: conversation_id={}, last_read_message_id={}",
+        conversation_id,
+        last_read_message_id
+    );
+
+    // 将字符串转换为UUID
+    let conversation_uuid = Uuid::parse_str(&conversation_id).map_err(|e| CommandError {
+        message: format!("Invalid conversation ID format: {}", e),
+    })?;
+
+    // 获取用户ID
+    let user_id = {
+        let user_info = state.user_info.lock().unwrap();
+        user_info.as_ref().unwrap().user_id
+    };
+
+    // 这里应该调用后端API保存读取位置
+    // 暂时只记录日志
+    log::info!(
+        "Saving read position for user {} in conversation {}: message_id {}",
+        user_id,
+        conversation_uuid,
+        last_read_message_id
+    );
+
+    let mut conversation_read_position = state.conversation_read_position.lock().unwrap();
+    conversation_read_position.insert(conversation_uuid, last_read_message_id);
+
+    // TODO: 实现实际的API调用
+    // let cherry_client = state.get_cherry_client()?;
+    // cherry_client.save_read_position(conversation_uuid, last_read_message_id).await?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn cmd_get_read_position(
+    conversation_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<i64>, CommandError> {
+    log::info!("cmd_get_read_position: conversation_id={}", conversation_id);
+
+    // 将字符串转换为UUID
+    let conversation_uuid = Uuid::parse_str(&conversation_id).map_err(|e| CommandError {
+        message: format!("Invalid conversation ID format: {}", e),
+    })?;
+
+    // 获取用户ID
+    let user_id = {
+        let user_info = state.user_info.lock().unwrap();
+        user_info.as_ref().unwrap().user_id
+    };
+
+    // 这里应该调用后端API获取读取位置
+    // 暂时返回None
+    log::info!(
+        "Getting read position for user {} in conversation {}",
+        user_id,
+        conversation_uuid
+    );
+
+    let conversation_read_position = state.conversation_read_position.lock().unwrap();
+    let read_position = conversation_read_position.get(&conversation_uuid);
+    log::info!("read_position: {:?}", read_position);
+    Ok(read_position.cloned())
+
+    // TODO: 实现实际的API调用
+    // let cherry_client = state.get_cherry_client()?;
+    // let position = cherry_client.get_read_position(conversation_uuid).await?;
+
+    // Ok(None)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+    // set rust_log to use the environment variable RUST_LOG
+    let log_level = "RUST_LOG";
+    let env = env::var(log_level).unwrap_or_else(|_| "debug".to_string());
+    unsafe {
+        env::set_var(log_level, env);
+    }
+
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} level:{} {}",
+                record.file().unwrap(),
+                record.line().unwrap(),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
     let db_path = std::env::current_dir().unwrap().join("sqlite.db");
     println!("db_path: {}", db_path.to_str().unwrap());
@@ -444,6 +605,7 @@ pub async fn run() {
                 stream_client: Mutex::new(None),
                 cherry_client: Mutex::new(None),
                 user_info: Mutex::new(None),
+                conversation_read_position: Mutex::new(HashMap::new()),
             }),
             // todo: 需要重新设计
             // repo: Repo::new(db_path.to_str().unwrap()).await,
@@ -455,7 +617,10 @@ pub async fn run() {
             cmd_conversation_list_all,
             cmd_refresh_contacts,
             cmd_refresh_conversations,
-            cmd_send_message
+            cmd_send_message,
+            cmd_validate_token,
+            cmd_save_read_position,
+            cmd_get_read_position
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

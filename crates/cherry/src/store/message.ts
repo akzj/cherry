@@ -34,6 +34,15 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       const conversationMessages = state.messages[conversationId] || [];
       const updatedMessages = [...conversationMessages, message];
       
+      console.log('MessageStore.addMessage:', {
+        conversationId,
+        messageId: message.id,
+        content: message.content,
+        previousCount: conversationMessages.length,
+        newCount: updatedMessages.length,
+        allConversations: Object.keys(state.messages)
+      });
+      
       return {
         messages: {
           ...state.messages,
@@ -86,7 +95,13 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   setError: (error: string | null) => set({ error }),
 
   getMessages: (conversationId: string) => {
-    return get().messages[conversationId] || [];
+    const messages = get().messages[conversationId] || [];
+    console.log('MessageStore.getMessages:', {
+      conversationId,
+      messageCount: messages.length,
+      allConversations: Object.keys(get().messages)
+    });
+    return messages;
   },
 
   sendMessage: async (conversationId: string, content: string, messageType?: string, replyTo?: number) => {
@@ -101,28 +116,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         replyTo
       });
       
-      // 发送成功后，可以添加一个临时消息到本地状态
-      // 实际的消息会通过消息接收机制从后端获取
-      const tempMessage: Message = {
-        id: Date.now(), // 临时ID
-        userId: 'current_user', // 临时用户ID
-        content,
-        timestamp: new Date().toISOString(),
-        type: (messageType || 'text') as Message['type']
-      };
-      
-      // 添加到本地消息列表
-      const state = get();
-      const conversationMessages = state.messages[conversationId] || [];
-      const updatedMessages = [...conversationMessages, tempMessage];
-      
-      set({
-        messages: {
-          ...state.messages,
-          [conversationId]: updatedMessages,
-        },
-        isLoading: false,
-      });
+      set({ isLoading: false });
       
     } catch (error) {
       let errorMessage = 'Failed to send message';

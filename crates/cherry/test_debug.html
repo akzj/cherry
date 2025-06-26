@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cherry Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cherry 调试测试页面</h1>
+        
+        <div id="status" class="status info">
+            正在检查应用程序状态...
+        </div>
+        
+        <h2>调试工具</h2>
+        <button onclick="checkAuthState()">检查认证状态</button>
+        <button onclick="checkNetwork()">检查网络连接</button>
+        <button onclick="runAllChecks()">运行全面检查</button>
+        <button onclick="clearAuthState()">清除认证状态</button>
+        <button onclick="simulateLogin()">模拟登录</button>
+        
+        <h2>测试结果</h2>
+        <pre id="results">等待测试...</pre>
+        
+        <h2>说明</h2>
+        <p>这个页面用于测试Cherry应用程序的调试功能。如果应用程序正在运行，你应该能够看到实时的状态信息。</p>
+        
+        <h3>使用步骤：</h3>
+        <ol>
+            <li>确保Cherry应用程序正在运行（端口1420）</li>
+            <li>点击上面的按钮进行测试</li>
+            <li>查看测试结果</li>
+            <li>在应用程序中按F12打开开发者工具</li>
+            <li>查看控制台输出</li>
+        </ol>
+    </div>
+
+    <script>
+        // 调试工具函数
+        function checkAuthState() {
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            try {
+                const authStorage = localStorage.getItem('auth-storage');
+                const authData = authStorage ? JSON.parse(authStorage) : null;
+                
+                const result = {
+                    timestamp: new Date().toLocaleString(),
+                    authStorage: authData,
+                    hasTauri: typeof window.__TAURI__ !== 'undefined',
+                    userAgent: navigator.userAgent
+                };
+                
+                results.textContent = JSON.stringify(result, null, 2);
+                status.textContent = '认证状态检查完成';
+                status.className = 'status success';
+                
+                console.log('认证状态检查:', result);
+            } catch (error) {
+                results.textContent = '错误: ' + error.message;
+                status.textContent = '认证状态检查失败';
+                status.className = 'status error';
+            }
+        }
+        
+        function checkNetwork() {
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            fetch('http://localhost:1420')
+                .then(response => {
+                    const result = {
+                        timestamp: new Date().toLocaleString(),
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok
+                    };
+                    
+                    results.textContent = JSON.stringify(result, null, 2);
+                    status.textContent = '网络连接检查完成';
+                    status.className = 'status success';
+                    
+                    console.log('网络连接检查:', result);
+                })
+                .catch(error => {
+                    const result = {
+                        timestamp: new Date().toLocaleString(),
+                        error: error.message
+                    };
+                    
+                    results.textContent = JSON.stringify(result, null, 2);
+                    status.textContent = '网络连接检查失败';
+                    status.className = 'status error';
+                });
+        }
+        
+        function runAllChecks() {
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            const checks = {
+                timestamp: new Date().toLocaleString(),
+                localStorage: {
+                    authStorage: localStorage.getItem('auth-storage') ? '存在' : '不存在'
+                },
+                network: '检查中...',
+                tauri: typeof window.__TAURI__ !== 'undefined',
+                userAgent: navigator.userAgent
+            };
+            
+            results.textContent = JSON.stringify(checks, null, 2);
+            status.textContent = '全面检查完成';
+            status.className = 'status success';
+            
+            // 检查网络
+            fetch('http://localhost:1420')
+                .then(response => {
+                    checks.network = `连接成功 (${response.status})`;
+                    results.textContent = JSON.stringify(checks, null, 2);
+                })
+                .catch(error => {
+                    checks.network = `连接失败: ${error.message}`;
+                    results.textContent = JSON.stringify(checks, null, 2);
+                });
+        }
+        
+        function clearAuthState() {
+            localStorage.removeItem('auth-storage');
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            const result = {
+                timestamp: new Date().toLocaleString(),
+                action: '清除认证状态',
+                result: '成功'
+            };
+            
+            results.textContent = JSON.stringify(result, null, 2);
+            status.textContent = '认证状态已清除';
+            status.className = 'status success';
+            
+            console.log('认证状态已清除');
+        }
+        
+        function simulateLogin() {
+            const mockUser = {
+                user_id: 'test-user',
+                username: 'Test User',
+                email: 'test@example.com',
+                status: 'online'
+            };
+            
+            const mockToken = 'mock-jwt-token';
+            
+            const authData = {
+                isAuthenticated: true,
+                user: mockUser,
+                token: mockToken,
+                isInitialized: true
+            };
+            
+            localStorage.setItem('auth-storage', JSON.stringify(authData));
+            
+            const results = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            const result = {
+                timestamp: new Date().toLocaleString(),
+                action: '模拟登录',
+                authData: authData
+            };
+            
+            results.textContent = JSON.stringify(result, null, 2);
+            status.textContent = '模拟登录完成';
+            status.className = 'status success';
+            
+            console.log('模拟登录完成:', authData);
+        }
+        
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkAuthState();
+        };
+    </script>
+</body>
+</html> 

@@ -13,6 +13,7 @@ pub(crate) const JWT_SECRET: &str = "cherryjwt_secret_test";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
     let jwt_secret = std::env::var("JWT_SECRET").unwrap_or(JWT_SECRET.to_string());
     std::env::set_var("JWT_SECRET", jwt_secret);
 

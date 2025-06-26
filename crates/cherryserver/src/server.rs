@@ -154,8 +154,10 @@ async fn login(
         .await?;
 
     if !user {
+        log::info!("login failed: wrong credentials");
         return Err(AuthError::WrongCredentials.into());
     }
+    log::info!("login success");
 
     let user = server
         .db

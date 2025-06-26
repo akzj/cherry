@@ -1,4 +1,3 @@
-// src/components/MessageList.tsx
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Message } from '../types/types';
@@ -7,17 +6,21 @@ import { useMessageStore } from '../store/message';
 interface MessageListProps {
   messages: Message[];
   currentUserId: string;
+  conversationId?: string;
 }
 
 // ==================== Styled Components ====================
 const Container = styled.div`
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%);
+  background: linear-gradient(135deg,rgb(228, 255, 229) 0%,rgba(97, 183, 130, 0) 100%);
+  min-height: 0; /* 重要：允许在flex容器中正确收缩 */
+  height: 100%;
   
   /* Custom scrollbar */
   &::-webkit-scrollbar {
@@ -49,11 +52,11 @@ const MessageContainer = styled.div<{ $isOwn: boolean }>`
 `;
 
 const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
-  background: ${props => props.$isOwn 
-    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' 
-    : 'rgba(255, 255, 255, 0.1)'
+  background: ${props => props.$isOwn
+    ? 'linear-gradient(135deg,rgba(117, 211, 80, 0.15) 0%,rgba(109, 186, 161, 0.59) 100%)'
+    : 'linear-gradient(135deg,rgba(90, 186, 83, 0.1) 0%,rgba(255, 255, 255, 0.1) 100%)'
   };
-  color: ${props => props.$isOwn ? '#ffffff' : 'rgba(255, 255, 255, 0.9)'};
+  color: ${props => props.$isOwn ? 'rgba(0, 0, 0, 0.71)' : 'rgba(15, 6, 6, 0.72)'};
   padding: 0.75rem 1rem;
   border-radius: 1rem;
   border-bottom-right-radius: ${props => props.$isOwn ? '0.25rem' : '1rem'};
@@ -134,17 +137,42 @@ const ReplyIndicator = styled.div`
 `;
 
 // ==================== Component Implementation ====================
-const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conversationId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLengthRef = useRef<number>(0);
   const { setReplyingTo } = useMessageStore();
+
+  console.log(`MessageList render for conversation ${conversationId}: ${messages.length} messages`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToBottomInstant = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+  };
+
+  // 监听消息变化，新消息时滚动到底部
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const prevLength = prevMessagesLengthRef.current;
+    const currentLength = messages.length;
+    
+    console.log(`Messages changed for conversation ${conversationId}: ${prevLength} -> ${currentLength}`);
+    
+    // 如果有新消息添加，滚动到底部
+    if (currentLength > prevLength && prevLength > 0) {
+      console.log('New messages detected, scrolling to bottom');
+      scrollToBottom();
+    }
+    // 如果是第一次加载消息，立即滚动到底部
+    else if (prevLength === 0 && currentLength > 0) {
+      console.log('Initial messages loaded, scrolling to bottom instantly');
+      setTimeout(() => scrollToBottomInstant(), 100);
+    }
+    
+    prevMessagesLengthRef.current = currentLength;
+  }, [messages, conversationId]);
 
   const handleReply = (message: Message) => {
     setReplyingTo(message);
@@ -152,15 +180,15 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const renderMessage = (message: Message) => {
     const isOwn = message.userId === currentUserId;
-    
+
     return (
       <MessageContainer key={message.id} $isOwn={isOwn}>
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
@@ -172,18 +200,18 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
               </svg>
             </ActionButton>
           </MessageActions>
-          
+
           <MessageHeader>
             <Username>{message.userId}</Username>
             <Timestamp>{formatTime(message.timestamp)}</Timestamp>
           </MessageHeader>
-          
+
           {message.isReply && message.replyToMessage && (
             <ReplyIndicator>
               回复 {message.replyToMessage.userId}: {message.replyToMessage.content.substring(0, 30)}...
             </ReplyIndicator>
           )}
-          
+
           <MessageContent>{message.content}</MessageContent>
         </MessageBubble>
       </MessageContainer>
@@ -191,11 +219,11 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
   };
 
   return (
-    <Container>
+    <Container ref={containerRef} data-conversation-id={conversationId}>
       {messages.map(renderMessage)}
       <div ref={messagesEndRef} />
     </Container>
   );
 };
 
-export default MessageList;
+export default MessageList; 

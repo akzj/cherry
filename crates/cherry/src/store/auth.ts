@@ -31,6 +31,7 @@ interface AuthState {
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   initialize: () => void;
+  validateToken: (token: string) => Promise<boolean>;
 }
 
 // 创建认证状态管理
@@ -46,15 +47,26 @@ export const useAuthStore = create<AuthState>()(
       token: null,
 
       // 初始化方法
-      initialize: () => {
+      initialize: async () => {
         const state = get();
         console.log('Initializing auth state:', state);
         
         // 检查是否有有效的 token 和用户信息
         if (state.token && state.user) {
-          // 这里可以添加 token 验证逻辑
-          console.log('Found existing auth data, marking as initialized');
-          set({ isInitialized: true });
+          // 验证token是否有效
+          const isValid = await get().validateToken(state.token);
+          if (isValid) {
+            console.log('Found valid auth data, marking as authenticated');
+            set({ isInitialized: true });
+          } else {
+            console.log('Token validation failed, clearing state');
+            set({
+              isAuthenticated: false,
+              user: null,
+              token: null,
+              isInitialized: true,
+            });
+          }
         } else {
           // 如果没有有效信息，清除状态并标记为已初始化
           console.log('No valid auth data found, clearing state');
@@ -72,6 +84,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         
         try {
+          console.log('Starting login process with:', { email, password });
+          
           // 创建事件通道用于接收消息
           const onEvent = new Channel<CherryMessage>();
           
@@ -90,11 +104,13 @@ export const useAuthStore = create<AuthState>()(
             }
           };
           
+          console.log('Calling Tauri cmd_login...');
+          
           // 调用Tauri命令进行登录，传递事件通道
           const userInfo = await invoke('cmd_login', { 
             email, 
             password,
-            onEvent 
+            onEvent
           }) as {
             user_id: string;
             username: string;
@@ -104,6 +120,12 @@ export const useAuthStore = create<AuthState>()(
             jwt_token: string;
           };
           
+          console.log('Tauri cmd_login returned:', userInfo);
+          
+          if (!userInfo || !userInfo.user_id || !userInfo.jwt_token) {
+            throw new Error('Invalid response from login command');
+          }
+          
           const user: User = {
             user_id: userInfo.user_id,
             username: userInfo.username,
@@ -112,22 +134,52 @@ export const useAuthStore = create<AuthState>()(
             status: userInfo.status,
           };
 
-          set({
+          console.log('Creating user object:', user);
+
+          // 使用回调方式确保状态更新
+          set(() => {
+            const newState = {
+              isAuthenticated: true,
+              user,
+              token: userInfo.jwt_token,
+              isLoading: false,
+              error: null,
+              isInitialized: true,
+            };
+            
+            console.log('Login successful, updating state:', newState);
+            return newState;
+          });
+          
+          // 添加调试日志
+          console.log('Login successful, state updated:', {
             isAuthenticated: true,
             user,
             token: userInfo.jwt_token,
-            isLoading: false,
-            error: null,
-            isInitialized: true,
+            isInitialized: true
           });
+          
+          // 延迟检查状态更新
+          setTimeout(() => {
+            const updatedState = get();
+            console.log('Delayed auth state check:', updatedState);
+          }, 100);
         } catch (error) {
+          console.error('Login error details:', error);
+          
           let errorMessage = 'Login failed';
           
           if (error instanceof Error) {
             errorMessage = error.message;
+            console.error('Error name:', error.name);
+            console.error('Error stack:', error.stack);
           } else if (typeof error === 'string') {
             errorMessage = error;
+          } else {
+            console.error('Unknown error type:', typeof error, error);
           }
+          
+          console.log('Setting error state:', errorMessage);
           
           set({
             isAuthenticated: false,
@@ -165,6 +217,24 @@ export const useAuthStore = create<AuthState>()(
       setToken: (token: string) => {
         set({ token });
       },
+
+      // 验证token
+      validateToken: async (token: string) => {
+        try {
+          console.log('Calling Tauri cmd_validate_token...');
+          
+          // 调用Tauri命令验证token
+          const isValid = await invoke('cmd_validate_token', { token }) as boolean;
+          
+          console.log('Tauri cmd_validate_token returned:', isValid);
+          
+          return isValid;
+        } catch (error) {
+          console.error('Token validation error:', error);
+          
+          return false;
+        }
+      },
     }),
     {
       name: 'auth-storage', // localStorage key
@@ -172,7 +242,11 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         user: state.user,
         token: state.token,
+        isInitialized: state.isInitialized,
       }),
+      onRehydrateStorage: () => (state) => {
+        console.log('Auth state rehydrated:', state);
+      },
     }
   )
 );
@@ -181,12 +255,15 @@ export const useAuthStore = create<AuthState>()(
 export const useAuth = () => {
   const auth = useAuthStore();
   
+  const isLoggedIn = auth.isAuthenticated && auth.isInitialized;
+  const isLoading = auth.isLoading || !auth.isInitialized;
+  
   return {
     ...auth,
     // 便捷的getter
     user: auth.user,
     token: auth.token,
-    isLoggedIn: auth.isAuthenticated && auth.isInitialized,
-    isLoading: auth.isLoading || !auth.isInitialized,
+    isLoggedIn,
+    isLoading,
   };
 }; 

@@ -72,7 +72,7 @@ const Avatar = styled.img`
   }
 `;
 
-const StatusIndicator = styled.div<{ status: string }>`
+const StatusIndicator = styled.div<{ $status: string }>`
   position: absolute;
   bottom: 0;
   right: 0;
@@ -80,7 +80,7 @@ const StatusIndicator = styled.div<{ status: string }>`
   height: 16px;
   border-radius: 50%;
   border: 3px solid rgba(255, 255, 255, 0.9);
-  background: ${({ status }) => {
+  background: ${({ $status }) => {
     const colors: Record<string, string> = {
       online: 'linear-gradient(135deg, #10b981, #059669)',
       offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
@@ -88,7 +88,7 @@ const StatusIndicator = styled.div<{ status: string }>`
       dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
       busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
     };
-    return colors[status] || colors.offline;
+    return colors[$status] || colors.offline;
   }};
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   animation: ${pulse} 2s infinite;
@@ -113,7 +113,7 @@ const UserName = styled.p`
   background-clip: text;
 `;
 
-const UserStatus = styled.p<{ status: string }>`
+const UserStatus = styled.p<{ $status: string }>`
   font-size: 0.875rem;
   text-transform: capitalize;
   margin: 0;
@@ -129,7 +129,7 @@ const UserStatus = styled.p<{ status: string }>`
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: ${({ status }) => {
+    background: ${({ $status }) => {
     const colors: Record<string, string> = {
       online: 'linear-gradient(135deg, #10b981, #059669)',
       offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
@@ -137,7 +137,7 @@ const UserStatus = styled.p<{ status: string }>`
       dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
       busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
     };
-    return colors[status] || colors.offline;
+    return colors[$status] || colors.offline;
   }};
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
@@ -221,11 +221,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ currentUser }) => {
       <AvatarContainer>
         <AvatarWrapper>
           <Avatar src={currentUser.avatar} alt={currentUser.name} />
-          <StatusIndicator status={currentUser.status} />
+          <StatusIndicator $status={currentUser.status} />
         </AvatarWrapper>
         <UserInfo>
           <UserName>{currentUser.name}</UserName>
-          <UserStatus status={currentUser.status}>{currentUser.status}</UserStatus>
+          <UserStatus $status={currentUser.status}>{currentUser.status}</UserStatus>
         </UserInfo>
       </AvatarContainer>
 

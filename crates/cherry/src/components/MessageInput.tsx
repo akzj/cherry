@@ -14,38 +14,36 @@ interface MessageInputProps {
 // ==================== Styled Components ====================
 const Container = styled.div`
   position: relative;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 `;
 
 const Form = styled.form`
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
   position: relative;
 `;
 
-const IconButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+const LeftButton = styled.button`
+  background: none;
+  border: none;
+  color: #6b7280;
   cursor: pointer;
+  padding: 0.75rem;
+  border-radius: 50%;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   
   &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    color: rgba(255, 255, 255, 0.9);
-    transform: translateY(-1px);
+    background: rgba(107, 114, 128, 0.1);
+    color: #374151;
   }
   
   &:disabled {
@@ -53,10 +51,9 @@ const IconButton = styled.button`
     cursor: not-allowed;
   }
   
-  &.active {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: #6366f1;
-    color: #6366f1;
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -64,16 +61,18 @@ const InputContainer = styled.div`
   flex: 1;
   position: relative;
   display: flex;
-  align-items: flex-end;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 0.75rem;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 0.75rem 1rem;
   transition: all 0.2s ease;
+  min-height: 48px;
   
   &:focus-within {
-    border-color: rgba(134, 239, 172, 0.5);
-    box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: #ffffff;
   }
 `;
 
@@ -82,8 +81,8 @@ const InputField = styled.textarea`
   background: transparent;
   border: none;
   outline: none;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.875rem;
+  color: #111827;
+  font-size: 0.95rem;
   line-height: 1.4;
   resize: none;
   min-height: 20px;
@@ -91,7 +90,7 @@ const InputField = styled.textarea`
   font-family: inherit;
   
   &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: #9ca3af;
   }
   
   &:disabled {
@@ -100,38 +99,80 @@ const InputField = styled.textarea`
   }
 `;
 
-const EmojiButton = styled(IconButton)`
-  position: relative;
-  margin-left: 0.5rem;
+const RightButtons = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 `;
 
-const SendButton = styled.button<{ $disabled: boolean }>`
-  background: ${props => props.$disabled 
-    ? 'rgba(255, 255, 255, 0.1)' 
-    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
-  };
-  border: 1px solid ${props => props.$disabled 
-    ? 'rgba(255, 255, 255, 0.2)' 
-    : 'transparent'
-  };
-  border-radius: 12px;
-  padding: 0.75rem;
-  color: ${props => props.$disabled ? 'rgba(255, 255, 255, 0.5)' : 'white'};
-  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+const ActionButton = styled.button`
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    background: rgba(107, 114, 128, 0.1);
+    color: #374151;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  &.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
+  background: ${props => props.$hasContent 
+    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+    : 'none'
+  };
+  border: none;
+  color: ${props => props.$hasContent ? '#ffffff' : '#6b7280'};
+  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+  padding: 0.75rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: 0.5rem;
+  
+  &:hover:not(:disabled) {
+    transform: ${props => props.$hasContent ? 'scale(1.05)' : 'none'};
+    background: ${props => props.$hasContent 
+      ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)' 
+      : 'rgba(107, 114, 128, 0.1)'
+    };
   }
   
   &:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(0.95);
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -159,14 +200,12 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
         const replyTo = replyingTo?.id;
         await onSend(message, replyTo);
         setMessage('');
-        setReplyingTo(null); // 清除回复状态
-        // 重置文本框高度
+        setReplyingTo(null);
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
         }
       } catch (error) {
         console.error('Failed to send message:', error);
-        // 可以在这里添加错误提示
       } finally {
         setIsSending(false);
       }
@@ -186,7 +225,6 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
     const newMessage = textBefore + emojiText + textAfter;
     setMessage(newMessage);
     
-    // 设置光标位置到表情后面
     setTimeout(() => {
       if (textareaRef.current) {
         const newPosition = cursorPosition + emojiText.length;
@@ -200,7 +238,8 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
     setIsEmojiPickerOpen(!isEmojiPickerOpen);
   };
 
-  const isDisabled = disabled || isLoading || isSending || !message.trim();
+  const isInputDisabled = disabled || isLoading || isSending;
+  const hasContent = message.trim().length > 0;
 
   return (
     <Container>
@@ -213,44 +252,75 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
       )}
       
       <Form onSubmit={handleSubmit}>
-        <IconButton type="button" disabled={isDisabled}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        {/* 左侧附件按钮 */}
+        <LeftButton type="button" disabled={isInputDisabled}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
           </svg>
-        </IconButton>
+        </LeftButton>
 
+        {/* 输入区域 */}
         <InputContainer>
           <InputField
             ref={textareaRef}
-            placeholder={replyingTo ? `回复 ${replyingTo.userId}...` : (isSending ? "Sending..." : "Type a message...")}
+            placeholder="Type a message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            disabled={isDisabled}
+            disabled={isInputDisabled}
             rows={1}
           />
-          <EmojiButton 
-            type="button" 
-            disabled={isDisabled}
-            onClick={toggleEmojiPicker}
-            className={isEmojiPickerOpen ? 'active' : ''}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm3-1a1 1 0 11-2 0 1 1 0 012 0zm3 1a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-            </svg>
-          </EmojiButton>
+          
+          <RightButtons>
+            {/* 表情按钮 */}
+            <ActionButton 
+              type="button" 
+              disabled={isInputDisabled}
+              onClick={toggleEmojiPicker}
+              className={isEmojiPickerOpen ? 'active' : ''}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                <circle cx="15.5" cy="9.5" r="1.5"/>
+                <circle cx="8.5" cy="9.5" r="1.5"/>
+                <path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+              </svg>
+            </ActionButton>
+
+            {/* 语音按钮 */}
+            <ActionButton type="button" disabled={isInputDisabled}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </ActionButton>
+
+            {/* 添加按钮 */}
+            <ActionButton type="button" disabled={isInputDisabled}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </ActionButton>
+          </RightButtons>
         </InputContainer>
 
+        {/* 发送按钮 */}
         <SendButton
           type="submit"
-          $disabled={isDisabled}
+          $disabled={isInputDisabled || !hasContent}
+          $hasContent={hasContent}
+          disabled={isInputDisabled || !hasContent}
         >
           {isSending ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 1 1-9-9"/>
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22,2 15,22 11,13 2,9 22,2"/>
             </svg>
           )}
         </SendButton>

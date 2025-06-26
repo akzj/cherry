@@ -3,9 +3,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { listen } from '@tauri-apps/api/event';
 import Sidebar from './components/Sidebar';
-import ChatHeader from './components/ChatHeader';
-import MessageList from './components/MessageList';
-import MessageInput from './components/MessageInput';
+import ConversationContainer from './components/ConversationContainer';
 import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
@@ -20,6 +18,10 @@ import { useConversationStore } from './store/conversation';
 import { useMessageStore } from './store/message';
 import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
+import { useAuthStore } from './store/auth';
+import DebugPanel from './components/DebugPanel';
+import MessageDebug from './components/MessageDebug';
+import ScrollTest from './components/ScrollTest';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
@@ -155,7 +157,7 @@ const Avatar = styled.img`
   }
 `;
 
-const StatusIndicator = styled.div<{ status: string }>`
+const StatusIndicator = styled.div<{ $status: string }>`
   position: absolute;
   bottom: 0;
   right: 0;
@@ -163,7 +165,7 @@ const StatusIndicator = styled.div<{ status: string }>`
   height: 12px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.9);
-  background: ${({ status }) => {
+  background: ${({ $status }) => {
     const colors: Record<string, string> = {
       online: 'linear-gradient(135deg, #10b981, #059669)',
       offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
@@ -171,7 +173,7 @@ const StatusIndicator = styled.div<{ status: string }>`
       dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
       busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
     };
-    return colors[status] || colors.offline;
+    return colors[$status] || colors.offline;
   }};
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   z-index: 10;
@@ -195,7 +197,7 @@ const UserName = styled.p`
   background-clip: text;
 `;
 
-const UserStatus = styled.p<{ status: string }>`
+const UserStatus = styled.p<{ $status: string }>`
   font-size: 0.75rem;
   text-transform: capitalize;
   margin: 0;
@@ -211,7 +213,7 @@ const UserStatus = styled.p<{ status: string }>`
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: ${({ status }) => {
+    background: ${({ $status }) => {
     const colors: Record<string, string> = {
       online: 'linear-gradient(135deg, #10b981, #059669)',
       offline: 'linear-gradient(135deg, #6b7280, #4b5563)',
@@ -219,7 +221,7 @@ const UserStatus = styled.p<{ status: string }>`
       dnd: 'linear-gradient(135deg, #ef4444, #dc2626)',
       busy: 'linear-gradient(135deg, #ef4444, #dc2626)',
     };
-    return colors[status] || colors.offline;
+    return colors[$status] || colors.offline;
   }};
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
@@ -321,30 +323,7 @@ const MainContent = styled.div`
   z-index: 1;
 `;
 
-const ChatArea = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  margin: 16px;
-  margin-left: 8px;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(134, 239, 172, 0.2);
-  overflow: hidden;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 12px 40px rgba(0, 0, 0, 0.15),
-      0 6px 20px rgba(0, 0, 0, 0.1);
-    border-color: rgba(134, 239, 172, 0.3);
-  }
-`;
+
 
 // 模态窗口样式
 const ModalOverlay = styled.div`
@@ -439,6 +418,12 @@ const App: React.FC = () => {
   // 认证状态
   const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
   
+  // 强制重新渲染的状态
+  const [forceUpdate, setForceUpdate] = useState(0);
+  
+  // 调试面板状态
+  const [isDebugVisible, setIsDebugVisible] = useState(false);
+  
   // 通知状态
   const { addNotification } = useNotifications();
 
@@ -459,8 +444,23 @@ const App: React.FC = () => {
 
   // 初始化认证状态
   useEffect(() => {
-    initialize();
+    const initAuth = async () => {
+      await initialize();
+    };
+    initAuth();
   }, [initialize]);
+
+  // 监听认证状态变化
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe(
+      (state) => {
+        console.log('Auth state changed, isAuthenticated:', state.isAuthenticated);
+        setForceUpdate(prev => prev + 1);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
 
   // 添加调试信息
   useEffect(() => {
@@ -528,23 +528,19 @@ const App: React.FC = () => {
     status: 'online'
   };
 
-  // 当前选中的会话
-  const selectedConvo = selectedConversation ? getConversationById(selectedConversation) : null;
-
-  // 获取当前会话的消息
-  const currentMessages = selectedConversation ? getMessages(selectedConversation) : [];
-
   // 处理会话选择
   const handleSelectConversation = (id: string) => {
+    console.log('Selecting conversation:', id);
+    console.log('Previous conversation:', selectedConversation);
+    
     setSelectedConversation(id);
   };
 
-  // 处理发送消息
-  const handleSendMessage = async (content: string, replyTo?: number) => {
-    if (!selectedConversation) return;
-    
+  // 处理发送消息 - 接收会话ID作为参数
+  const handleSendMessage = async (conversationId: string, content: string, replyTo?: number) => {
     try {
-      await sendMessage(selectedConversation, content, 'text', replyTo);
+      await sendMessage(conversationId, content, 'text', replyTo);
+      console.log(`Message sent to conversation ${conversationId}: ${content}`);
     } catch (error) {
       console.error('Failed to send message:', error);
       // 可以在这里添加错误提示
@@ -553,6 +549,7 @@ const App: React.FC = () => {
 
   // 如果正在加载认证状态，显示加载界面
   if (authLoading) {
+    console.log('Showing loading screen - authLoading:', authLoading, 'forceUpdate:', forceUpdate);
     return (
       <AppContainer>
         <LoadingSpinner />
@@ -562,8 +559,11 @@ const App: React.FC = () => {
 
   // 如果未登录，显示登录页面
   if (!isLoggedIn) {
+    console.log('Showing login form - isLoggedIn:', isLoggedIn, 'forceUpdate:', forceUpdate);
     return <LoginForm />;
   }
+
+  console.log('Showing main app - user authenticated, forceUpdate:', forceUpdate);
 
   // 如果正在加载会话数据，显示加载界面
   if (conversationsLoading) {
@@ -593,11 +593,11 @@ const App: React.FC = () => {
           <AvatarContainer>
             <AvatarWrapper>
               <Avatar src={currentUser.avatar} alt={currentUser.name} />
-              <StatusIndicator status={currentUser.status} />
+              <StatusIndicator $status={currentUser.status} />
             </AvatarWrapper>
             <UserInfo>
               <UserName>{currentUser.name}</UserName>
-              <UserStatus status={currentUser.status}>{currentUser.status}</UserStatus>
+              <UserStatus $status={currentUser.status}>{currentUser.status}</UserStatus>
             </UserInfo>
           </AvatarContainer>
         </LeftSection>
@@ -641,20 +641,12 @@ const App: React.FC = () => {
           />
         ) : null}
 
-        {(selectedConversation || !isMobile) && (
-          <ChatArea>
-            {selectedConvo && <ChatHeader conversation={selectedConvo} />}
-            <MessageList
-              messages={currentMessages}
-              currentUserId={currentUser.id}
-            />
-            <MessageInput 
-              onSend={handleSendMessage} 
-              isLoading={false}
-              disabled={!selectedConversation}
-            />
-          </ChatArea>
-        )}
+        <ConversationContainer
+          conversations={conversations}
+          selectedConversationId={selectedConversation}
+          currentUserId={currentUser.id}
+          onSendMessage={handleSendMessage}
+        />
         
         {/* 临时添加消息测试组件 */}
         <MessageTest />
@@ -680,6 +672,18 @@ const App: React.FC = () => {
 
       {/* Notification Manager */}
       <NotificationManager />
+
+      {/* Debug Panel */}
+      <DebugPanel 
+        isVisible={isDebugVisible} 
+        onToggle={() => setIsDebugVisible(!isDebugVisible)} 
+      />
+
+      {/* Message Debug */}
+      <MessageDebug selectedConversation={selectedConversation} />
+
+      {/* Scroll Test */}
+      <ScrollTest />
     </AppContainer>
   );
 };

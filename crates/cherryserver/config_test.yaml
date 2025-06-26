@@ -1,5 +1,0 @@
-db_conn: "postgres://postgres:postgres123@localhost:5432/cherryserver_test"
-stream_server_url: "ws://localhost:8080"
-jwt_token_expire_seconds: 3600
-jwt_secret: "cherryjwt_secret_test"
-listen_addr: "0.0.0.0:8181"
