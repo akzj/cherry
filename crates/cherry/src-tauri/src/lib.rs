@@ -442,6 +442,9 @@ async fn cmd_send_message(
         timestamp: chrono::Utc::now(),
         reply_to,
         type_: message_type.unwrap_or_else(|| "text".to_string()),
+        image_url: None,
+        image_thumbnail_url: None,
+        image_metadata: None,
     };
 
     // 获取流客户端

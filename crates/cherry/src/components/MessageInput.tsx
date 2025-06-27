@@ -3,10 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
+import ImageUploader from './ImageUploader';
 import { useMessageStore } from '../store/message';
 
 interface MessageInputProps {
   onSend: (message: string, replyTo?: number) => Promise<void>;
+  onImageSend?: (imageUrl: string, thumbnailUrl: string, metadata: any) => Promise<void>;
+  conversationId: string;
   isLoading?: boolean;
   disabled?: boolean;
 }
@@ -177,7 +180,13 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, disabled = false }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ 
+  onSend, 
+  onImageSend,
+  conversationId,
+  isLoading = false, 
+  disabled = false 
+}) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -208,6 +217,16 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
         console.error('Failed to send message:', error);
       } finally {
         setIsSending(false);
+      }
+    }
+  };
+
+  const handleImageUploadComplete = async (imageUrl: string, thumbnailUrl: string, metadata: any) => {
+    if (onImageSend) {
+      try {
+        await onImageSend(imageUrl, thumbnailUrl, metadata);
+      } catch (error) {
+        console.error('Failed to send image:', error);
       }
     }
   };
@@ -285,6 +304,14 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, isLoading = false, 
                 <path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
               </svg>
             </ActionButton>
+
+            {/* 图片上传按钮 */}
+            <ImageUploader
+              onImageSelect={() => {}}
+              onUploadComplete={handleImageUploadComplete}
+              conversationId={conversationId}
+              disabled={isInputDisabled}
+            />
 
             {/* 语音按钮 */}
             <ActionButton type="button" disabled={isInputDisabled}>

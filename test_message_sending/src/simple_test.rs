@@ -29,6 +29,9 @@ pub async fn run_simple_test() -> Result<(), Box<dyn std::error::Error>> {
         timestamp: chrono::Utc::now(),
         reply_to: None,
         type_: "text".to_string(),
+        image_url: None,
+        image_thumbnail_url: None,
+        image_metadata: None,
     };
 
     println!("Sending message: {:?}", message);

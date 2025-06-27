@@ -49,6 +49,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         timestamp: chrono::Utc::now(),
         reply_to: None,
         type_: "text".to_string(),
+        image_url: None,
+        image_thumbnail_url: None,
+        image_metadata: None,
     };
 
     println!("Sending message: {:?}", message);
@@ -65,6 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         timestamp: chrono::Utc::now(),
         reply_to: Some(1),
         type_: "text".to_string(),
+        image_url: None,
+        image_thumbnail_url: None,
+        image_metadata: None,
     };
 
     println!("Sending reply message: {:?}", reply_message);
@@ -94,6 +100,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         },
         Message {
             id: 4,
@@ -102,6 +111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         },
     ];
 

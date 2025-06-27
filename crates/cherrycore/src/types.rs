@@ -350,6 +350,9 @@ pub struct Message {
     pub reply_to: Option<i64>,
     #[serde(rename = "type")]
     pub type_: String,
+    pub image_url: Option<String>,
+    pub image_thumbnail_url: Option<String>,
+    pub image_metadata: Option<ImageMetadata>,
 }
 
 impl Message {
@@ -527,6 +530,47 @@ impl StreamRecord {
             tail,
         })
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImageMetadata {
+    pub width: u32,
+    pub height: u32,
+    pub size: u64, // 文件大小（字节）
+    pub format: String, // 图片格式：jpg, png, gif, webp等
+    pub mime_type: String,
+    pub filename: String,
+    pub checksum: String, // SHA256校验和
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageUploadRequest {
+    pub conversation_id: Uuid,
+    pub filename: String,
+    pub mime_type: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageUploadResponse {
+    pub upload_url: String,
+    pub image_id: Uuid,
+    pub expires_at: DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageUploadCompleteRequest {
+    pub image_id: Uuid,
+    pub checksum: String,
+    pub metadata: ImageMetadata,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageUploadCompleteResponse {
+    pub success: bool,
+    pub image_url: String,
+    pub thumbnail_url: String,
+    pub message_id: Option<i64>, // 如果直接发送消息，返回消息ID
 }
 
 #[cfg(test)]
@@ -1007,6 +1051,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let encoded = message.encode().unwrap();
@@ -1028,6 +1075,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: Some(1),
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let encoded = message.encode().unwrap();
@@ -1047,6 +1097,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let mut encoded = message.encode().unwrap();
@@ -1072,6 +1125,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let mut encoded = message.encode().unwrap();
@@ -1098,6 +1154,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let mut encoded = message.encode().unwrap();
@@ -1125,6 +1184,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let encoded = message.encode().unwrap();
@@ -1143,6 +1205,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let encoded = message.encode().unwrap();
@@ -1178,6 +1243,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let json = serde_json::to_string(&message).unwrap();
@@ -1369,6 +1437,9 @@ mod tests {
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let encoded = message.encode().unwrap();
