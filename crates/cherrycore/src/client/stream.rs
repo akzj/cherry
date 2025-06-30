@@ -273,6 +273,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         // Encode the message
@@ -314,6 +317,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
         let message2 = Message {
             id: 2,
@@ -322,6 +328,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
         // Encode both messages
         let encoded_data1 = message1.encode().unwrap();
@@ -361,6 +370,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         let message2 = Message {
@@ -370,6 +382,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         // Encode messages
@@ -406,6 +421,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
 
         // Encode the message
@@ -500,6 +518,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
         let message2 = Message {
             id: 2,
@@ -508,6 +529,9 @@ mod tests {
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
             type_: "text".to_string(),
+            image_url: None,
+            image_thumbnail_url: None,
+            image_metadata: None,
         };
         let encoded_data1 = message1.encode().unwrap();
         let encoded_data2 = message2.encode().unwrap();
