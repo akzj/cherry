@@ -412,6 +412,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime 0.3.17",
+ "multer",
  "percent-encoding 2.3.1",
  "pin-project-lite",
  "rustversion",
@@ -853,18 +854,12 @@ dependencies = [
  "clap",
  "dotenvy",
  "env_logger",
- "hex",
- "image",
  "jsonwebtoken",
  "log 0.4.27",
- "multipart",
- "path-clean",
  "serde",
  "serde_json",
  "serde_yaml",
- "sha2",
  "sqlx",
- "tempfile",
  "tokio",
  "use",
  "uuid",
@@ -1582,6 +1577,30 @@ checksum = "38e2275cc4e4fc009b0669731a1e5ab7ebf11f469eaede2bab9309a5b4d6057f"
 dependencies = [
  "memoffset",
  "rustc_version",
+]
+
+[[package]]
+name = "fileserver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "cherrycore",
+ "chrono",
+ "futures-util",
+ "hex",
+ "image",
+ "log 0.4.27",
+ "multipart",
+ "path-clean",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "uuid",
 ]
 
 [[package]]
@@ -2631,6 +2650,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "io-uring"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b86e202f00093dcba4275d4636b93ef9dd75d025ae560d2521b45ea28ab49013"
+dependencies = [
+ "bitflags 2.9.1",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3180,6 +3210,23 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime 0.3.17",
+ "spin",
+ "version_check 0.9.5",
 ]
 
 [[package]]
@@ -6216,17 +6263,19 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.45.1"
+version = "1.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
+checksum = "1140bb80481756a8cbe10541f37433b459c5aa1e727b4c020fbfebdc25bf3ec4"
 dependencies = [
  "backtrace",
  "bytes",
+ "io-uring",
  "libc",
  "mio",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
+ "slab",
  "socket2",
  "tokio-macros",
  "windows-sys 0.52.0",

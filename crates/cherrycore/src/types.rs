@@ -95,7 +95,8 @@ pub struct StreamAppendResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckAclRequest {
     pub user_id: Uuid,
-    pub stream_id: StreamId,
+    pub stream_id: Option<StreamId>,
+    pub conversation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -105,10 +106,12 @@ pub struct CheckAclResponse {
 
 pub enum ResponseError {
     InternalError(anyhow::Error),
+    ClientConnectionError(anyhow::Error),
     AuthError(AuthError),
     DataEmpty,
     DataTooLarge,
     DataInvalid,
+    AccessDenied,
     StreamNotFound,
     Forbidden,
 }
@@ -119,10 +122,14 @@ impl IntoResponse for ResponseError {
             Self::InternalError(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
             }
+            Self::ClientConnectionError(error) => {
+                (StatusCode::BAD_REQUEST, error.to_string()).into_response()
+            }
             Self::AuthError(error) => (StatusCode::UNAUTHORIZED, error.to_string()).into_response(),
             Self::DataEmpty => (StatusCode::BAD_REQUEST, "data is empty").into_response(),
             Self::DataTooLarge => (StatusCode::BAD_REQUEST, "data is too large").into_response(),
             Self::DataInvalid => (StatusCode::BAD_REQUEST, "data is invalid").into_response(),
+            Self::AccessDenied => (StatusCode::FORBIDDEN, "access denied").into_response(),
             Self::StreamNotFound => (StatusCode::NOT_FOUND, "stream not found").into_response(),
             Self::Forbidden => (StatusCode::FORBIDDEN, "forbidden").into_response(),
         }
@@ -143,6 +150,8 @@ impl Display for ResponseError {
             Self::DataEmpty => write!(f, "Data is empty"),
             Self::DataTooLarge => write!(f, "Data is too large"),
             Self::DataInvalid => write!(f, "Data is invalid"),
+            Self::AccessDenied => write!(f, "Access denied"),
+            Self::ClientConnectionError(error) => write!(f, "Client connection error: {}", error),
             Self::StreamNotFound => write!(f, "Stream not found"),
             Self::Forbidden => write!(f, "Forbidden"),
         }
@@ -544,17 +553,17 @@ pub struct ImageMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ImageUploadRequest {
+pub struct FileUploadRequest {
     pub conversation_id: Uuid,
     pub filename: String,
     pub mime_type: String,
-    pub size: u64,
+    pub size: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ImageUploadResponse {
+pub struct FileUploadResponse {
     pub upload_url: String,
-    pub image_id: Uuid,
+    pub file_id: Uuid,
     pub expires_at: DateTime<chrono::Utc>,
 }
 

@@ -11,6 +11,7 @@ use cherrycore::{
     types::*,
 };
 use serde::Deserialize;
+use sqlx::query;
 use tokio::net::TcpListener;
 
 use crate::db::{models::Contact, repo::Repo};
@@ -188,10 +189,24 @@ async fn login(
 #[axum::debug_handler]
 async fn check_acl(
     server: State<CherryServer>,
-    body: Json<CheckAclRequest>,
+    body: Query<CheckAclRequest>,
 ) -> Result<Json<CheckAclResponse>, ResponseError> {
-    let allowed = server.db.check_acl(body.user_id, body.stream_id).await?;
-    Ok(Json(CheckAclResponse { allowed }))
+
+    if body.stream_id.is_none() && body.conversation_id.is_none() {
+        log::error!("check_acl: stream_id and conversation_id are both none");
+        return Err(ResponseError::DataInvalid);
+    }
+
+    if body.stream_id.is_some() {
+        let allowed = server.db.check_acl(body.user_id, body.stream_id.unwrap()).await?;
+        return Ok(Json(CheckAclResponse { allowed }));
+    }
+
+    if body.conversation_id.is_some() {
+        let allowed = server.db.check_acl_by_conversation_id(body.user_id, body.conversation_id.unwrap()).await?;
+        return Ok(Json(CheckAclResponse { allowed }));
+    }
+    Ok(Json(CheckAclResponse { allowed: false }))
 }
 
 #[axum::debug_handler]
@@ -322,10 +337,10 @@ pub(crate) async fn start(server: CherryServer) {
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/contract/list", get(list_contacts))
         .route("/api/v1/streams/list", get(list_streams))
-        .route("/api/v1/conversations/list", get(list_conversations))
-        .route("/api/v1/acl/check", get(check_acl))
-        .route("/api/v1/streams/update_offset", post(update_stream_offset))
         .route("/api/v1/conversations/create", post(create_conversation))
+        .route("/api/v1/conversations/list", get(list_conversations))
+        .route("/api/v1/streams/update_offset", post(update_stream_offset))
+        .route("/api/v1/acl/check", get(check_acl))
         .with_state(server.clone());
 
     let listener = TcpListener::bind(server.config.listen_addr.as_ref().unwrap())

@@ -86,6 +86,16 @@ impl Repo {
         Ok(())
     }
 
+    pub async fn check_acl_by_conversation_id(&self, user_id: Uuid, conversation_id: Uuid) -> Result<bool> {
+        let count: Option<i64> = query_scalar("SELECT count(*) FROM conversations WHERE conversation_id = $1 AND members @> $2::jsonb")
+            .bind(conversation_id)
+            .bind(json!([user_id.to_string()]))
+            .fetch_one(&self.sqlx_pool)
+            .await?;
+        let count = count.unwrap_or(0);
+        Ok(count > 0)
+    }
+
     pub async fn check_acl(&self, user_id: Uuid, stream_id: i64) -> Result<bool> {
         let count: Option<i64> = query_scalar("SELECT count(*) FROM conversations WHERE members @> $1::jsonb AND message_stream_id = $2")
             .bind(json!([user_id.to_string()]))

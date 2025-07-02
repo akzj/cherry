@@ -7,10 +7,11 @@ use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use serde::{Deserialize, Serialize};
+use streamstore::StreamId;
 use uuid::Uuid;
 
 use crate::types::{
-    Contact, Conversation, CreateConversationRequest, CreateConversationResponse, ListConversationsResponse, ListStreamRequest, ListStreamResponse, LoginRequest, LoginResponse, ResponseError, User
+    CheckAclRequest, CheckAclResponse, Contact, Conversation, CreateConversationRequest, CreateConversationResponse, ListConversationsResponse, ListStreamRequest, ListStreamResponse, LoginRequest, LoginResponse, ResponseError, User
 };
 
 /// Configuration for the Cherry client
@@ -77,11 +78,11 @@ impl std::ops::Deref for CherryClient {
 impl CherryClient {
     /// Create a new client with default configuration
     pub fn new() -> Result<Self> {
-        Self::with_config(CherryClientConfig::default())
+        Self::new_with_config(CherryClientConfig::default())
     }
 
     /// Create a new client with custom configuration
-    pub fn with_config(config: CherryClientConfig) -> Result<Self> {
+    pub fn new_with_config(config: CherryClientConfig) -> Result<Self> {
         let client = ClientBuilder::new()
             .timeout(config.timeout)
             .pool_idle_timeout(config.pool_idle_timeout)
@@ -98,6 +99,14 @@ impl CherryClient {
                 auth: None,
             }),
         })
+    }
+
+    pub fn new_with_base_url(base_url: String) -> Result<Self> {
+        let config = CherryClientConfig {
+            base_url,
+            ..CherryClientConfig::default()
+        };
+        Self::new_with_config(config)
     }
 
     /// Set authentication credentials
@@ -130,19 +139,23 @@ impl CherryClient {
     }
 
     /// Make an authenticated request
-    async fn request<T>(&self, method: reqwest::Method, endpoint: &str) -> Result<T>
+    async fn request<T, Q>(&self, method: reqwest::Method, endpoint: &str, query: Option<&Q>) -> Result<T>
     where
         T: for<'de> Deserialize<'de>,
+        Q: Serialize,
     {
         let url = format!("{}{}", self.config.base_url, endpoint);
         let headers = self.create_headers()?;
 
         log::info!("request: url={}, headers={:?}", url, headers);
 
-        let response = self
-            .client
-            .request(method, &url)
-            .headers(headers)
+        let req = self.client.request(method, &url).headers(headers);
+        let req = if let Some(q) = query {
+            req.query(&q)
+        } else {
+            req
+        };
+        let response = req
             .send()
             .await
             .context("Request failed")?;
@@ -223,14 +236,20 @@ impl CherryClient {
 
     /// Get all contacts for the authenticated user
     pub async fn get_contacts(&self) -> Result<Vec<Contact>> {
-        self.request::<Vec<Contact>>(reqwest::Method::GET, "/api/v1/contract/list")
+        self.request::<Vec<Contact>, ()>(reqwest::Method::GET, "/api/v1/contract/list", None)
             .await
     }
 
     /// Get user by ID
     pub async fn get_user(&self, user_id: Uuid) -> Result<User> {
-        self.request::<User>(reqwest::Method::GET, &format!("/api/v1/users/{}", user_id))
+        self.request::<User, ()>(reqwest::Method::GET, &format!("/api/v1/users/{}", user_id), None)
             .await
+    }
+
+    pub async fn check_acl(&self, user_id: Uuid, stream_id: Option<StreamId>, conversation_id: Option<Uuid>) -> Result<bool> {
+        let request = CheckAclRequest { user_id, stream_id, conversation_id };
+        let response = self.request::<CheckAclResponse, CheckAclRequest>(reqwest::Method::GET, "/api/v1/acl/check", Some(&request)).await?;
+        Ok(response.allowed)
     }
 
     /// Create a new conversation
@@ -255,9 +274,10 @@ impl CherryClient {
     /// Get all conversations for the authenticated user
     pub async fn get_conversations(&self) -> Result<Vec<Conversation>> {
         let response = self
-            .request::<ListConversationsResponse>(
+            .request::<ListConversationsResponse, ()>(
                 reqwest::Method::GET,
                 "/api/v1/conversations/list",
+                None,
             )
             .await?;
         Ok(response.conversations)
@@ -330,7 +350,7 @@ impl CherryClientBuilder {
     }
 
     pub fn build(self) -> Result<CherryClient> {
-        let mut client = CherryClient::with_config(self.config)?;
+        let mut client = CherryClient::new_with_config(self.config)?;
         if let Some(auth) = self.auth {
             client = client.with_auth(auth);
         }
