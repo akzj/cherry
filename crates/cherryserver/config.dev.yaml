@@ -1,5 +1,5 @@
 db_conn: "postgres://postgres:postgres123@localhost:5432/cherryserver"
-stream_server_url: "ws://localhost:8080"
+stream_server_url: "http://localhost:8080"
 jwt_token_expire_seconds: 3600
 jwt_secret: "cherryjwt_secret"
 listen_addr: "0.0.0.0:8180"

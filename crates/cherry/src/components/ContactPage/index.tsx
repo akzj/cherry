@@ -7,9 +7,16 @@ import ErrorMessage from '../UI/ErrorMessage';
 import EmptyState from '../UI/EmptyState';
 import { useContactStore } from '../../store/contact';
 import { FaUserFriends, FaUsers, FaPlus, FaSearch } from 'react-icons/fa';
+import { Contact } from '../../types/contact';
+import ContactProfileModal from './ContactProfileModal';
+import { useConversationStore } from '../../store/conversation';
 
 interface SidebarButtonProps {
   $active?: boolean;
+}
+
+interface ContactPageProps {
+  onSelectConversation?: (conversationId: string) => void;
 }
 
 const Container = styled.div`
@@ -256,8 +263,9 @@ const ContentSection = styled.div`
   }
 `;
 
-const ContactPage = () => {
+const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
   const [activeTab, setActiveTab] = useState('contacts');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   // 使用联系人 store
   const {
@@ -272,6 +280,8 @@ const ContactPage = () => {
     searchContacts,
     setSearchQuery
   } = useContactStore();
+
+  const conversationStore = useConversationStore();
 
   // 组件挂载时加载数据
   useEffect(() => {
@@ -332,7 +342,7 @@ const ContactPage = () => {
       return (
         <ContentSection>
           {contactGroups.map(group => (
-            <ContactGroup key={group.id} group={group} />
+            <ContactGroup key={group.id} group={group} onContactClick={setSelectedContact} />
           ))}
         </ContentSection>
       );
@@ -415,6 +425,23 @@ const ContactPage = () => {
 
         {renderContent()}
       </MainContent>
+
+      {selectedContact && (
+        <ContactProfileModal
+          contact={selectedContact}
+          onClose={() => setSelectedContact(null)}
+          onMessage={async (contact) => {
+            // 创建或获取会话
+            const convId = await conversationStore.createDirectConversation(contact.target_id);
+            setSelectedContact(null);
+            if (convId && onSelectConversation) {
+              onSelectConversation(convId);
+            }
+          }}
+          onVoiceCall={() => { /* TODO: 发起语音通话 */ setSelectedContact(null); }}
+          onVideoCall={() => { /* TODO: 发起视频通话 */ setSelectedContact(null); }}
+        />
+      )}
     </Container>
   );
 };

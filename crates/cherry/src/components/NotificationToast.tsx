@@ -174,6 +174,14 @@ const notificationConfig = {
   },
 };
 
+const MAX_CONTENT_LENGTH = 40;
+function getShortContent(content: string) {
+  if (!content) return '';
+  return content.length > MAX_CONTENT_LENGTH
+    ? content.slice(0, MAX_CONTENT_LENGTH) + '...'
+    : content;
+}
+
 interface NotificationToastProps {
   notification: {
     type: NotificationType;
@@ -223,7 +231,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
     // 如果是对象，序列化为字符串
     if (notification.data?.message) {
       if (typeof notification.data.message === 'object') {
-        return JSON.stringify(notification.data.message.content);
+        return notification.data.message.content;
       }
       return notification.data.message;
     }
@@ -254,7 +262,17 @@ const NotificationToast: React.FC<NotificationToastProps> = ({ notification, onC
           ✕
         </CloseButton>
       </ToastHeader>
-      <ToastMessage>{getMessage()}</ToastMessage>
+      <ToastMessage>
+        <span style={{
+          display: 'block',
+          maxWidth: '240px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {getShortContent(getMessage())}
+        </span>
+      </ToastMessage>
       <ProgressBar $progress={progress} />
     </ToastContainer>
   );

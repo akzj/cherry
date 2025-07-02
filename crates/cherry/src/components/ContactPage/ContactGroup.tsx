@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import styled, { css } from 'styled-components';
 import ContactItem from './ContactItem';
-import type { ContactGroup } from '../../types/contact';
+import type { ContactGroup, Contact } from '../../types/contact';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ContactGroupProps {
   group: ContactGroup;
+  onContactClick?: (contact: Contact) => void;
 }
 
 // ==================== Styled Components ====================
@@ -98,7 +99,7 @@ const ContactListContainer = styled.div<{ $expanded: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const ContactGroup: React.FC<ContactGroupProps> = ({ group }) => {
+const ContactGroup: React.FC<ContactGroupProps> = ({ group, onContactClick }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
@@ -122,7 +123,7 @@ const ContactGroup: React.FC<ContactGroupProps> = ({ group }) => {
           <ContactItem
             key={contact.contact_id}
             contact={contact}
-            onClick={() => console.log('Contact clicked', contact.contact_id)}
+            onClick={() => onContactClick && onContactClick(contact)}
           />
         ))}
       </ContactListContainer>

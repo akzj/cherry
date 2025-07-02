@@ -5,6 +5,7 @@ mod db;
 use anyhow::{Context, Result};
 use env_logger;
 use serde::Serialize;
+use tokio::sync::mpsc;
 use std::collections::HashMap;
 use std::io::Write;
 use std::{
@@ -76,6 +77,7 @@ struct AppStateInner {
     conversations: Mutex<Vec<Conversation>>,
     user_info: Mutex<Option<UserInfo>>,
     conversation_read_position: Mutex<HashMap<Uuid, i64>>,
+    read_stream_sender: Mutex<Option<mpsc::Sender<StreamReadRequest>>>,
 }
 
 #[derive(Clone)]
@@ -217,6 +219,8 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to send StreamReadRequest: {}", e))
                     .unwrap();
             }
+
+            state.read_stream_sender.lock().unwrap().replace(sender);
 
             while let Some(response) = receiver.recv().await {
                 log::info!("Received message: {:?}", response);
@@ -369,8 +373,32 @@ async fn cmd_conversation_list_all(
         "cmd_conversation_list_all: conversations={:?}",
         conversations
     );
+
+    *state.conversations.lock().unwrap() = conversations.clone();
+
     Ok(conversations)
 }
+
+#[tauri::command]
+async fn cmd_create_conversation(
+    state: State<'_, AppState>,
+    conversation_type: String,
+    members: Vec<Uuid>,
+) -> Result<Conversation, CommandError> {
+    let cherry_client = state.get_cherry_client()?;
+    let conversation = match cherry_client.create_conversation(conversation_type, &members).await {
+        Ok(conversation) => conversation,
+        Err(e) => {
+            log::error!("Failed to create conversation: {:?}", e);
+            return Err(CommandError { message: e.to_string() })
+        },
+    };
+    let sender = state.read_stream_sender.lock().unwrap().as_ref().unwrap().clone();
+    sender.send(StreamReadRequest { stream_id: conversation.stream_id, offset: 0 }).await.unwrap();
+
+    Ok(conversation)
+}
+
 
 #[tauri::command]
 async fn cmd_refresh_contacts(
@@ -631,6 +659,7 @@ pub async fn run() {
                 cherry_client: Mutex::new(None),
                 user_info: Mutex::new(None),
                 conversation_read_position: Mutex::new(HashMap::new()),
+                read_stream_sender: Mutex::new(None),
             }),
             // todo: 需要重新设计
             // repo: Repo::new(db_path.to_str().unwrap()).await,
@@ -640,6 +669,7 @@ pub async fn run() {
             cmd_login,
             cmd_contact_list_all,
             cmd_conversation_list_all,
+            cmd_create_conversation,
             cmd_refresh_contacts,
             cmd_refresh_conversations,
             cmd_send_message,

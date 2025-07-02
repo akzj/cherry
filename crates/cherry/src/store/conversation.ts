@@ -21,6 +21,7 @@ interface ConversationState {
   // API 方法
   refreshConversations: () => Promise<void>;
   getConversationById: (id: string) => Conversation | undefined;
+  createDirectConversation: (targetUserId: string) => Promise<string | null>;
 }
 
 // 转换后端数据为前端格式
@@ -151,5 +152,22 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   getConversationById: (id: string) => {
     const { conversations } = get();
     return conversations.find(conv => conv.id === id);
-  }
+  },
+
+  // 创建单聊会话
+  createDirectConversation: async (targetUserId: string) => {
+    try {
+      // 调用后端API创建会话
+      const result = await invoke('cmd_create_conversation', {
+        conversationType: 'direct',
+        members: [targetUserId],
+      }) as { conversation_id: string };
+      // 刷新会话列表
+      await get().refreshConversations();
+      return result.conversation_id;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to create conversation' });
+      return null;
+    }
+  },
 })); 

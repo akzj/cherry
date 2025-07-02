@@ -10,8 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::types::{
-    Contact, Conversation, ListConversationsResponse, ListStreamRequest, ListStreamResponse,
-    LoginRequest, LoginResponse, ResponseError, User,
+    Contact, Conversation, CreateConversationRequest, CreateConversationResponse, ListConversationsResponse, ListStreamRequest, ListStreamResponse, LoginRequest, LoginResponse, ResponseError, User
 };
 
 /// Configuration for the Cherry client
@@ -232,6 +231,25 @@ impl CherryClient {
     pub async fn get_user(&self, user_id: Uuid) -> Result<User> {
         self.request::<User>(reqwest::Method::GET, &format!("/api/v1/users/{}", user_id))
             .await
+    }
+
+    /// Create a new conversation
+    pub async fn create_conversation(&self, conversation_type: String, members: &[Uuid]) -> Result<Conversation> {
+        let request = CreateConversationRequest {
+            conversation_type,
+            members: members.to_vec(),
+            meta: None,
+        };
+        let response = self.request_with_body::<CreateConversationRequest, CreateConversationResponse>(reqwest::Method::POST, "/api/v1/conversations/create", &request).await?;
+        Ok(Conversation {
+            conversation_id: response.conversation_id,
+            conversation_type: response.conversation_type,
+            members: response.members.iter().map(|m| m.to_string()).collect::<Vec<String>>().into(),
+            meta: response.meta,
+            stream_id: response.stream_id,
+            created_at: response.created_at,
+            updated_at: response.created_at,
+        })
     }
 
     /// Get all conversations for the authenticated user

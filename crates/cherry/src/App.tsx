@@ -394,10 +394,11 @@ const App: React.FC = () => {
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [pendingConversationId, setPendingConversationId] = useState<string | null>(null);
 
   // 模态窗口状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   // 认证状态
   const { isLoggedIn, user, isLoading: authLoading, initialize } = useAuth();
@@ -514,11 +515,17 @@ const App: React.FC = () => {
 
   // 处理会话选择
   const handleSelectConversation = (id: string) => {
-    console.log('Selecting conversation:', id);
-    console.log('Previous conversation:', selectedConversation);
-
-    setSelectedConversation(id);
+    setIsContactModalOpen(false);
+    setPendingConversationId(id);
   };
+
+  // 监听弹窗关闭后再切换会话，避免页面闪烁
+  useEffect(() => {
+    if (!isContactModalOpen && pendingConversationId) {
+      setSelectedConversation(pendingConversationId);
+      setPendingConversationId(null);
+    }
+  }, [isContactModalOpen, pendingConversationId]);
 
   // 处理发送消息 - 接收会话ID作为参数
   const handleSendMessage = async (conversationId: string, content: string, replyTo?: number) => {
@@ -647,7 +654,7 @@ const App: React.FC = () => {
       {isContactModalOpen && (
         <ModalOverlay onClick={() => setIsContactModalOpen(false)}>
           <ContactModalContainer onClick={(e) => e.stopPropagation()}>
-            <ContactPage />
+            <ContactPage onSelectConversation={handleSelectConversation} />
           </ContactModalContainer>
         </ModalOverlay>
       )}

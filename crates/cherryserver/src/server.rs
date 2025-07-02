@@ -278,12 +278,14 @@ async fn create_conversation(
                     StreamEvent::ConversationCreated {
                         conversation_id: conversation.conversation_id,
                     }
-                    .encode()?,
+                    .encode().unwrap(),
                 ),
             });
         }
-        server.stream_client.append_stream_batch(batch).await?;
-        log::info!("send conversation created event to stream server");
+        match server.stream_client.append_stream_batch(batch).await {
+            Ok(_) => log::info!("send conversation created event to stream server success"),
+            Err(e) => log::error!("send conversation created event to stream server failed: {}", e),
+        }
     }
 
     Ok(Json(CreateConversationResponse {

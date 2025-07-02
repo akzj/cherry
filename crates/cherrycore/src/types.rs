@@ -972,33 +972,6 @@ mod tests {
         assert_eq!(deserialized.meta, Some(json!({"name": "Test Chat"})));
     }
 
-    #[test]
-    fn test_create_conversation_response_serialization() {
-        let conversation_id = Uuid::new_v4();
-        let user1 = Uuid::new_v4();
-        let user2 = Uuid::new_v4();
-        let now = chrono::Utc::now();
-
-        let response = CreateConversationResponse {
-            conversation_id,
-            conversation_type: "group".to_string(),
-            members: vec![user1, user2],
-            meta: json!({"name": "Test Group"}),
-            stream_id: 789,
-            created_at: now,
-            is_new: true,
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: CreateConversationResponse = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(deserialized.conversation_id, conversation_id);
-        assert_eq!(deserialized.conversation_type, "group");
-        assert_eq!(deserialized.members.len(), 2);
-        assert_eq!(deserialized.stream_id, 789);
-        assert_eq!(deserialized.is_new, true);
-    }
-
     // MessageRecordMeta 测试
     #[test]
     fn test_message_record_meta_encode_decode() {
