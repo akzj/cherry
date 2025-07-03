@@ -65,6 +65,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         conversationId={conversation.id}
       />
       <MessageInput
+        conversationId={conversation.id}
         onSend={handleSendMessage}
         isLoading={isLoading}
         disabled={false}

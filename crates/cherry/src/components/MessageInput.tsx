@@ -1,6 +1,7 @@
 // src/components/MessageInput.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { invoke } from '@tauri-apps/api/core';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
@@ -12,6 +13,14 @@ interface MessageInputProps {
   conversationId: string;
   isLoading?: boolean;
   disabled?: boolean;
+}
+
+interface FileUploadCompleteResponse {
+  file_id: string;
+  file_name: string;
+  file_url: string;
+  file_thumbnail_url: string;
+  file_metadata: any;
 }
 
 // ==================== Styled Components ====================
@@ -99,6 +108,66 @@ const InputField = styled.textarea`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+`;
+
+const SelectedImageContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+`;
+
+const SelectedImage = styled.img`
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+`;
+
+const ImageInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const ImageName = styled.span`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+`;
+
+const ImageSize = styled.span`
+  font-size: 0.75rem;
+  color: #6b7280;
+`;
+
+const RemoveImageButton = styled.button`
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
   }
 `;
 
@@ -190,6 +259,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [selectedImagePath, setSelectedImagePath] = useState<string | null>(null);
   const { replyingTo, setReplyingTo } = useMessageStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -203,12 +273,27 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isSending && !disabled) {
+    if ((message.trim() || selectedImagePath) && !isSending && !disabled) {
       setIsSending(true);
       try {
-        const replyTo = replyingTo?.id;
-        await onSend(message, replyTo);
-        setMessage('');
+        let finalMessage = message;
+        if (selectedImagePath) {
+          try {
+            const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
+              conversationId: conversationId,
+              filePath: selectedImagePath,
+            });
+            // 用图片url替换占位符
+            finalMessage = finalMessage.replace('[[image]]', response.file_url);
+            setSelectedImagePath(null);
+          } catch (uploadError) {
+            console.error('图片上传失败:', uploadError);
+          }
+        }
+        if (finalMessage.trim()) {
+          await onSend(finalMessage, replyingTo?.id);
+          setMessage('');
+        }
         setReplyingTo(null);
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
@@ -221,14 +306,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  const handleImageUploadComplete = async (imageUrl: string, thumbnailUrl: string, metadata: any) => {
-    if (onImageSend) {
-      try {
-        await onImageSend(imageUrl, thumbnailUrl, metadata);
-      } catch (error) {
-        console.error('Failed to send image:', error);
-      }
-    }
+  // 选图片时插入占位符
+  const handleImageSelect = (filePath: string) => {
+    setSelectedImagePath(filePath);
+    setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
+  };
+
+  // 移除图片时也移除占位符
+  const handleRemoveImage = () => {
+    setSelectedImagePath(null);
+    setMessage(msg => msg.replace(/ ?\[\[image\]\]/, ''));
   };
 
   const handleCancelReply = () => {
@@ -258,7 +345,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const isInputDisabled = disabled || isLoading || isSending;
-  const hasContent = message.trim().length > 0;
+  const hasContent = message.trim().length > 0 || selectedImagePath;
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
 
   return (
     <Container>
@@ -307,9 +402,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
             {/* 图片上传按钮 */}
             <ImageUploader
-              onImageSelect={() => {}}
-              onUploadComplete={handleImageUploadComplete}
-              conversationId={conversationId}
+              onImageSelect={handleImageSelect}
               disabled={isInputDisabled}
             />
 
@@ -331,13 +424,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
               </svg>
             </ActionButton>
           </RightButtons>
+          {/* 图片移除按钮（在输入框右侧显示） */}
+          {selectedImagePath && (
+            <RemoveImageButton onClick={handleRemoveImage} title="移除图片">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </RemoveImageButton>
+          )}
         </InputContainer>
 
         {/* 发送按钮 */}
         <SendButton
           type="submit"
           $disabled={isInputDisabled || !hasContent}
-          $hasContent={hasContent}
+          $hasContent={!!hasContent}
           disabled={isInputDisabled || !hasContent}
         >
           {isSending ? (

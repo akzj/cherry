@@ -1,10 +1,8 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use crate::types::{
-    MESSAGE_RECORD_META_SIZE, Message as CherryMessage, StreamAppendBatchRequest,
-    StreamAppendBatchResponse, StreamAppendRequest, StreamAppendResponse, StreamReadRequest,
-    StreamReadResponse, StreamRecord, StreamRecordMeta,
-};
+use crate::{client::{AuthCredentials, ClientConfig}, types::{
+    Message as CherryMessage, StreamAppendBatchRequest, StreamAppendBatchResponse, StreamAppendRequest, StreamAppendResponse, StreamReadRequest, StreamReadResponse, StreamRecord, StreamRecordMeta, MESSAGE_RECORD_META_SIZE
+}};
 use anyhow::Result;
 use async_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 use futures_util::StreamExt;
@@ -13,24 +11,43 @@ use tokio::select;
 
 #[derive(Clone)]
 pub struct StreamClient {
-    stream_server_url: String,
+    inner: Arc<StreamClientInner>,
+}
+
+#[derive(Clone)]
+pub struct StreamClientInner {
+    config: ClientConfig,
     client: reqwest::Client,
-    jwt_token: Option<String>,
+    auth: Option<AuthCredentials>,
+}
+
+impl std::ops::Deref for StreamClient {
+    type Target = StreamClientInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl StreamClient {
-    pub fn new(stream_server_url: &str, jwt_token: Option<String>) -> Self {
+    pub fn new<C, A>(config: C, auth: A) -> Self
+    where
+        C: Into<ClientConfig>,
+        A: Into<AuthCredentials>,
+    {
         Self {
-            stream_server_url: stream_server_url.to_string(),
-            jwt_token,
-            client: reqwest::Client::builder()
-                .pool_idle_timeout(Duration::from_secs(10))
-                .pool_max_idle_per_host(3)
-                .connect_timeout(Duration::from_secs(10))
-                .connection_verbose(true)
-                .no_proxy()
-                .build()
-                .unwrap(),
+            inner: Arc::new(StreamClientInner {
+                config: config.into(),
+                client: reqwest::Client::builder()
+                    .pool_idle_timeout(Duration::from_secs(10))
+                    .pool_max_idle_per_host(3)
+                    .connect_timeout(Duration::from_secs(10))
+                    .connection_verbose(true)
+                    .no_proxy()
+                    .build()
+                    .unwrap(),
+                auth: Some(auth.into()),
+            }),
         }
     }
 
@@ -39,15 +56,15 @@ impl StreamClient {
         stream_id: StreamId,
         data: Vec<u8>,
     ) -> Result<StreamAppendResponse, anyhow::Error> {
-        let url = format!("{}/api/v1/stream/append", self.stream_server_url);
+        let url = format!("{}/api/v1/stream/append", self.config.base_url);
         let request = StreamAppendRequest {
             stream_id,
             data: Some(data),
         };
 
         let mut req = self.client.post(url);
-        if let Some(jwt_token) = &self.jwt_token {
-            req = req.header("Authorization", format!("Bearer {}", jwt_token));
+        if let Some(auth) = &self.auth {
+            req = req.header("Authorization", format!("Bearer {}", auth.jwt_token));
         }
         let resp = req.json(&request).send().await?;
         let response = resp.json::<StreamAppendResponse>().await?;
@@ -68,12 +85,12 @@ impl StreamClient {
         &self,
         batch: Vec<StreamAppendRequest>,
     ) -> Result<StreamAppendBatchResponse, anyhow::Error> {
-        let url = format!("{}/api/v2/stream/append_batch", self.stream_server_url);
+        let url = format!("{}/api/v2/stream/append_batch", self.config.base_url);
         let request = StreamAppendBatchRequest { batch };
 
         let mut req = self.client.post(url);
-        if let Some(jwt_token) = &self.jwt_token {
-            req = req.header("Authorization", format!("Bearer {}", jwt_token));
+        if let Some(auth) = &self.auth {
+            req = req.header("Authorization", format!("Bearer {}", auth.jwt_token));
         }
         let resp = req.json(&request).send().await?;
         let response = resp.json::<StreamAppendBatchResponse>().await?;
@@ -89,13 +106,13 @@ impl StreamClient {
         // replace http with ws
         let url = format!(
             "{}/api/v1/stream/read",
-            self.stream_server_url.replace("http", "ws")
+            self.config.base_url.replace("http", "ws")
         );
 
         log::info!("Attempting WebSocket connection to: {}", url);
         let mut request = url.into_client_request().unwrap();
-        if let Some(jwt_token) = &self.jwt_token {
-            let auth_header = format!("Bearer {}", jwt_token);
+        if let Some(auth) = &self.auth {
+            let auth_header = format!("Bearer {}", auth.jwt_token);
             log::info!("Setting Authorization header: {}", auth_header);
             request
                 .headers_mut()

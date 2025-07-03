@@ -13,6 +13,7 @@ use cherrycore::{
 use serde::Deserialize;
 use sqlx::query;
 use tokio::net::TcpListener;
+use uuid::Uuid;
 
 use crate::db::{models::Contact, repo::Repo};
 
@@ -318,8 +319,8 @@ impl CherryServer {
     pub(crate) async fn new(config: ServerConfig) -> Self {
         let db = Repo::new(&config.db_conn.as_ref().unwrap()).await;
         let stream_client = cherrycore::client::stream::StreamClient::new(
-            &config.stream_server_url.as_ref().unwrap(),
-            config.jwt_secret.clone(),
+            config.stream_server_url.as_ref().unwrap(),
+            ( &Uuid::new_v4(),  config.jwt_secret.as_ref().unwrap())
         );
         Self {
             inner: Arc::new(CherryServerInner {

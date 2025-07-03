@@ -67,7 +67,6 @@ pub struct OfflineMessage {
 //         created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 //     );
 
-
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Contact {
     pub id: i64,

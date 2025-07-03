@@ -3,9 +3,10 @@
 mod db;
 
 use anyhow::{Context, Result};
+use cherrycore::client::file::FileClient;
+use cherrycore::types::{FileUploadCompleteResponse, FileUploadCreateResponse};
 use env_logger;
 use serde::Serialize;
-use tokio::sync::mpsc;
 use std::collections::HashMap;
 use std::io::Write;
 use std::{
@@ -14,6 +15,8 @@ use std::{
 };
 use streamstore::StreamId;
 use tauri::{ipc::Channel, Emitter, Manager, State};
+use tokio::fs::File;
+use tokio::sync::mpsc;
 use uuid;
 use uuid::Uuid;
 
@@ -23,8 +26,9 @@ use crate::db::{
 };
 use cherrycore::{
     client::{
-        cherry::{AuthCredentials, CherryClient},
+        cherry::CherryClient,
         stream::{StreamClient, StreamRecordDecoderMachine},
+        AuthCredentials,
     },
     types::{
         CherryMessage, Contact, Conversation, DataFormat, LoginResponse, Message, StreamEvent,
@@ -39,6 +43,22 @@ struct CommandError {
 
 impl From<anyhow::Error> for CommandError {
     fn from(err: anyhow::Error) -> Self {
+        CommandError {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<std::io::Error> for CommandError {
+    fn from(err: std::io::Error) -> Self {
+        CommandError {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<reqwest::Error> for CommandError {
+    fn from(err: reqwest::Error) -> Self {
         CommandError {
             message: err.to_string(),
         }
@@ -74,6 +94,7 @@ struct NotificationEvent {
 struct AppStateInner {
     cherry_client: Mutex<Option<CherryClient>>,
     stream_client: Mutex<Option<StreamClient>>,
+    file_client: Mutex<Option<FileClient>>,
     conversations: Mutex<Vec<Conversation>>,
     user_info: Mutex<Option<UserInfo>>,
     conversation_read_position: Mutex<HashMap<Uuid, i64>>,
@@ -103,6 +124,14 @@ impl AppState {
 
     fn get_stream_client(&self) -> Result<StreamClient> {
         let guard = self.stream_client.lock().unwrap();
+        guard
+            .as_ref()
+            .cloned()
+            .ok_or(anyhow::anyhow!("Not authenticated"))
+    }
+
+    fn get_file_client(&self) -> Result<FileClient> {
+        let guard = self.file_client.lock().unwrap();
         guard
             .as_ref()
             .cloned()
@@ -244,8 +273,13 @@ impl AppState {
                                 }
                                 let mut decoded_message: Message =
                                     serde_json::from_slice(&record.content).unwrap();
-                                    decoded_message.id = offset as i64;
-                                log::info!("Decoded message: stream_id={}, offset={}, {:?}", response.stream_id, offset, decoded_message);
+                                decoded_message.id = offset as i64;
+                                log::info!(
+                                    "Decoded message: stream_id={}, offset={}, {:?}",
+                                    response.stream_id,
+                                    offset,
+                                    decoded_message
+                                );
                                 on_event
                                     .send(CherryMessage::Message {
                                         message: decoded_message,
@@ -312,17 +346,21 @@ async fn cmd_login(
 
     log::info!("login_response: {:?}", login_response);
 
-    let cherry_client = cherry_client.with_auth(AuthCredentials {
-        user_id: login_response.user_info.user_id,
-        jwt_token: login_response.jwt_token.clone(),
-    });
+    let cherry_client =
+        cherry_client.with_auth((&login_response.user_info.user_id, &login_response.jwt_token));
     state.cherry_client.lock().unwrap().replace(cherry_client);
 
     let stream_client = StreamClient::new(
         "http://localhost:8080",
-        Some(login_response.jwt_token.clone()),
+        (&login_response.user_info.user_id, &login_response.jwt_token),
     );
     state.stream_client.lock().unwrap().replace(stream_client);
+
+    let file_client = FileClient::new(
+        "http://localhost:8280",
+        (&login_response.user_info.user_id, &login_response.jwt_token),
+    );
+    state.file_client.lock().unwrap().replace(file_client);
 
     // 登录成功后初始化数据并通知前端
 
@@ -386,19 +424,35 @@ async fn cmd_create_conversation(
     members: Vec<Uuid>,
 ) -> Result<Conversation, CommandError> {
     let cherry_client = state.get_cherry_client()?;
-    let conversation = match cherry_client.create_conversation(conversation_type, &members).await {
+    let conversation = match cherry_client
+        .create_conversation(conversation_type, &members)
+        .await
+    {
         Ok(conversation) => conversation,
         Err(e) => {
             log::error!("Failed to create conversation: {:?}", e);
-            return Err(CommandError { message: e.to_string() })
-        },
+            return Err(CommandError {
+                message: e.to_string(),
+            });
+        }
     };
-    let sender = state.read_stream_sender.lock().unwrap().as_ref().unwrap().clone();
-    sender.send(StreamReadRequest { stream_id: conversation.stream_id, offset: 0 }).await.unwrap();
+    let sender = state
+        .read_stream_sender
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .clone();
+    sender
+        .send(StreamReadRequest {
+            stream_id: conversation.stream_id,
+            offset: 0,
+        })
+        .await
+        .unwrap();
 
     Ok(conversation)
 }
-
 
 #[tauri::command]
 async fn cmd_refresh_contacts(
@@ -482,10 +536,7 @@ async fn cmd_send_message(
     let encoded_data = message.encode().unwrap();
 
     // 发送到流服务器
-    match stream_client
-        .append_stream(stream_id, encoded_data)
-        .await
-    {
+    match stream_client.append_stream(stream_id, encoded_data).await {
         Ok(response) => {
             log::info!("Message sent successfully, offset: {}", response.offset);
         }
@@ -625,6 +676,68 @@ async fn cmd_get_read_position(
     // Ok(None)
 }
 
+#[tauri::command]
+async fn cmd_upload_file(
+    conversation_id: Uuid,
+    file_path: String,
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<FileUploadCompleteResponse, CommandError> {
+    log::info!("cmd_create_upload_file: file_path={}", file_path);
+
+    let mime_type = mime_guess::from_path(&file_path)
+        .first_or_octet_stream()
+        .to_string();
+    // check is image
+    let is_image = mime_type.starts_with("image/");
+    // get image metadata
+    let metadata = if is_image {
+        let file_path = file_path.clone();
+        let image = tokio::spawn(async move { image::open(&file_path) })
+            .await
+            .map_err(|e| CommandError {
+                message: e.to_string(),
+            })?
+            .unwrap();
+        let width = image.width();
+        let height = image.height();
+        Some(serde_json::json!({
+            "width": width,
+            "height": height,
+        }))
+    } else {
+        None
+    };
+
+    let (tx, mut rx) = mpsc::channel(100);
+    let file_client = state.get_file_client()?;
+    let response = file_client
+        .upload_file(
+            conversation_id,
+            &file_path,
+            metadata,
+            Box::new(move |progress| {
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    tx.send(progress).await.unwrap();
+                });
+            }),
+        )
+        .await
+        .map_err(|e|  {
+            log::error!("Failed to upload file: {:?}", e);
+            e
+        })?;
+    log::info!("upload_file success: {:?}", response);
+
+    while let Some(progress) = rx.recv().await {
+        app.emit("upload_file_progress", &progress).unwrap();
+        log::info!("upload_file progress: {:?}", progress);
+    }
+
+    Ok(response)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
     // set rust_log to use the environment variable RUST_LOG
@@ -651,10 +764,12 @@ pub async fn run() {
     println!("db_path: {}", db_path.to_str().unwrap());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             inner: Arc::new(AppStateInner {
                 conversations: Mutex::new(vec![]),
+                file_client: Mutex::new(None),
                 stream_client: Mutex::new(None),
                 cherry_client: Mutex::new(None),
                 user_info: Mutex::new(None),
@@ -675,7 +790,8 @@ pub async fn run() {
             cmd_send_message,
             cmd_validate_token,
             cmd_save_read_position,
-            cmd_get_read_position
+            cmd_get_read_position,
+            cmd_upload_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

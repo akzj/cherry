@@ -37,8 +37,8 @@ const ImageContainer = styled.div`
 `;
 
 const Image = styled.img<{ $loading: boolean }>`
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 240px;
+  max-height: 160px;
   min-width: 100px;
   min-height: 100px;
   object-fit: cover;
@@ -46,8 +46,8 @@ const Image = styled.img<{ $loading: boolean }>`
 `;
 
 const Thumbnail = styled.img<{ $loading: boolean }>`
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 240px;
+  max-height: 160px;
   min-width: 100px;
   min-height: 100px;
   object-fit: cover;

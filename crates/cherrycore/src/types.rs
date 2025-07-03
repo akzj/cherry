@@ -554,9 +554,9 @@ pub struct ImageMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FileUploadRequest {
+pub struct FileUploadCreateRequest {
     pub conversation_id: Uuid,
-    pub filename: String,
+    pub file_name: String,
     pub mime_type: String,
     pub size: i64,
 }
@@ -570,7 +570,16 @@ pub struct FileUploadCompleteRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FileUploadResponse {
+pub struct FileUploadCompleteResponse {
+    pub file_id: Uuid,
+    pub file_name: String,
+    pub file_url: String,
+    pub file_thumbnail_url: String,
+    pub file_metadata: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileUploadCreateResponse {
     pub upload_url: String,
     pub file_id: Uuid,
     pub expires_at: DateTime<chrono::Utc>,

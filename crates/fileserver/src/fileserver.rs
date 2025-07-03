@@ -9,10 +9,13 @@ use axum::{
     http::{Response, StatusCode, header},
     routing::{get, post},
 };
+use cherrycore::types::FileUploadCompleteResponse;
 use cherrycore::{
     client::cherry::CherryClient,
     jwt::JwtClaims,
-    types::{FileUploadCompleteRequest, FileUploadRequest, FileUploadResponse, ResponseError},
+    types::{
+        FileUploadCompleteRequest, FileUploadCreateRequest, FileUploadCreateResponse, ResponseError,
+    },
 };
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -96,8 +99,8 @@ impl FileServerInner {
 async fn create_file_upload_request(
     jwt_claims: JwtClaims,
     State(server): State<FileServer>,
-    req: Json<FileUploadRequest>,
-) -> Result<Json<FileUploadResponse>, ResponseError> {
+    req: Json<FileUploadCreateRequest>,
+) -> Result<Json<FileUploadCreateResponse>, ResponseError> {
     let allowed = server.check_acl(&jwt_claims, req.conversation_id).await?;
     if !allowed {
         log::error!(
@@ -114,15 +117,15 @@ async fn create_file_upload_request(
         .create_file_upload_request(
             jwt_claims.user_id,
             file_id,
-            req.filename.clone(),
+            req.file_name.clone(),
             req.conversation_id,
             req.mime_type.clone(),
             req.size,
         )
         .await?;
 
-    Ok(Json(FileUploadResponse {
-        upload_url: format!("/api/v1/files/upload/{}/{}/", req.conversation_id, file_id),
+    Ok(Json(FileUploadCreateResponse {
+        upload_url: format!("/api/v1/files/upload/{}/{}", req.conversation_id, file_id),
         file_id,
         expires_at: Utc::now() + Duration::days(30),
     }))
@@ -131,10 +134,16 @@ async fn create_file_upload_request(
 async fn file_upload(
     jwt_claims: JwtClaims,
     State(server): State<FileServer>,
-    Path(conversation_id): Path<Uuid>,
-    Path(file_id): Path<Uuid>,
+    Path((conversation_id, file_id)): Path<(Uuid, Uuid)>,
     mut multipart: Multipart,
 ) -> Result<Json<()>, ResponseError> {
+    log::info!(
+        "file_upload: user_id={} conversation_id={} file_id={}",
+        jwt_claims.user_id,
+        conversation_id,
+        file_id
+    );
+
     let allowed = server.check_acl(&jwt_claims, conversation_id).await?;
     if !allowed {
         log::error!(
@@ -179,40 +188,86 @@ async fn file_upload(
             return Err(ResponseError::InternalError(e.into()));
         }
     };
-    let file_name = field
-        .file_name()
-        .ok_or(ResponseError::DataEmpty)?
-        .to_string();
 
     // Create the directory if it doesn't exist
     let dir_path =
         std::path::Path::new(&server.config.uploads_directory).join(conversation_id.to_string());
-    tokio::fs::create_dir_all(&dir_path)
-        .await
-        .map_err(|e| ResponseError::InternalError(e.into()))?;
+    tokio::fs::create_dir_all(&dir_path).await.map_err(|e| {
+        log::error!(
+            "file_upload: user_id={} conversation_id={} file_id={} create_dir_all error={:?}",
+            jwt_claims.user_id,
+            conversation_id,
+            file_id,
+            e
+        );
+        ResponseError::InternalError(e.into())
+    })?;
+    log::info!(
+        "file_upload: user_id={} conversation_id={} file_id={} create_dir_all success",
+        jwt_claims.user_id,
+        conversation_id,
+        file_id
+    );
 
     // Create the file
-    let path = dir_path.join(file_id.to_string());
-    let mut file = BufWriter::new(
-        File::create(&path)
-            .await
-            .map_err(|e| ResponseError::InternalError(e.into()))?,
-    );
+    let file_path = dir_path.join(file_id.to_string());
+    let mut file = BufWriter::new(File::create(&file_path).await.map_err(|e| {
+        log::error!(
+            "file_upload: user_id={} conversation_id={} file_id={} create_file error={:?}",
+            jwt_claims.user_id,
+            conversation_id,
+            file_id,
+            e
+        );
+        ResponseError::InternalError(e.into())
+    })?);
 
     let mut total_size = 0;
     let mut hash = Sha256::new();
 
-    while let Some(chunk) = field
-        .chunk()
-        .await
-        .map_err(|e| ResponseError::ClientConnectionError(e.into()))?
-    {
-        file.write_all(&chunk)
-            .await
-            .map_err(|e| ResponseError::InternalError(e.into()))?;
+    while let Some(chunk) = field.chunk().await.map_err(|e| {
+        log::error!(
+            "file_upload: user_id={} conversation_id={} file_id={} chunk error={:?}",
+            jwt_claims.user_id,
+            conversation_id,
+            file_id,
+            e
+        );
+        ResponseError::ClientConnectionError(e.into())
+    })? {
+        file.write_all(&chunk).await.map_err(|e| {
+            log::error!(
+                "file_upload: user_id={} conversation_id={} file_id={} write_all error={:?}",
+                jwt_claims.user_id,
+                conversation_id,
+                file_id,
+                e
+            );
+            ResponseError::InternalError(e.into())
+        })?;
+
+        file.flush().await.map_err(|e| {
+            log::error!(
+                "file_upload: user_id={} conversation_id={} file_id={} flush error={:?}",
+                jwt_claims.user_id,
+                conversation_id,
+                file_id,
+                e
+            );
+            ResponseError::InternalError(e.into())
+        })?;
+
         hash.update(&chunk);
         total_size += chunk.len();
     }
+
+    log::info!(
+        "file_upload: user_id={} conversation_id={} file_id={} total_size={}",
+        jwt_claims.user_id,
+        conversation_id,
+        file_id,
+        total_size
+    );
 
     if total_size != upload_file_req.size.unwrap_or(total_size as i64) as usize {
         log::error!(
@@ -235,15 +290,25 @@ async fn file_upload(
 
     server
         .db
-        .update_file_upload_request(file_name.clone(), file_id, checksum, total_size as i64)
-        .await?;
+        .update_file_upload_request(file_id, checksum, total_size as i64)
+        .await
+        .map_err(|e| {
+            log::error!(
+                "file_upload: user_id={} conversation_id={} file_id={} update_file_upload_request error={:?}",
+                jwt_claims.user_id,
+                conversation_id,
+                file_id,
+                e
+            );
+            ResponseError::InternalError(e.into())
+        })?;
 
     log::info!(
-        "file_upload: user_id={} conversation_id={} file_name={} path={:?}",
+        "file_upload: user_id={} conversation_id={} file_id={} path={:?}",
         jwt_claims.user_id,
         conversation_id,
-        file_name,
-        path
+        file_id,
+        file_path.to_str().unwrap()
     );
 
     Ok(Json(()))
@@ -253,7 +318,7 @@ async fn file_upload_complete(
     jwt_claims: JwtClaims,
     State(server): State<FileServer>,
     Json(request): Json<FileUploadCompleteRequest>,
-) -> Result<Json<()>, ResponseError> {
+) -> Result<Json<FileUploadCompleteResponse>, ResponseError> {
     // check acl
     let allowed = server
         .check_acl(&jwt_claims, request.conversation_id)
@@ -291,7 +356,7 @@ async fn file_upload_complete(
 
     server
         .db
-        .upload_file_complete(request.file_id, request.metadata)
+        .upload_file_complete(request.file_id, request.metadata.clone())
         .await?;
 
     // check file type, if image, create thumbnail
@@ -310,7 +375,16 @@ async fn file_upload_complete(
             .await
             .map_err(|e| ResponseError::InternalError(e.into()))?;
         let image = image::load_from_memory(&image_data)
-            .map_err(|e| ResponseError::InternalError(e.into()))?;
+            .map_err(|e| {
+                log::error!(
+                    "file_upload_complete: user_id={} conversation_id={} file_id={} load_from_memory error={:?}",
+                    jwt_claims.user_id,
+                    request.conversation_id,
+                    request.file_id,
+                    e
+                );
+                ResponseError::InternalError(e.into())
+            })?;
         let thumbnail_img =
             image.thumbnail(server.config.thumbnail_size, server.config.thumbnail_size);
 
@@ -327,7 +401,19 @@ async fn file_upload_complete(
             .map_err(|e| ResponseError::InternalError(e.into()))?;
     }
 
-    Ok(Json(()))
+    Ok(Json(FileUploadCompleteResponse {
+        file_id: request.file_id,
+        file_name: upload_file.filename,
+        file_url: format!(
+            "/api/v1/files/download/{}/{}",
+            request.conversation_id, request.file_id
+        ),
+        file_thumbnail_url: format!(
+            "/api/v1/files/download/{}/{}.thumbnail",
+            request.conversation_id, request.file_id
+        ),
+        file_metadata: request.metadata,
+    }))
 }
 
 // get file
@@ -451,15 +537,21 @@ impl FileServer {
     pub(crate) async fn start(&self) {
         let app = Router::new()
             .route("/", get(|| async { "Hello, World!" }))
-            .route("/api/v1/files/upload", post(create_file_upload_request))
+            .route(
+                "/api/v1/files/upload/create",
+                post(create_file_upload_request),
+            )
             .route(
                 "/api/v1/files/upload/{conversation_id}/{file_id}",
                 post(file_upload),
             )
             .route("/api/v1/files/upload/complete", post(file_upload_complete))
-            .route("/api/v1/files/{conversation_id}/{file_id}", get(get_file))
             .route(
-                "/api/v1/files/{conversation_id}/{file_id}/thumbnail",
+                "/api/v1/files/download/{conversation_id}/{file_id}",
+                get(get_file),
+            )
+            .route(
+                "/api/v1/files/download/{conversation_id}/{file_id}/thumbnail",
                 get(get_thumbnail),
             )
             .with_state(self.clone());

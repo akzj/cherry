@@ -43,10 +43,9 @@ impl Repo {
         Ok(())
     }
 
-    pub async fn update_file_upload_request(&self, file_name: String, file_id: Uuid, checksum: String, size: i64) -> Result<()> {
-        let sql = "UPDATE upload_files SET filename = $1, checksum = $2, size = $3, status = 'uploaded', updated_at = now() WHERE file_id = $4";
+    pub async fn update_file_upload_request(&self, file_id: Uuid, checksum: String, size: i64) -> Result<()> {
+        let sql = "UPDATE upload_files SET checksum = $1, size = $2, status = 'uploaded', updated_at = now() WHERE file_id = $3";
         query(sql)
-            .bind(file_name)
             .bind(checksum)
             .bind(size)
             .bind(file_id)

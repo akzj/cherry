@@ -14,45 +14,7 @@ use crate::types::{
     CheckAclRequest, CheckAclResponse, Contact, Conversation, CreateConversationRequest, CreateConversationResponse, ListConversationsResponse, ListStreamRequest, ListStreamResponse, LoginRequest, LoginResponse, ResponseError, User
 };
 
-/// Configuration for the Cherry client
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CherryClientConfig {
-    /// Base URL of the Cherry server
-    pub base_url: String,
-    /// Default timeout for requests
-    pub timeout: Duration,
-    /// Maximum idle connections per host
-    pub max_idle_per_host: usize,
-    /// Connection pool timeout
-    pub pool_idle_timeout: Duration,
-    /// User agent string
-    pub user_agent: String,
-}
-
-impl Default for CherryClientConfig {
-    fn default() -> Self {
-        Self {
-            base_url: "http://localhost:8180".to_string(),
-            timeout: Duration::from_secs(30),
-            max_idle_per_host: 10,
-            pool_idle_timeout: Duration::from_secs(90),
-            user_agent: "CherryClient/1.0".to_string(),
-        }
-    }
-}
-
-/// Authentication credentials
-#[derive(Debug, Clone)]
-pub struct AuthCredentials {
-    pub user_id: Uuid,
-    pub jwt_token: String,
-}
-
-impl AuthCredentials {
-    pub fn new(user_id: Uuid, jwt_token: String) -> Self {
-        Self { user_id, jwt_token }
-    }
-}
+use super::{ClientConfig, AuthCredentials};
 
 /// Professional Cherry client implementation
 #[derive(Clone)]
@@ -62,7 +24,7 @@ pub struct CherryClient {
 
 #[derive(Clone)]
 pub struct CherryClientInner {
-    config: CherryClientConfig,
+    config: ClientConfig,
     client: Client,
     auth: Option<AuthCredentials>,
 }
@@ -78,11 +40,11 @@ impl std::ops::Deref for CherryClient {
 impl CherryClient {
     /// Create a new client with default configuration
     pub fn new() -> Result<Self> {
-        Self::new_with_config(CherryClientConfig::default())
+        Self::new_with_config(ClientConfig::default_cherry())
     }
 
     /// Create a new client with custom configuration
-    pub fn new_with_config(config: CherryClientConfig) -> Result<Self> {
+    pub fn new_with_config(config: ClientConfig) -> Result<Self> {
         let client = ClientBuilder::new()
             .timeout(config.timeout)
             .pool_idle_timeout(config.pool_idle_timeout)
@@ -102,17 +64,17 @@ impl CherryClient {
     }
 
     pub fn new_with_base_url(base_url: String) -> Result<Self> {
-        let config = CherryClientConfig {
+        let config = ClientConfig {
             base_url,
-            ..CherryClientConfig::default()
+            ..ClientConfig::default_cherry()
         };
         Self::new_with_config(config)
     }
 
     /// Set authentication credentials
-    pub fn with_auth(self, auth: AuthCredentials) -> Self {
+    pub fn with_auth(self, auth: impl Into<AuthCredentials>) -> Self {
         let inner = CherryClientInner {
-            auth: Some(auth),
+            auth: Some(auth.into()),
             client: self.inner.client.clone(),
             config: self.inner.config.clone(),
         };
@@ -317,14 +279,14 @@ impl CherryClient {
 
 /// Builder pattern for creating CherryClient instances
 pub struct CherryClientBuilder {
-    config: CherryClientConfig,
+    config: ClientConfig,
     auth: Option<AuthCredentials>,
 }
 
 impl CherryClientBuilder {
     pub fn new() -> Self {
         Self {
-            config: CherryClientConfig::default(),
+            config: ClientConfig::default_cherry(),
             auth: None,
         }
     }
