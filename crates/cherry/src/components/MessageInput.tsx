@@ -7,8 +7,9 @@ import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
 import { useMessageStore } from '../store/message';
 
+
 interface MessageInputProps {
-  onSend: (message: string, replyTo?: number) => Promise<void>;
+  onSend: (message: string, messageType: string, replyTo?: number) => Promise<void>;
   onImageSend?: (imageUrl: string, thumbnailUrl: string, metadata: any) => Promise<void>;
   conversationId: string;
   isLoading?: boolean;
@@ -277,6 +278,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       setIsSending(true);
       try {
         let finalMessage = message;
+        let messageType = 'text';
         if (selectedImagePath) {
           try {
             const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
@@ -285,13 +287,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
             });
             // 用图片url替换占位符
             finalMessage = finalMessage.replace('[[image]]', response.file_url);
+            messageType = 'image';
             setSelectedImagePath(null);
           } catch (uploadError) {
             console.error('图片上传失败:', uploadError);
           }
         }
         if (finalMessage.trim()) {
-          await onSend(finalMessage, replyingTo?.id);
+          await onSend(finalMessage, messageType, replyingTo?.id);
           setMessage('');
         }
         setReplyingTo(null);

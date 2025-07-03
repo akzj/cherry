@@ -418,27 +418,26 @@ async fn file_upload_complete(
 
 // get file
 async fn get_file(
-    jwt_claims: JwtClaims,
+    //jwt_claims: JwtClaims,
     State(server): State<FileServer>,
-    Path(conversation_id): Path<Uuid>,
-    Path(file_id): Path<Uuid>,
+    Path((conversation_id, file_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Response<Body>, ResponseError> {
-    let allowed = server.check_acl(&jwt_claims, conversation_id).await?;
-    if !allowed {
-        log::error!(
-            "get_file: user_id={} conversation_id={} file_id={} access denied",
-            jwt_claims.user_id,
-            conversation_id,
-            file_id
-        );
-        return Err(ResponseError::AccessDenied);
-    }
+    // let allowed = server.check_acl(&jwt_claims, conversation_id).await?;
+    // if !allowed {
+    //     log::error!(
+    //         "get_file: user_id={} conversation_id={} file_id={} access denied",
+    //         jwt_claims.user_id,
+    //         conversation_id,
+    //         file_id
+    //     );
+    //     return Err(ResponseError::AccessDenied);
+    // }
 
     let upload_file = server.db.get_file_upload_request(file_id).await?;
     if upload_file.conversation_id != conversation_id {
         log::error!(
-            "get_file: user_id={} conversation_id={} file_id={} conversation_id_mismatch",
-            jwt_claims.user_id,
+            "get_file:  conversation_id={} file_id={} conversation_id_mismatch",
+            //jwt_claims.user_id,
             conversation_id,
             file_id
         );

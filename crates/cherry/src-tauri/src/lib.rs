@@ -9,6 +9,7 @@ use env_logger;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::Write;
+use std::path::PathBuf;
 use std::{
     env,
     sync::{Arc, Mutex},
@@ -19,7 +20,7 @@ use tokio::fs::File;
 use tokio::sync::mpsc;
 use uuid;
 use uuid::Uuid;
-
+use tauri_plugin_log::{Target, TargetKind};
 use crate::db::{
     models::{Contact as DbContact, User},
     repo::Repo,
@@ -677,6 +678,18 @@ async fn cmd_get_read_position(
 }
 
 #[tauri::command]
+async fn cmd_download_file(
+    url: String,
+    file_path: String,
+    state: State<'_, AppState>,
+) -> Result<String, CommandError> {
+    log::info!("cmd_download_file: url={} file_path={}", url, file_path);
+    let client = state.get_file_client()?;
+    let file_path = client.download_file(&url, &file_path).await?;
+    Ok(file_path.to_string())
+}
+
+#[tauri::command]
 async fn cmd_upload_file(
     conversation_id: Uuid,
     file_path: String,
@@ -724,7 +737,7 @@ async fn cmd_upload_file(
             }),
         )
         .await
-        .map_err(|e|  {
+        .map_err(|e| {
             log::error!("Failed to upload file: {:?}", e);
             e
         })?;
@@ -747,23 +760,25 @@ pub async fn run() {
         env::set_var(log_level, env);
     }
 
-    env_logger::Builder::from_default_env()
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{}:{} level:{} {}",
-                record.file().unwrap(),
-                record.line().unwrap(),
-                record.level(),
-                record.args()
-            )
-        })
-        .init();
+    // env_logger::Builder::from_default_env()
+    //     .format(|buf, record| {
+    //         writeln!(
+    //             buf,
+    //             "{}:{} level:{} {}",
+    //             record.file().unwrap(),
+    //             record.line().unwrap(),
+    //             record.level(),
+    //             record.args()
+    //         )
+    //     })
+    //     .init();
 
-    let db_path = std::env::current_dir().unwrap().join("sqlite.db");
-    println!("db_path: {}", db_path.to_str().unwrap());
+    // let db_path = std::env::current_dir().unwrap().join("sqlite.db");
+    // println!("db_path: {}", db_path.to_str().unwrap());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
@@ -779,6 +794,24 @@ pub async fn run() {
             // todo: 需要重新设计
             // repo: Repo::new(db_path.to_str().unwrap()).await,
         })
+        .register_uri_scheme_protocol("cherry", |_app, request| {
+            let url = request.uri().to_string();
+            log::info!("serve_file: url={}", url);
+            let query = url.split('?').nth(1).unwrap_or("");
+            let file_path = querystring::querify(query)
+                .iter()
+                .find(|(k, _)| *k == "file_path")
+                .map(|(_, v)| v.to_string())
+                .unwrap_or_default();
+            log::info!("serve_file: file_path={}", file_path);
+            let path = PathBuf::from(file_path);
+            //let mime = mime_guess::from_path(&path).first_or_octet_stream();
+            let data = std::fs::read(&path).unwrap_or_default();
+            http::Response::builder()
+                //.header(http::header::CONTENT_TYPE, "image/jpeg")
+                .body(data)
+                .unwrap()
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             cmd_login,
@@ -792,6 +825,7 @@ pub async fn run() {
             cmd_save_read_position,
             cmd_get_read_position,
             cmd_upload_file,
+            cmd_download_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

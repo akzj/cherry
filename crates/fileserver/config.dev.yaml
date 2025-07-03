@@ -1,7 +1,7 @@
 listen_addr: "0.0.0.0:8280"
 cherry_url: "http://localhost:8180"
 db_url: "postgres://postgres:postgres123@localhost:5433/fileserver"
-uploads_directory: "data/uploads"
+uploads_directory: "../../data/uploads"
 thumbnail_size: 100
 disable_acl: true
 jwt_secret: "cherryjwt_secret"

@@ -10,7 +10,7 @@ interface ConversationViewProps {
   conversation: Conversation;
   currentUserId: string;
   isVisible: boolean;
-  onSendMessage: (content: string, replyTo?: number) => Promise<void>;
+  onSendMessage: (content: string, messageType: string, replyTo?: number) => Promise<void>;
 }
 
 const Container = styled.div<{ $isVisible: boolean }>`
@@ -35,10 +35,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   const messages = getMessages(conversation.id);
 
   // 处理发送消息
-  const handleSendMessage = async (content: string, replyTo?: number) => {
+  const handleSendMessage = async (content: string, messageType: string, replyTo?: number) => {
     try {
       setIsLoading(true);
-      await onSendMessage(content, replyTo);
+      await onSendMessage(content, messageType, replyTo);
     } catch (error) {
       console.error('Failed to send message in conversation:', conversation.id, error);
     } finally {

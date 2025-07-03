@@ -528,9 +528,9 @@ const App: React.FC = () => {
   }, [isContactModalOpen, pendingConversationId]);
 
   // 处理发送消息 - 接收会话ID作为参数
-  const handleSendMessage = async (conversationId: string, content: string, replyTo?: number) => {
+  const handleSendMessage = async (conversationId: string, content: string, messageType: string, replyTo?: number) => {
     try {
-      await sendMessage(conversationId, content, 'text', replyTo);
+      await sendMessage(conversationId, content, messageType, replyTo);
       console.log(`Message sent to conversation ${conversationId}: ${content}`);
     } catch (error) {
       console.error('Failed to send message:', error);

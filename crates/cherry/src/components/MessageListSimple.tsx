@@ -1,7 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { Message } from '../types/types';
 import { useMessageStore } from '../store/message';
+import { appDataDir, appCacheDir } from '@tauri-apps/api/path';
+import { readFile, BaseDirectory, exists } from '@tauri-apps/plugin-fs';
+import { path } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
+
+const appDataDirPath = await appDataDir();
+const appCacheDirPath = await appCacheDir();
 
 interface MessageListProps {
   messages: Message[];
@@ -149,8 +156,8 @@ const ActionButton = styled.button`
 
 // 回复消息的引用显示
 const ReplyQuote = styled.div<{ $isOwn: boolean }>`
-  background: ${props => props.$isOwn 
-    ? 'rgba(255, 255, 255, 0.3)' 
+  background: ${props => props.$isOwn
+    ? 'rgba(255, 255, 255, 0.3)'
     : 'rgba(0, 0, 0, 0.05)'
   };
   border-left: 3px solid #6366f1;
@@ -162,10 +169,10 @@ const ReplyQuote = styled.div<{ $isOwn: boolean }>`
   transition: all 0.2s ease;
   
   &:hover {
-    background: ${props => props.$isOwn 
-      ? 'rgba(255, 255, 255, 0.4)' 
-      : 'rgba(0, 0, 0, 0.08)'
-    };
+    background: ${props => props.$isOwn
+    ? 'rgba(255, 255, 255, 0.4)'
+    : 'rgba(0, 0, 0, 0.08)'
+  };
     transform: translateX(2px);
   }
 `;
@@ -239,6 +246,34 @@ const ReplyConnection = styled.div<{ $isOwn: boolean }>`
   }
 `;
 
+// 异步图片组件
+const MessageImage: React.FC<{ url: string }> = ({ url }) => {
+  const [src, setSrc] = useState<string>();
+
+  useEffect(() => {
+    let mounted = true;
+    const getFile = async (url: string) => {
+      const cache_file_path = await path.join(appCacheDirPath, url);
+      const cache_file_exists = await exists(cache_file_path);
+      if (cache_file_exists) {
+        return cache_file_path;
+      }
+      return await invoke('cmd_download_file', {
+        url: url,
+        filePath: cache_file_path
+      });
+    };
+    (async () => {
+      const path = await getFile(url);
+      if (mounted) setSrc(path as string);
+    })();
+    return () => { mounted = false; };
+  }, [url]);
+
+  if (!src) return <span>图片加载中...</span>;
+  return <img src={`cherry://localhost?file_path=${src}`} style={{ maxWidth: '220px', maxHeight: '160px', borderRadius: '8px', margin: '4px 0' }} />;
+};
+
 // ==================== Component Implementation ====================
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conversationId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -310,7 +345,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
           {/* 回复连接线 */}
           {message.isReply && <ReplyConnection $isOwn={isOwn} />}
-          
+
           <MessageActions>
             <ActionButton onClick={() => handleReply(message)} title="回复">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -327,15 +362,15 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
 
           {/* 新的回复引用显示 */}
           {message.isReply && message.replyToMessage && (
-            <ReplyQuote 
+            <ReplyQuote
               $isOwn={isOwn}
               onClick={() => handleScrollToMessage(message.replyToMessage!.id)}
             >
               <ReplyQuoteHeader>
                 <ReplyQuoteIcon>
                   <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z"/>
-                    <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z"/>
+                    <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z" />
+                    <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z" />
                   </svg>
                 </ReplyQuoteIcon>
                 <ReplyQuoteAuthor>{message.replyToMessage.userId}</ReplyQuoteAuthor>
@@ -346,7 +381,14 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
             </ReplyQuote>
           )}
 
-          <MessageContent>{message.content}</MessageContent>
+          <MessageContent>
+            {message.type === 'image' ? (
+              <MessageImage url={message.content.trim()} />
+            ) : (
+              message.content
+            )}
+          </MessageContent>
+
         </MessageBubble>
       </MessageContainer>
     );

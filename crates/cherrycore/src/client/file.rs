@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::digest::{FixedOutput, Update};
 use sha2::{Digest, Sha256};
+use tokio::io::AsyncWriteExt;
 use tokio::{fs::File, io::AsyncReadExt};
 use uuid::Uuid;
 
@@ -227,17 +228,13 @@ impl FileClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await?;
-            log::error!(
-                "Failed to upload file: {} message={:?}",
-                status,
-                body
-            );  
+            log::error!("Failed to upload file: {} message={:?}", status, body);
             return Err(anyhow::anyhow!(
                 "Failed to upload file: {} message={}",
                 status,
                 body
             ));
-        }   
+        }
 
         let checksum = {
             let guard = checksum.lock().unwrap();
@@ -320,17 +317,29 @@ impl FileClient {
             .await?;
 
         log::info!("upload_file_complete response: {:?}", complete_response);
-
-        let base_url = Url::parse(&self.config.base_url).context("Failed to parse base URL")?;
-        let file_url = base_url
-            .join(&complete_response.file_url)
-            .context("Failed to join file URL")?;
-        let file_thumbnail_url = base_url
-            .join(&complete_response.file_thumbnail_url)
-            .context("Failed to join file thumbnail URL")?;
-        complete_response.file_url = file_url.to_string();
-        complete_response.file_thumbnail_url = file_thumbnail_url.to_string();
-
         Ok(complete_response)
+    }
+
+    pub async fn download_file(&self, download_url: &str, file_path: &str) -> Result<String> {
+        let url = Url::parse(&self.config.base_url).context("Failed to parse base URL")?;
+        let url = url
+            .join(download_url)
+            .context("Failed to join download URL")?;
+
+        log::info!("download_url: {} file_path={}", url, file_path);
+
+        // Create the directory if it doesn't exist
+        let dir = Path::new(file_path).parent().unwrap();
+        if !dir.exists() {
+            std::fs::create_dir_all(dir).context("Failed to create directory")?;
+        }
+
+        let mut response = self.client.get(url).send().await?;
+        let mut file = File::create(file_path).await?;
+        while let Some(chunk) = response.chunk().await? {
+            file.write_all(&chunk).await?;
+        }
+        log::info!("download_file success: file_path={}", file_path);
+        Ok(file_path.to_string())
     }
 }
