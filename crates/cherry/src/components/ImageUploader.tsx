@@ -188,10 +188,10 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       };
 
       const uploadResponse = await invoke('upload_image', { request: uploadRequest });
-      const { upload_url, image_id, expires_at } = uploadResponse as any;
+      const { upload_url, file_id, expires_at } = uploadResponse as any;
 
       setUploadProgress({
-        imageId: image_id,
+        imageId: file_id,
         progress: 0,
         status: 'uploading'
       });
@@ -224,7 +224,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
           // 5. 完成上传
           const completeRequest = {
-            image_id,
+            file_id,
             checksum,
             metadata
           };

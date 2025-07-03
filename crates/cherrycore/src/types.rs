@@ -8,6 +8,7 @@ use chrono::DateTime;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
+use sqlx::types::Json;
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
@@ -558,6 +559,14 @@ pub struct FileUploadRequest {
     pub filename: String,
     pub mime_type: String,
     pub size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileUploadCompleteRequest {
+    pub conversation_id: Uuid,
+    pub file_id: Uuid,
+    pub checksum: String,
+    pub metadata: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
