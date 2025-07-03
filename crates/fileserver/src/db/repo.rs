@@ -29,10 +29,11 @@ impl Repo {
         Self { sqlx_pool: pool }
     }
 
-    pub async fn create_file_upload_request(&self, file_id: Uuid,file_name: String, conversation_id: Uuid,  mime_type: String, size: i64) -> Result<()> {
-        let sql = "INSERT INTO upload_files (file_id, filename, conversation_id, mime_type, size, status,  created_at, updated_at) VALUES ($1, $2, $3, $4, $5,'created', now(), now())";
+    pub async fn create_file_upload_request(&self, user_id: Uuid, file_id: Uuid,file_name: String, conversation_id: Uuid,  mime_type: String, size: i64) -> Result<()> {
+        let sql = "INSERT INTO upload_files (file_id, user_id, filename, conversation_id, mime_type, size, status,  created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, 'created', now(), now())";
         query(sql)
             .bind(file_id)
+            .bind(user_id)
             .bind(file_name)
             .bind(conversation_id)
             .bind(mime_type)

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{string, sync::Arc};
 
 use axum::extract::Multipart;
@@ -14,6 +15,7 @@ use cherrycore::{
     types::{FileUploadCompleteRequest, FileUploadRequest, FileUploadResponse, ResponseError},
 };
 use chrono::{Duration, Utc};
+use serde::{Deserialize, Serialize};
 
 use crate::db::repo::Repo;
 use sha2::{Digest, Sha256};
@@ -25,12 +27,22 @@ use tokio::{
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FileServerConfig {
     pub listen_addr: String,
     pub cherry_url: String,
     pub db_url: String,
     pub uploads_directory: String,
+    pub thumbnail_size: u32,
+    pub disable_acl: bool, // for testing
+    pub jwt_secret: Option<String>,
+}
+
+impl FileServerConfig {
+    pub async fn load(config_file: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        let config = serde_yaml::from_reader(std::fs::File::open(config_file)?)?;
+        Ok(config)
+    }
 }
 
 #[derive(Clone)]
@@ -58,6 +70,10 @@ impl FileServerInner {
         jwt_claims: &JwtClaims,
         conversation_id: Uuid,
     ) -> Result<bool, ResponseError> {
+        if self.config.disable_acl {
+            return Ok(true);
+        }
+
         match self
             .cherry_client
             .check_acl(jwt_claims.user_id, None, Some(conversation_id))
@@ -96,6 +112,7 @@ async fn create_file_upload_request(
     server
         .db
         .create_file_upload_request(
+            jwt_claims.user_id,
             file_id,
             req.filename.clone(),
             req.conversation_id,
@@ -132,7 +149,7 @@ async fn file_upload(
     let upload_file_req = server.db.get_file_upload_request(file_id).await?;
     if upload_file_req.conversation_id != conversation_id {
         log::error!(
-            "file_upload: user_id={} conversation_id={} file_id={} access denied",
+            "file_upload: user_id={} conversation_id={} file_id={} conversation_id_mismatch",
             jwt_claims.user_id,
             conversation_id,
             file_id
@@ -294,7 +311,8 @@ async fn file_upload_complete(
             .map_err(|e| ResponseError::InternalError(e.into()))?;
         let image = image::load_from_memory(&image_data)
             .map_err(|e| ResponseError::InternalError(e.into()))?;
-        let thumbnail_img = image.thumbnail(100, 100);
+        let thumbnail_img =
+            image.thumbnail(server.config.thumbnail_size, server.config.thumbnail_size);
 
         let mut thumbnail_data = Vec::new();
         thumbnail_img
@@ -333,7 +351,7 @@ async fn get_file(
     let upload_file = server.db.get_file_upload_request(file_id).await?;
     if upload_file.conversation_id != conversation_id {
         log::error!(
-            "get_file: user_id={} conversation_id={} file_id={} access denied",
+            "get_file: user_id={} conversation_id={} file_id={} conversation_id_mismatch",
             jwt_claims.user_id,
             conversation_id,
             file_id
@@ -388,7 +406,7 @@ async fn get_thumbnail(
     let upload_file = server.db.get_file_upload_request(file_id).await?;
     if upload_file.conversation_id != conversation_id {
         log::error!(
-            "get_thumbnail: user_id={} conversation_id={} file_id={} access denied",
+            "get_thumbnail: user_id={} conversation_id={} file_id={} conversation_id_mismatch",
             jwt_claims.user_id,
             conversation_id,
             file_id

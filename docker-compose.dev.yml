@@ -11,6 +11,17 @@ services:
       POSTGRES_PASSWORD: postgres123
     ports:
       - "5432:5432"
+  # PostgresSql for fileserver
+  fileserver-postgres:
+    image: postgres:15-alpine
+    container_name: fileserver-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fileserver
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5433:5432"
 
   # Optional: PostgreSQL Admin (pgAdmin)
   pgadmin:

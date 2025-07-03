@@ -6,6 +6,7 @@ use serde_json::Value;
 pub struct UploadFile {
     pub file_id: Uuid,
     pub conversation_id: Uuid,
+    pub user_id: Uuid,
     pub filename: String,
     pub status: String,
     pub checksum: Option<String>,

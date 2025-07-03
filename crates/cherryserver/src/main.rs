@@ -2,7 +2,7 @@ mod db;
 mod server;
 
 use clap::Parser;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use crate::server::ServerConfig;
 
@@ -17,8 +17,27 @@ async fn main() {
     let cli = Cli::parse();
     let config_file = cli.config;
 
+     // set rust_log to use the environment variable RUST_LOG
+     let log_level = "RUST_LOG";
+     let env = env::var(log_level).unwrap_or_else(|_| "debug".to_string());
+     unsafe {
+         env::set_var(log_level, env);
+     }
+
     let config = ServerConfig::load(config_file).await.unwrap();
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+    use std::io::Write;
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} level:{} {}",
+                record.file().unwrap(),
+                record.line().unwrap(),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
     if let Some(jwt_secret) = config.jwt_secret.as_deref() {
         // set jwt secret to env
