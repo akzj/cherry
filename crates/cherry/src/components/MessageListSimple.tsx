@@ -71,10 +71,10 @@ const Container = styled.div`
 const MessageContainer = styled.div<{ $isOwn: boolean }>`
   display: flex;
   justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
+  align-self: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
   align-items: flex-end;
   gap: 0.5rem;
   max-width: 70%;
-  align-self: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
 `;
 
 const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
@@ -451,7 +451,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     return (
       <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-          <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
+        <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
           {/* reaction bar */}
           {message.reactions && message.reactions.length > 0 && (
             <ReactionBar>
@@ -530,7 +530,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
             )}
           </MessageContent>
 
-         
+
         </MessageBubble>
       </MessageContainer>
     );

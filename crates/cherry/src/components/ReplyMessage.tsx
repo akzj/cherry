@@ -46,12 +46,7 @@ const ReplyLabel = styled.span`
     content: '';
     width: 12px;
     height: 12px;
-    background: url("data:image/svg+xml,${encodeURIComponent(`
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z" fill="#6366f1"/>
-        <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z" fill="white"/>
-      </svg>
-    `)}") no-repeat center;
+    background: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE0IDE3aDNsMi00VjdBMiAyIDAgMCAwIDIxIDVIOWEyIDIgMCAwIDAtMiAydjZhMiAyIDAgMCAwIDIgMmgzbDIgNHoiIGZpbGw9IiM2MzY2ZjEiLz48cGF0aCBkPSJNOSAxMmExIDEgMCAwIDEtMS0xVjhhMSAxIDAgMCAxIDIgMHYzYTEgMSAwIDAgMS0xIDF6IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==") no-repeat center;
     background-size: contain;
   }
 `;
