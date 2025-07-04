@@ -21,6 +21,17 @@ export const useMessageReceiver = () => {
         const existingMessages = getMessages(conversation_id);
         const frontendMessage = convertBackendMessage(backendMessage, existingMessages);
         
+        // reaction 类型特殊处理
+        if (frontendMessage.type === 'reaction') {
+          let data;
+          try {
+            data = typeof frontendMessage.content === 'string' ? JSON.parse(frontendMessage.content) : frontendMessage.content;
+          } catch { return; }
+          const { emoji, users, action, targetMessageId } = data;
+          useMessageStore.getState().mergeReactionToMessage(conversation_id, targetMessageId, { emoji, users, action });
+          return;
+        }
+        
         // 使用后端提供的 conversation_id 直接添加消息
         // Adding message to conversation
         
@@ -87,6 +98,17 @@ export const useMessageReceiver = () => {
         // 获取当前会话的所有消息，用于建立回复关系
         const allMessages = getMessages(conversation_id);
         const frontendMessage = convertBackendMessage(backendMessage, allMessages);
+        
+        // reaction 类型特殊处理
+        if (frontendMessage.type === 'reaction') {
+          let data;
+          try {
+            data = typeof frontendMessage.content === 'string' ? JSON.parse(frontendMessage.content) : frontendMessage.content;
+          } catch { return; }
+          const { emoji, users, action, targetMessageId } = data;
+          useMessageStore.getState().mergeReactionToMessage(conversation_id, targetMessageId, { emoji, users, action });
+          return;
+        }
         
         // 使用后端提供的 conversation_id 直接添加消息
         addMessage(conversation_id, frontendMessage);

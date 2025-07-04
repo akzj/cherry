@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Message, ImageContent } from '../types/types';
+import { Message, parseMessageContent } from '../types/types';
 
 interface ReplyMessageProps {
   message: Message;
@@ -99,35 +99,10 @@ const ReplyContent = styled.div`
   }
 `;
 
-// 解析消息内容的辅助函数
-const parseMessageContent = (content: string | ImageContent): { type: 'text' | 'image', text?: string, imageUrl?: string } => {
-  if (typeof content === 'string') {
-    // 尝试解析为 ImageContent
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.url && parsed.thumbnail_url) {
-        return {
-          type: 'image',
-          text: parsed.text || undefined,
-          imageUrl: parsed.url
-        };
-      }
-    } catch {
-      // 解析失败，当作普通文本
-    }
-    return { type: 'text', text: content };
-  } else {
-    // 已经是 ImageContent 对象
-    return {
-      type: 'image',
-      text: content.text || undefined,
-      imageUrl: content.url
-    };
-  }
-};
+
 
 const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
-  const parsedContent = parseMessageContent(message.content);
+  const parsedContent = parseMessageContent(message.content, message.type);
   
   return (
     <ReplyContainer>

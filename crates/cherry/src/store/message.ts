@@ -11,7 +11,7 @@ export interface MessageState {
   // Actions
   addMessage: (conversationId: string, message: Message) => void;
   addMessages: (conversationId: string, messages: Message[]) => void;
-  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message>) => void;
+  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message> | ((msg: Message) => Partial<Message>)) => void;
   clearMessages: (conversationId: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -23,6 +23,7 @@ export interface MessageState {
   getMessageById: (conversationId: string, messageId: number) => Message | undefined;
   addReaction: (conversationId: string, messageId: number, emoji: string, userId: string) => void;
   removeReaction: (conversationId: string, messageId: number, emoji: string, userId: string) => void;
+  mergeReactionToMessage: (conversationId: string, messageId: number, reaction: { emoji: string, users: string, action: 'add' | 'remove' }) => void;
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -62,13 +63,17 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     });
   },
 
-  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message>) => {
+  updateMessage: (conversationId: string, messageId: number, updates: Partial<Message> | ((msg: Message) => Partial<Message>)) => {
     set((state) => {
       const conversationMessages = state.messages[conversationId] || [];
-      const updatedMessages = conversationMessages.map((msg) =>
-        msg.id === messageId ? { ...msg, ...updates } : msg
-      );
-      
+      const updatedMessages = conversationMessages.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        if (typeof updates === 'function') {
+          return { ...msg, ...updates(msg) };
+        } else {
+          return { ...msg, ...updates };
+        }
+      });
       return {
         messages: {
           ...state.messages,
@@ -136,61 +141,45 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   addReaction: (conversationId, messageId, emoji, userId) => {
-    set((state) => {
-      const conversationMessages = state.messages[conversationId] || [];
-      const updatedMessages = conversationMessages.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        // 查找是否已有该emoji reaction
-        let reactions = msg.reactions ? [...msg.reactions] : [];
-        const idx = reactions.findIndex(r => r.emoji === emoji);
-        if (idx >= 0) {
-          // 允许同一用户多次点同一emoji
-          reactions[idx] = {
-            ...reactions[idx],
-            users: [...reactions[idx].users, userId],
-          };
-        } else {
-          reactions.push({ emoji, users: [userId] });
-        }
-        return { ...msg, reactions };
-      });
-      return {
-        messages: {
-          ...state.messages,
-          [conversationId]: updatedMessages,
-        },
-      };
-    });
+    // 发送一条 reaction 类型的消息
+    get().sendMessage(
+      conversationId,
+      JSON.stringify({ emoji, users: userId, action: 'add', targetMessageId: messageId }),
+      'reaction'
+    );
   },
 
   removeReaction: (conversationId, messageId, emoji, userId) => {
-    set((state) => {
-      const conversationMessages = state.messages[conversationId] || [];
-      const updatedMessages = conversationMessages.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        let reactions = msg.reactions ? [...msg.reactions] : [];
-        const idx = reactions.findIndex(r => r.emoji === emoji);
+    // 发送一条 reaction 类型的消息
+    get().sendMessage(
+      conversationId,
+      JSON.stringify({ emoji, users: userId, action: 'remove', targetMessageId: messageId }),
+      'reaction'
+    );
+  },
+
+  // 合并 reaction 到目标消息
+  mergeReactionToMessage: (conversationId: string, messageId: number, reaction: { emoji: string, users: string, action: 'add' | 'remove' }) => {
+    get().updateMessage(conversationId, messageId, (msg) => {
+      let reactions = msg.reactions ? [...msg.reactions] : [];
+      const idx = reactions.findIndex(r => r.emoji === reaction.emoji);
+      if (reaction.action === 'add') {
         if (idx >= 0) {
-          // 移除该用户的一个reaction（只移除一次）
-          const userIdx = reactions[idx].users.indexOf(userId);
-          if (userIdx >= 0) {
-            const newUsers = [...reactions[idx].users];
-            newUsers.splice(userIdx, 1);
-            if (newUsers.length > 0) {
-              reactions[idx] = { ...reactions[idx], users: newUsers };
-            } else {
-              reactions.splice(idx, 1);
-            }
+          if (!reactions[idx].users.includes(reaction.users)) {
+            reactions[idx] = { ...reactions[idx], users: [...reactions[idx].users, reaction.users] };
+          }
+        } else {
+          reactions.push({ emoji: reaction.emoji, users: [reaction.users] });
+        }
+      } else if (reaction.action === 'remove') {
+        if (idx >= 0) {
+          reactions[idx] = { ...reactions[idx], users: reactions[idx].users.filter(u => u !== reaction.users) };
+          if (reactions[idx].users.length === 0) {
+            reactions.splice(idx, 1);
           }
         }
-        return { ...msg, reactions };
-      });
-      return {
-        messages: {
-          ...state.messages,
-          [conversationId]: updatedMessages,
-        },
-      };
+      }
+      return { reactions };
     });
   },
 }));

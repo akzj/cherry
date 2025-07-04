@@ -310,7 +310,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               url: response.file_url,
               thumbnail_url: response.file_thumbnail_url,
               metadata: response.file_metadata,
-              text: message.trim() || null
+              text: message.trim() || undefined
             };
             
             // 发送图片消息，文字作为图片的附加文本

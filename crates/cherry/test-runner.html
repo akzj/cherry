@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息解析测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 消息内容解析测试</h1>
+        <p>点击下面的按钮来运行消息解析功能的测试：</p>
+        
+        <button onclick="runTests()">运行测试</button>
+        <button onclick="clearOutput()">清空输出</button>
+        
+        <div id="output">点击"运行测试"按钮开始测试...</div>
+    </div>
+
+    <script type="module">
+        // 导入测试函数
+        import { runTests as runTestsFunction } from './src/test-message-parsing.ts';
+        
+        // 重定向 console.log 到页面输出
+        const originalLog = console.log;
+        const outputDiv = document.getElementById('output');
+        
+        console.log = function(...args) {
+            // 调用原始的 console.log
+            originalLog.apply(console, args);
+            
+            // 添加到页面输出
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            const line = document.createElement('div');
+            line.textContent = message;
+            
+            // 根据内容添加样式
+            if (message.includes('✅')) {
+                line.className = 'success';
+            } else if (message.includes('❌')) {
+                line.className = 'error';
+            } else if (message.includes('🧪') || message.includes('📊') || message.includes('🎉')) {
+                line.className = 'info';
+            }
+            
+            outputDiv.appendChild(line);
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        };
+        
+        // 全局函数
+        window.runTests = function() {
+            outputDiv.innerHTML = '';
+            console.log('🧪 开始测试消息内容解析功能...\n');
+            runTestsFunction();
+        };
+        
+        window.clearOutput = function() {
+            outputDiv.innerHTML = '点击"运行测试"按钮开始测试...';
+        };
+    </script>
+</body>
+</html> 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { Message, ImageContent } from '../types/types';
+import { Message, parseMessageContent } from '../types/types';
 import { useMessageStore } from '../store/message';
 import { appCacheDir } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
@@ -310,32 +310,7 @@ const MessageImage: React.FC<{ url: string }> = ({ url }) => {
   return <img src={`cherry://localhost?file_path=${src}`} style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }} />;
 };
 
-// 解析消息内容的辅助函数
-const parseMessageContent = (content: string | ImageContent): { type: 'text' | 'image', text?: string, imageUrl?: string } => {
-  if (typeof content === 'string') {
-    // 尝试解析为 ImageContent
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.url && parsed.thumbnail_url) {
-        return {
-          type: 'image',
-          text: parsed.text || undefined,
-          imageUrl: parsed.url
-        };
-      }
-    } catch {
-      // 解析失败，当作普通文本
-    }
-    return { type: 'text', text: content };
-  } else {
-    // 已经是 ImageContent 对象
-    return {
-      type: 'image',
-      text: content.text || undefined,
-      imageUrl: content.url
-    };
-  }
-};
+
 
 const ReactionBar = styled.div`
   display: flex;
@@ -446,27 +421,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
 
   const renderMessage = (message: Message) => {
     const isOwn = message.userId === currentUserId;
-    const parsedContent = parseMessageContent(message.content);
+    const parsedContent = parseMessageContent(message.content, message.type);
 
     return (
       <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-        <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
-          {/* reaction bar */}
-          {message.reactions && message.reactions.length > 0 && (
-            <ReactionBar>
-              {message.reactions.map(r => (
-                <ReactionIcon
-                  key={r.emoji + r.users.length}
-                  active={r.users.includes(currentUserId)}
-                  onClick={() => handleReactionClick(message, r.emoji)}
-                  title={r.emoji}
-                >
-                  {r.emoji} {r.users.length > 1 ? r.users.length : ''}
-                </ReactionIcon>
-              ))}
-            </ReactionBar>
-          )}
+          <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
+
           {/* 回复连接线 */}
           {message.isReply && <ReplyConnection $isOwn={isOwn} />}
 
@@ -501,7 +462,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
               </ReplyQuoteHeader>
               <ReplyQuoteContent>
                 {(() => {
-                  const replyContent = parseMessageContent(message.replyToMessage.content);
+                  const replyContent = parseMessageContent(message.replyToMessage.content, message.replyToMessage.type);
                   if (replyContent.type === 'image') {
                     return (
                       <div className="image-preview">
@@ -530,6 +491,22 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
             )}
           </MessageContent>
 
+
+          {/* reaction bar */}
+          {message.reactions && message.reactions.length > 0 && (
+            <ReactionBar>
+              {message.reactions.map(r => (
+                <ReactionIcon
+                  key={r.emoji + r.users.length}
+                  active={r.users.includes(currentUserId)}
+                  onClick={() => handleReactionClick(message, r.emoji)}
+                  title={r.emoji}
+                >
+                  {r.emoji} {r.users.length > 1 ? r.users.length : ''}
+                </ReactionIcon>
+              ))}
+            </ReactionBar>
+          )}
 
         </MessageBubble>
       </MessageContainer>
