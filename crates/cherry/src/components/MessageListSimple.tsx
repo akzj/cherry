@@ -121,38 +121,7 @@ const MessageContent = styled.div`
   white-space: pre-wrap;
 `;
 
-const MessageActions = styled.div`
-  position: absolute;
-  top: -0.5rem;
-  right: -0.5rem;
-  display: flex;
-  gap: 0.25rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  
-  ${MessageContainer}:hover & {
-    opacity: 1;
-  }
-`;
 
-const ActionButton = styled.button`
-  background: rgba(0, 0, 0, 0.7);
-  border: none;
-  color: white;
-  padding: 0.25rem;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  font-size: 0.75rem;
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.9);
-  }
-`;
 
 // 回复消息的引用显示
 const ReplyQuote = styled.div<{ $isOwn: boolean }>`
@@ -319,20 +288,23 @@ const ReactionBar = styled.div`
   margin-bottom: 2px;
 `;
 const ReactionIcon = styled.button<{ active?: boolean }>`
-  background: ${({ active }) => (active ? 'rgba(99,219,139,0.25)' : 'rgba(99,219,139,0.10)')};
-  border: 1.5px solid #6bd38b;
-  color: #222;
+  //background: ${({ active }) => (active ? 'rgba(99, 219, 139, 0)' : 'rgba(99, 219, 139, 0)')};
+  //border: 1.5px solid #6bd38a47;
+  //color: #222;
   border-radius: 12px;
   font-size: 1.05rem;
-  padding: 0 8px;
+  padding: 0; /* 移除 padding */
   cursor: pointer;
   display: flex;
-  align-items: center;
-  gap: 2px;
+  width: 36px; /* 设置宽度 */
+  height: 36px; /* 设置高度为正方形 */
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
   opacity: ${({ active }) => (active ? 1 : 0.8)};
   transition: all 0.15s;
   &:hover {
-    background: #b1e6c7;
+    //background: #72b31e36;
+    transform: translate3d(1px, 1px, 3px) rotate3d(1, 3, 10, 15deg);
     opacity: 1;
   }
 `;
@@ -436,19 +408,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     return (
       <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-          <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
+          <QuickEmojiReply 
+            onReply={emoji => handleReactionClick(message, emoji)}
+            onReplyMessage={() => handleReply(message)}
+          />
 
           {/* 回复连接线 */}
           {message.isReply && <ReplyConnection $isOwn={isOwn} />}
-
-          <MessageActions>
-            <ActionButton onClick={() => handleReply(message)} title="回复">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9,17 15,17 15,11 21,11 21,5 15,5 15,11 9,11"></polyline>
-                <path d="M3,13 L3,19 L9,19"></path>
-              </svg>
-            </ActionButton>
-          </MessageActions>
 
           <MessageHeader>
             <Username>{message.userId}</Username>
