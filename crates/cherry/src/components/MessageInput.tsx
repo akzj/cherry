@@ -7,7 +7,6 @@ import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
 import { useMessageStore } from '../store/message';
 
-
 interface MessageInputProps {
   onSend: (message: string, messageType: string, replyTo?: number) => Promise<void>;
   onImageSend?: (imageUrl: string, thumbnailUrl: string, metadata: any) => Promise<void>;
@@ -24,6 +23,13 @@ interface FileUploadCompleteResponse {
   file_metadata: any;
 }
 
+interface SelectedImageInfo {
+  path: string;
+  name: string;
+  size: number;
+  preview?: string;
+}
+
 // ==================== Styled Components ====================
 const Container = styled.div`
   position: relative;
@@ -35,7 +41,7 @@ const Container = styled.div`
 
 const Form = styled.form`
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   position: relative;
 `;
@@ -74,7 +80,7 @@ const InputContainer = styled.div`
   flex: 1;
   position: relative;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 24px;
@@ -87,6 +93,13 @@ const InputContainer = styled.div`
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     background: #ffffff;
   }
+`;
+
+const InputRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 `;
 
 const InputField = styled.textarea`
@@ -112,7 +125,7 @@ const InputField = styled.textarea`
   }
 `;
 
-const SelectedImageContainer = styled.div`
+const ImageThumbnailContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -123,11 +136,12 @@ const SelectedImageContainer = styled.div`
   border: 1px solid rgba(59, 130, 246, 0.2);
 `;
 
-const SelectedImage = styled.img`
+const ImageThumbnail = styled.img`
   width: 40px;
   height: 40px;
   border-radius: 8px;
   object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 `;
 
 const ImageInfo = styled.div`
@@ -141,6 +155,10 @@ const ImageName = styled.span`
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 `;
 
 const ImageSize = styled.span`
@@ -214,8 +232,8 @@ const ActionButton = styled.button`
 `;
 
 const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
-  background: ${props => props.$hasContent 
-    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+  background: ${props => props.$hasContent
+    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
     : 'none'
   };
   border: none;
@@ -233,10 +251,10 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
   
   &:hover:not(:disabled) {
     transform: ${props => props.$hasContent ? 'scale(1.05)' : 'none'};
-    background: ${props => props.$hasContent 
-      ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)' 
-      : 'rgba(107, 114, 128, 0.1)'
-    };
+    background: ${props => props.$hasContent
+    ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)'
+    : 'rgba(107, 114, 128, 0.1)'
+  };
   }
   
   &:active:not(:disabled) {
@@ -250,17 +268,16 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ 
-  onSend, 
-  onImageSend,
+const MessageInput: React.FC<MessageInputProps> = ({
+  onSend,
   conversationId,
-  isLoading = false, 
-  disabled = false 
+  isLoading = false,
+  disabled = false
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [selectedImagePath, setSelectedImagePath] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedImageInfo | null>(null);
   const { replyingTo, setReplyingTo } = useMessageStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -274,21 +291,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((message.trim() || selectedImagePath) && !isSending && !disabled) {
+    if ((message.trim() || selectedImage) && !isSending && !disabled) {
       setIsSending(true);
       try {
         let finalMessage = message;
         let messageType = 'text';
-        if (selectedImagePath) {
+        if (selectedImage) {
           try {
             const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
               conversationId: conversationId,
-              filePath: selectedImagePath,
+              filePath: selectedImage.path,
             });
             // 用图片url替换占位符
             finalMessage = finalMessage.replace('[[image]]', response.file_url);
             messageType = 'image';
-            setSelectedImagePath(null);
+            setSelectedImage(null);
           } catch (uploadError) {
             console.error('图片上传失败:', uploadError);
           }
@@ -309,15 +326,41 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  // 选图片时插入占位符
-  const handleImageSelect = (filePath: string) => {
-    setSelectedImagePath(filePath);
-    setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
+  // 选图片时插入占位符并获取图片信息
+  const handleImageSelect = async (filePath: string) => {
+    try {
+      // 获取文件信息
+      const fileInfo = await invoke<{ name: string; size: number }>('cmd_get_file_info', {
+        filePath: filePath
+      });
+
+      // 创建预览URL
+      const previewUrl = `file://${filePath}`;
+
+      setSelectedImage({
+        path: filePath,
+        name: fileInfo.name,
+        size: fileInfo.size,
+        preview: previewUrl
+      });
+
+      setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
+    } catch (error) {
+      console.error('获取文件信息失败:', error);
+      // 如果获取信息失败，仍然设置基本路径
+      setSelectedImage({
+        path: filePath,
+        name: filePath.split('/').pop() || 'image',
+        size: 0,
+        preview: `file://${filePath}`
+      });
+      setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
+    }
   };
 
   // 移除图片时也移除占位符
   const handleRemoveImage = () => {
-    setSelectedImagePath(null);
+    setSelectedImage(null);
     setMessage(msg => msg.replace(/ ?\[\[image\]\]/, ''));
   };
 
@@ -330,10 +373,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
     const cursorPosition = textareaRef.current?.selectionStart || 0;
     const textBefore = message.substring(0, cursorPosition);
     const textAfter = message.substring(cursorPosition);
-    
+
     const newMessage = textBefore + emojiText + textAfter;
     setMessage(newMessage);
-    
+
     setTimeout(() => {
       if (textareaRef.current) {
         const newPosition = cursorPosition + emojiText.length;
@@ -348,7 +391,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const isInputDisabled = disabled || isLoading || isSending;
-  const hasContent = message.trim().length > 0 || selectedImagePath;
+  const hasContent = message.trim().length > 0 || selectedImage;
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -362,79 +405,98 @@ const MessageInput: React.FC<MessageInputProps> = ({
     <Container>
       {/* 显示回复消息 */}
       {replyingTo && (
-        <ReplyMessage 
-          message={replyingTo} 
+        <ReplyMessage
+          message={replyingTo}
           onCancel={handleCancelReply}
         />
       )}
-      
+
       <Form onSubmit={handleSubmit}>
         {/* 左侧附件按钮 */}
         <LeftButton type="button" disabled={isInputDisabled}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49" />
           </svg>
         </LeftButton>
 
         {/* 输入区域 */}
         <InputContainer>
-          <InputField
-            ref={textareaRef}
-            placeholder="Type a message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            disabled={isInputDisabled}
-            rows={1}
-          />
-          
-          <RightButtons>
-            {/* 表情按钮 */}
-            <ActionButton 
-              type="button" 
+            {/* 图片缩略图显示 */}
+            {selectedImage && (
+              <ImageThumbnailContainer>
+                <ImageThumbnail
+                  src={selectedImage.preview}
+                  alt={selectedImage.name}
+                  onError={(e) => {
+                    // 如果file://协议失败，尝试使用后端serve
+                    const target = e.target as HTMLImageElement;
+                    target.src = `cherry://localhost?file_path=${selectedImage.path}`;
+                  }}
+                />
+                <ImageInfo>
+                  <ImageName>{selectedImage.name}</ImageName>
+                  <ImageSize>{formatFileSize(selectedImage.size)}</ImageSize>
+                </ImageInfo>
+                <RemoveImageButton onClick={handleRemoveImage} title="移除图片">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </RemoveImageButton>
+              </ImageThumbnailContainer>
+            )}
+          <InputRow>
+            <InputField
+              ref={textareaRef}
+              placeholder="Type a message..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               disabled={isInputDisabled}
-              onClick={toggleEmojiPicker}
-              className={isEmojiPickerOpen ? 'active' : ''}
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                <circle cx="15.5" cy="9.5" r="1.5"/>
-                <circle cx="8.5" cy="9.5" r="1.5"/>
-                <path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
-              </svg>
-            </ActionButton>
-
-            {/* 图片上传按钮 */}
-            <ImageUploader
-              onImageSelect={handleImageSelect}
-              disabled={isInputDisabled}
+              rows={1}
             />
 
-            {/* 语音按钮 */}
-            <ActionButton type="button" disabled={isInputDisabled}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="23"/>
-                <line x1="8" y1="23" x2="16" y2="23"/>
-              </svg>
-            </ActionButton>
+            <RightButtons>
+              {/* 表情按钮 */}
+              <ActionButton
+                type="button"
+                disabled={isInputDisabled}
+                onClick={toggleEmojiPicker}
+                className={isEmojiPickerOpen ? 'active' : ''}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                  <circle cx="15.5" cy="9.5" r="1.5" />
+                  <circle cx="8.5" cy="9.5" r="1.5" />
+                  <path d="M12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
+                </svg>
+              </ActionButton>
 
-            {/* 添加按钮 */}
-            <ActionButton type="button" disabled={isInputDisabled}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-            </ActionButton>
-          </RightButtons>
-          {/* 图片移除按钮（在输入框右侧显示） */}
-          {selectedImagePath && (
-            <RemoveImageButton onClick={handleRemoveImage} title="移除图片">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </RemoveImageButton>
-          )}
+              {/* 图片上传按钮 */}
+              <ImageUploader
+                onImageSelect={handleImageSelect}
+                disabled={isInputDisabled || !!selectedImage}
+              />
+
+              {/* 语音按钮 */}
+              <ActionButton type="button" disabled={isInputDisabled}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
+              </ActionButton>
+
+              {/* 添加按钮 */}
+              <ActionButton type="button" disabled={isInputDisabled}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </ActionButton>
+            </RightButtons>
+          </InputRow>
+
+
         </InputContainer>
 
         {/* 发送按钮 */}
@@ -446,12 +508,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
         >
           {isSending ? (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12a9 9 0 1 1-9-9"/>
+              <path d="M21 12a9 9 0 1 1-9-9" />
             </svg>
           ) : (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22,2 15,22 11,13 2,9 22,2" />
             </svg>
           )}
         </SendButton>

@@ -690,6 +690,34 @@ async fn cmd_download_file(
 }
 
 #[tauri::command]
+async fn cmd_get_file_info(
+    file_path: String,
+) -> Result<serde_json::Value, CommandError> {
+    log::info!("cmd_get_file_info: file_path={}", file_path);
+    
+    let path = std::path::Path::new(&file_path);
+    
+    // 获取文件名
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    
+    // 获取文件大小
+    let metadata = std::fs::metadata(&file_path)
+        .map_err(|e| CommandError {
+            message: format!("Failed to get file metadata: {}", e),
+        })?;
+    
+    let size = metadata.len();
+    
+    Ok(serde_json::json!({
+        "name": name,
+        "size": size,
+    }))
+}
+
+#[tauri::command]
 async fn cmd_upload_file(
     conversation_id: Uuid,
     file_path: String,
@@ -826,6 +854,7 @@ pub async fn run() {
             cmd_get_read_position,
             cmd_upload_file,
             cmd_download_file,
+            cmd_get_file_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

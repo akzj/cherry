@@ -3,11 +3,10 @@ import styled from 'styled-components';
 import { Message } from '../types/types';
 import { useMessageStore } from '../store/message';
 import { appDataDir, appCacheDir } from '@tauri-apps/api/path';
-import { readFile, BaseDirectory, exists } from '@tauri-apps/plugin-fs';
+import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
 
-const appDataDirPath = await appDataDir();
 const appCacheDirPath = await appCacheDir();
 
 interface MessageListProps {
