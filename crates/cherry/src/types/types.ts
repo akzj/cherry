@@ -91,6 +91,12 @@ export interface ReactionContent {
   action: 'add' | 'remove';
 }
 
+export interface QuillContent {
+  type: 'quill';
+  html: string; // Quill 编辑器生成的 HTML
+  delta?: any;  // 可选，Quill 的 Delta 格式
+}
+
 // 联合类型：所有可能的消息内容
 export type MessageContent = 
   | string // 兼容旧的文本格式
@@ -106,7 +112,8 @@ export type MessageContent =
   | ContactContent
   | EventContent
   | CustomContent
-  | ReactionContent;
+  | ReactionContent
+  | QuillContent;
 
 export interface Message {
   id: number;
@@ -114,7 +121,7 @@ export interface Message {
   content: MessageContent;
   timestamp: string;
   reply_to?: number;
-  type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction';
+  type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction' | 'quill';
   replyToMessage?: Message;
   isReply?: boolean;
   emojiData?: {
@@ -127,8 +134,9 @@ export interface Message {
 
 // 解析后的消息内容类型
 export interface ParsedMessageContent {
-  type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction';
+  type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction' | 'quill';
   text?: string;
+  html?: string;
   imageUrl?: string;
   audioUrl?: string;
   videoUrl?: string;
@@ -154,6 +162,7 @@ export interface ParsedMessageContent {
   contactEmail?: string;
   eventType?: string;
   eventData?: any;
+  delta?: any;
 }
 
 // 根据消息类型解析内容的函数
@@ -316,6 +325,17 @@ export function parseMessageContent(content: MessageContent, messageType: string
         };
       }
       return { type: 'reaction', text: '反应消息' };
+
+    case 'quill':
+      if ('html' in content) {
+        return {
+          type: 'quill',
+          html: content.html,
+          delta: content.delta,
+          text: content.html // 可选：用于纯文本预览
+        };
+      }
+      return { type: 'quill', html: '', text: '' };
 
     default:
       return {

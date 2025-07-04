@@ -7,6 +7,7 @@ import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
 import QuickEmojiReply from './UI/QuickEmojiReply';
+import { sendMessage, addReaction, removeReaction } from '../api/api';
 
 const appCacheDirPath = await appCacheDir();
 
@@ -314,7 +315,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevMessagesLengthRef = useRef<number>(0);
-  const { setReplyingTo, sendMessage, addReaction, removeReaction } = useMessageStore();
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
 
   // MessageList render
 
@@ -371,19 +373,6 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
       }, 2000);
     }
   };
-
-  // 快速表情回复
-  const handleQuickReply = async (targetMessage: Message, emoji: string) => {
-    if (!conversationId) return;
-    // 直接发送表情作为内容，reply_to 指向目标消息
-    await sendMessage(
-      conversationId,
-      emoji,
-      'emoji',
-      targetMessage.id
-    );
-  };
-
   // reaction 处理
   const handleReactionClick = (msg: Message, emoji: string) => {
     if (!conversationId) return;
@@ -405,10 +394,11 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     const isOwn = message.userId === currentUserId;
     const parsedContent = parseMessageContent(message.content, message.type);
 
+    console.log(message);
     return (
       <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-          <QuickEmojiReply 
+          <QuickEmojiReply
             onReply={emoji => handleReactionClick(message, emoji)}
             onReplyMessage={() => handleReply(message)}
           />
@@ -462,6 +452,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
                   <ImageText>{parsedContent.text}</ImageText>
                 )}
               </ImageContainer>
+            ) : parsedContent.type === 'quill' && parsedContent.html ? (
+              <div dangerouslySetInnerHTML={{ __html: parsedContent.html }} />
             ) : (
               parsedContent.text
             )}

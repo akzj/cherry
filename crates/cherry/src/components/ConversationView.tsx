@@ -10,7 +10,6 @@ interface ConversationViewProps {
   conversation: Conversation;
   currentUserId: string;
   isVisible: boolean;
-  onSendMessage: (content: string, messageType: string, replyTo?: number) => Promise<void>;
 }
 
 const Container = styled.div<{ $isVisible: boolean }>`
@@ -26,25 +25,14 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   conversation,
   currentUserId,
   isVisible,
-  onSendMessage
 }) => {
   const { getMessages } = useMessageStore();
-  const [isLoading, setIsLoading] = useState(false);
+
 
   // 获取当前会话的消息
   const messages = getMessages(conversation.id);
 
-  // 处理发送消息
-  const handleSendMessage = async (content: string, messageType: string, replyTo?: number) => {
-    try {
-      setIsLoading(true);
-      await onSendMessage(content, messageType, replyTo);
-    } catch (error) {
-      console.error('Failed to send message in conversation:', conversation.id, error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
 
   // 当组件变为可见时，记录日志
   useEffect(() => {
@@ -66,8 +54,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({
       />
       <MessageInput
         conversationId={conversation.id}
-        onSend={handleSendMessage}
-        isLoading={isLoading}
         disabled={false}
       />
     </Container>

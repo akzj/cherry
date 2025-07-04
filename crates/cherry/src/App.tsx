@@ -422,7 +422,7 @@ const App: React.FC = () => {
   } = useConversationStore();
 
   // 消息状态
-  const { getMessages, sendMessage } = useMessageStore();
+  const { getMessages } = useMessageStore();
 
   // 消息接收
   useMessageReceiver();
@@ -527,17 +527,6 @@ const App: React.FC = () => {
     }
   }, [isContactModalOpen, pendingConversationId]);
 
-  // 处理发送消息 - 接收会话ID作为参数
-  const handleSendMessage = async (conversationId: string, content: string, messageType: string, replyTo?: number) => {
-    try {
-      await sendMessage(conversationId, content, messageType, replyTo);
-      console.log(`Message sent to conversation ${conversationId}: ${content}`);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      // 可以在这里添加错误提示
-    }
-  };
-
   // 如果正在加载认证状态，显示加载界面
   if (authLoading) {
     console.log('Showing loading screen - authLoading:', authLoading, 'forceUpdate:', forceUpdate);
@@ -634,7 +623,6 @@ const App: React.FC = () => {
           conversations={conversations}
           selectedConversationId={selectedConversation}
           currentUserId={currentUser.id}
-          onSendMessage={handleSendMessage}
         />
 
         {/* 临时添加消息测试组件 */}

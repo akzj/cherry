@@ -5,14 +5,14 @@ import { invoke } from '@tauri-apps/api/core';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
-import { useMessageStore } from '../store/message';
-import { ImageContent } from '../types/types';
+import { ImageContent, Message, QuillContent } from '../types/types';
+import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill';
+import editIcon from '../assets/edit.svg';
+import { sendMessage } from '../api/api';
 
 interface MessageInputProps {
-  onSend: (message: string, messageType: string, replyTo?: number) => Promise<void>;
-  onImageSend?: (imageUrl: string, thumbnailUrl: string, metadata: any) => Promise<void>;
   conversationId: string;
-  isLoading?: boolean;
   disabled?: boolean;
 }
 
@@ -112,7 +112,7 @@ const InputField = styled.textarea`
   font-size: 0.95rem;
   line-height: 1.4;
   resize: none;
-  min-height: 20px;
+  min-height: 25px;
   max-height: 120px;
   font-family: inherit;
   
@@ -233,8 +233,8 @@ const ActionButton = styled.button`
 `;
 
 const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
-  background: ${props => props.$hasContent 
-    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+  background: ${props => props.$hasContent
+    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
     : 'none'
   };
   border: none;
@@ -252,10 +252,10 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
   
   &:hover:not(:disabled) {
     transform: ${props => props.$hasContent ? 'scale(1.05)' : 'none'};
-    background: ${props => props.$hasContent 
-      ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)' 
-      : 'rgba(107, 114, 128, 0.1)'
-    };
+    background: ${props => props.$hasContent
+    ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)'
+    : 'rgba(107, 114, 128, 0.1)'
+  };
   }
   
   &:active:not(:disabled) {
@@ -269,18 +269,24 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({ 
-  onSend, 
+const MessageInput: React.FC<MessageInputProps> = ({
   conversationId,
-  isLoading = false, 
-  disabled = false 
+  disabled = false
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageInfo | null>(null);
-  const { replyingTo, setReplyingTo } = useMessageStore();
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isQuillMode, setIsQuillMode] = useState(false);
+  const [quillValue, setQuillValue] = useState('');
+
+  const quillIsEmpty = quillValue.trim() == "<p><br></p>" || quillValue.trim() == "";
+
+  const changeQuillMode = () => {
+    setIsQuillMode(!isQuillMode);
+  };
 
   // 自动调整文本框高度
   useEffect(() => {
@@ -291,20 +297,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
   }, [message]);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log(quillValue);
     e.preventDefault();
-    if ((message.trim() || selectedImage) && !isSending && !disabled) {
+    if ((message.trim() || selectedImage || !quillIsEmpty) && !isSending && !disabled) {
       setIsSending(true);
       try {
         let finalMessage = message;
         let messageType = 'text';
-        
+
         if (selectedImage) {
           try {
             const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
               conversationId: conversationId,
               filePath: selectedImage.path,
             });
-            
+
             // 创建包含图片和文字的组合消息
             const imageContent: ImageContent = {
               url: response.file_url,
@@ -312,7 +319,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               metadata: response.file_metadata,
               text: message.trim() || undefined
             };
-            
+
             // 发送图片消息，文字作为图片的附加文本
             finalMessage = JSON.stringify(imageContent);
             messageType = 'image';
@@ -321,9 +328,20 @@ const MessageInput: React.FC<MessageInputProps> = ({
             console.error('图片上传失败:', uploadError);
           }
         }
-        
+
+        if (!quillIsEmpty) {
+          const quillContent: QuillContent = {
+            type: 'quill',
+            html: quillValue,
+            delta: quillValue
+          };
+          finalMessage = JSON.stringify(quillContent);
+          messageType = 'quill';
+          setQuillValue('');
+        }
+
         if (finalMessage.trim()) {
-          await onSend(finalMessage, messageType, replyingTo?.id);
+          await sendMessage(conversationId, finalMessage, messageType, replyingTo?.id);
           setMessage('');
         }
         setReplyingTo(null);
@@ -345,10 +363,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
       const fileInfo = await invoke<{ name: string; size: number }>('cmd_get_file_info', {
         filePath: filePath
       });
-      
+
       // 创建预览URL
       const previewUrl = `file://${filePath}`;
-      
+
       setSelectedImage({
         path: filePath,
         name: fileInfo.name,
@@ -381,10 +399,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
     const cursorPosition = textareaRef.current?.selectionStart || 0;
     const textBefore = message.substring(0, cursorPosition);
     const textAfter = message.substring(cursorPosition);
-    
+
     const newMessage = textBefore + emojiText + textAfter;
     setMessage(newMessage);
-    
+
     setTimeout(() => {
       if (textareaRef.current) {
         const newPosition = cursorPosition + emojiText.length;
@@ -398,8 +416,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
     setIsEmojiPickerOpen(!isEmojiPickerOpen);
   };
 
-  const isInputDisabled = disabled || isLoading || isSending;
-  const hasContent = message.trim().length > 0 || selectedImage;
+  const isInputDisabled = disabled || isSending;
+  const hasContent = message.trim().length > 0 || selectedImage || !quillIsEmpty;
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -413,20 +431,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
     <Container>
       {/* 显示回复消息 */}
       {replyingTo && (
-        <ReplyMessage 
-          message={replyingTo} 
+        <ReplyMessage
+          message={replyingTo}
           onCancel={handleCancelReply}
         />
       )}
-      
-      <Form onSubmit={handleSubmit}>
-        {/* 左侧附件按钮 */}
-        <LeftButton type="button" disabled={isInputDisabled}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49" />
-          </svg>
-        </LeftButton>
 
+      <Form onSubmit={handleSubmit}>
         {/* 输入区域 */}
         <InputContainer>
           {/* 图片缩略图显示 */}
@@ -452,21 +463,39 @@ const MessageInput: React.FC<MessageInputProps> = ({
               </RemoveImageButton>
             </ImageThumbnailContainer>
           )}
-          
+
+          <InputField
+            ref={textareaRef}
+            placeholder={selectedImage ? "Type a message..." : "Type a message..."}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            disabled={isInputDisabled}
+            rows={1}
+            style={{ display: isQuillMode ? 'none' : undefined }}
+          />
+
+          {/* Quill 编辑器占位符 */}
+          {isQuillMode && (
+            <div >
+              <ReactQuill
+                theme="snow"
+                value={quillValue}
+                onChange={setQuillValue}
+                style={{ background: '#fff', color: '#222' }}
+              />
+            </div>
+          )}
           <InputRow>
-            <InputField
-              ref={textareaRef}
-              placeholder={selectedImage ? "Type a message..." : "Type a message..."}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={isInputDisabled}
-              rows={1}
-            />
-            
             <RightButtons>
+              <ActionButton type="button" disabled={isInputDisabled} >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49" />
+                </svg>
+              </ActionButton>
+
               {/* 表情按钮 */}
-              <ActionButton 
-                type="button" 
+              <ActionButton
+                type="button"
                 disabled={isInputDisabled}
                 onClick={toggleEmojiPicker}
                 className={isEmojiPickerOpen ? 'active' : ''}
@@ -495,12 +524,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 </svg>
               </ActionButton>
 
-              {/* 添加按钮 */}
-              <ActionButton type="button" disabled={isInputDisabled}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+              {/* quill按钮 */}
+              <ActionButton type="button" disabled={isInputDisabled} onClick={changeQuillMode}>
+                {/* edit.svg icon */}
+                <img src={editIcon} alt="edit" width={24} height={24} />
               </ActionButton>
             </RightButtons>
           </InputRow>

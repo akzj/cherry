@@ -7,7 +7,6 @@ interface ConversationContainerProps {
   conversations: Conversation[];
   selectedConversationId: string | null;
   currentUserId: string;
-  onSendMessage: (conversationId: string, content: string, messageType: string, replyTo?: number) => Promise<void>;
 }
 
 const Container = styled.div`
@@ -23,7 +22,6 @@ const ConversationContainer: React.FC<ConversationContainerProps> = ({
   conversations,
   selectedConversationId,
   currentUserId,
-  onSendMessage
 }) => {
   console.log('ConversationContainer render:', {
     conversationCount: conversations.length,
@@ -31,12 +29,7 @@ const ConversationContainer: React.FC<ConversationContainerProps> = ({
     conversationIds: conversations.map(c => c.id)
   });
 
-  // 为每个会话创建发送消息的处理函数
-  const createSendMessageHandler = (conversationId: string) => {
-    return async (content: string, messageType: string, replyTo?: number) => {
-      await onSendMessage(conversationId, content, messageType, replyTo);
-    };
-  };
+
 
   return (
     <Container>
@@ -46,7 +39,6 @@ const ConversationContainer: React.FC<ConversationContainerProps> = ({
           conversation={conversation}
           currentUserId={currentUserId}
           isVisible={conversation.id === selectedConversationId}
-          onSendMessage={createSendMessageHandler(conversation.id)}
         />
       ))}
     </Container>
