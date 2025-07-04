@@ -77,7 +77,7 @@ const MessageDebug: React.FC<{ selectedConversation: string | null }> = ({ selec
           <strong>Current messages:</strong>
           {messages[selectedConversation].slice(-3).map(msg => (
             <div key={msg.id}>
-              {msg.id}: {msg.content.substring(0, 20)}...
+              {msg.id}: {typeof msg.content === 'string' ? msg.content.substring(0, 20) : '图片消息'}...
             </div>
           ))}
         </div>

@@ -3,6 +3,7 @@ use cherrycore::{
     jwt,
     types::{Message, StreamEvent, StreamReadRequest},
 };
+use serde_json::json;
 use std::time::Duration;
 use tokio::time::sleep;
 use uuid::Uuid;
@@ -19,13 +20,13 @@ pub async fn run_simple_test() -> Result<(), Box<dyn std::error::Error>> {
     sleep(Duration::from_secs(2)).await;
 
     // Create stream client
-    let stream_client = StreamClient::new("http://localhost:8080", Some(jwt_token));
+    let stream_client = StreamClient::new("http://localhost:8080", (&Uuid::new_v4(), &jwt_token));
 
     // Test 1: Send normal message
     let message = Message {
         id: 1,
         user_id: Uuid::new_v4(),
-        content: "Hello, StreamServer!".to_string(),
+        content: json!("Hello, StreamServer!"),
         timestamp: chrono::Utc::now(),
         reply_to: None,
         type_: "text".to_string(),

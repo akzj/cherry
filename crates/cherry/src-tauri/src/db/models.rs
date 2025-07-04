@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // CREATE TABLE messages (
 //     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +23,7 @@ pub struct Message {
     pub id: i32,
     pub conversation_id: i32,
     pub sender_id: i32,
-    pub content: String,
+    pub content: Value,
     pub type_: String,
     pub status: String,
     pub timestamp: chrono::NaiveDateTime,
@@ -47,7 +48,7 @@ pub struct OfflineMessage {
     pub id: i32,
     pub conversation_id: i32,
     pub sender_id: i32,
-    pub content: String,
+    pub content: Value,
     pub timestamp: chrono::NaiveDateTime,
     pub is_sent: bool,
 }

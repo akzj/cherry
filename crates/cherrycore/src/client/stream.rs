@@ -269,6 +269,8 @@ impl StreamRecordDecoderMachine {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::types::{DataFormat, Message, StreamEvent};
 
@@ -285,7 +287,7 @@ mod tests {
         // Create a test message
         let message = Message {
             id: 1,
-            content: "Hello World".to_string(),
+            content: json!("Hello World"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -329,7 +331,7 @@ mod tests {
         // Create multiple test messages
         let message1 = Message {
             id: 1,
-            content: "First message".to_string(),
+            content: json!("First message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -340,7 +342,7 @@ mod tests {
         };
         let message2 = Message {
             id: 2,
-            content: "Second message".to_string(),
+            content: json!("Second message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -382,7 +384,7 @@ mod tests {
         // Create test messages for different streams
         let message1 = Message {
             id: 1,
-            content: "Stream 1 message".to_string(),
+            content: json!("Stream 1 message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -394,7 +396,7 @@ mod tests {
 
         let message2 = Message {
             id: 2,
-            content: "Stream 2 message".to_string(),
+            content: json!("Stream 2 message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -433,7 +435,7 @@ mod tests {
         // Create a test message
         let message = Message {
             id: 1,
-            content: "Hello World".to_string(),
+            content: json!("Hello World"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -530,7 +532,7 @@ mod tests {
         let mut machine = StreamRecordDecoderMachine::new();
         let message1 = Message {
             id: 1,
-            content: "First message".to_string(),
+            content: json!("First message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,
@@ -541,7 +543,7 @@ mod tests {
         };
         let message2 = Message {
             id: 2,
-            content: "Second message".to_string(),
+            content: json!("Second message"),
             timestamp: chrono::Utc::now(),
             user_id: uuid::Uuid::new_v4(),
             reply_to: None,

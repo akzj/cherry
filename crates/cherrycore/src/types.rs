@@ -355,7 +355,7 @@ impl StreamEvent {
 pub struct Message {
     pub id: i64,
     pub user_id: Uuid,
-    pub content: String,
+    pub content: Value,
     pub timestamp: DateTime<chrono::Utc>,
     pub reply_to: Option<i64>,
     #[serde(rename = "type")]
@@ -1047,7 +1047,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Hello, World!".to_string(),
+            content: json!("Hello, World!"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1071,7 +1071,7 @@ mod tests {
         let message = Message {
             id: 2,
             user_id: Uuid::new_v4(),
-            content: "This is a reply message".to_string(),
+            content: json!("This is a reply message"),
             timestamp: chrono::Utc::now(),
             reply_to: Some(1),
             type_: "text".to_string(),
@@ -1093,7 +1093,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Test message".to_string(),
+            content: json!("Test message"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1121,7 +1121,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Test message".to_string(),
+            content: json!("Test message"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1150,7 +1150,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Test message".to_string(),
+            content: json!("Test message"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1180,7 +1180,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "".to_string(),
+            content: json!(""),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1201,7 +1201,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: large_content.clone(),
+            content: json!(large_content.clone()),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1239,7 +1239,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Test message".to_string(),
+            content: json!("Test message"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -1433,7 +1433,7 @@ mod tests {
         let message = Message {
             id: 1,
             user_id: Uuid::new_v4(),
-            content: "Test message".to_string(),
+            content: json!("Test message"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),

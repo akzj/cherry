@@ -195,7 +195,9 @@ const ContactList: React.FC<ContactListProps> = ({
             <MessagePreviewContainer>
               {conversation.lastMessage ? (
                 <LastMessage $unread={conversation.unreadCount > 0}>
-                  {conversation.lastMessage.content}
+                  {typeof conversation.lastMessage.content === 'string' 
+                    ? conversation.lastMessage.content 
+                    : '图片消息'}
                 </LastMessage>
               ) : (
                 <LastMessage $unread={false}>

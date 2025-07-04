@@ -10,7 +10,7 @@ export interface User {
 export interface Message {
   id: number;
   userId: string;
-  content: string;
+  content: string | ImageContent;
   timestamp: string;
   reply_to?: number;
   type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom';
@@ -21,6 +21,14 @@ export interface Message {
     unified: string;
     shortcodes: string;
   };
+  reactions?: Reaction[];
+}
+
+export interface ImageContent {
+  url: string;
+  thumbnail_url: string | null;
+  metadata: any | null;
+  text: string | null;
 }
 
 // 后端消息类型
@@ -138,4 +146,9 @@ export function buildReplyRelations(messages: Message[]): Message[] {
     }
   });
   return messages;
+}
+
+export interface Reaction {
+  emoji: string;
+  users: string[]; // userId 列表，可重复
 }

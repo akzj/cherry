@@ -21,6 +21,8 @@ export interface MessageState {
   // 回复相关方法
   setReplyingTo: (message: Message | null) => void;
   getMessageById: (conversationId: string, messageId: number) => Message | undefined;
+  addReaction: (conversationId: string, messageId: number, emoji: string, userId: string) => void;
+  removeReaction: (conversationId: string, messageId: number, emoji: string, userId: string) => void;
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -131,5 +133,64 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   getMessageById: (conversationId: string, messageId: number) => {
     const messages = get().messages[conversationId] || [];
     return messages.find((msg) => msg.id === messageId);
+  },
+
+  addReaction: (conversationId, messageId, emoji, userId) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = conversationMessages.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        // 查找是否已有该emoji reaction
+        let reactions = msg.reactions ? [...msg.reactions] : [];
+        const idx = reactions.findIndex(r => r.emoji === emoji);
+        if (idx >= 0) {
+          // 允许同一用户多次点同一emoji
+          reactions[idx] = {
+            ...reactions[idx],
+            users: [...reactions[idx].users, userId],
+          };
+        } else {
+          reactions.push({ emoji, users: [userId] });
+        }
+        return { ...msg, reactions };
+      });
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
+  },
+
+  removeReaction: (conversationId, messageId, emoji, userId) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] || [];
+      const updatedMessages = conversationMessages.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        let reactions = msg.reactions ? [...msg.reactions] : [];
+        const idx = reactions.findIndex(r => r.emoji === emoji);
+        if (idx >= 0) {
+          // 移除该用户的一个reaction（只移除一次）
+          const userIdx = reactions[idx].users.indexOf(userId);
+          if (userIdx >= 0) {
+            const newUsers = [...reactions[idx].users];
+            newUsers.splice(userIdx, 1);
+            if (newUsers.length > 0) {
+              reactions[idx] = { ...reactions[idx], users: newUsers };
+            } else {
+              reactions.splice(idx, 1);
+            }
+          }
+        }
+        return { ...msg, reactions };
+      });
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
   },
 }));

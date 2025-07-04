@@ -1,13 +1,9 @@
 import React from 'react';
 import styled from 'styled-components';
+import { Message, ImageContent } from '../types/types';
 
 interface ReplyMessageProps {
-  message: {
-    id: number;
-    userId: string;
-    content: string;
-    type: string;
-  };
+  message: Message;
   onCancel?: () => void;
 }
 
@@ -85,9 +81,59 @@ const ReplyContent = styled.div`
   -webkit-box-orient: vertical;
   max-width: 100%;
   font-weight: 500;
+  
+  /* 支持图片预览的样式 */
+  .image-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+  
+  .image-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background-color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
 `;
 
+// 解析消息内容的辅助函数
+const parseMessageContent = (content: string | ImageContent): { type: 'text' | 'image', text?: string, imageUrl?: string } => {
+  if (typeof content === 'string') {
+    // 尝试解析为 ImageContent
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.url && parsed.thumbnail_url) {
+        return {
+          type: 'image',
+          text: parsed.text || undefined,
+          imageUrl: parsed.url
+        };
+      }
+    } catch {
+      // 解析失败，当作普通文本
+    }
+    return { type: 'text', text: content };
+  } else {
+    // 已经是 ImageContent 对象
+    return {
+      type: 'image',
+      text: content.text || undefined,
+      imageUrl: content.url
+    };
+  }
+};
+
 const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
+  const parsedContent = parseMessageContent(message.content);
+  
   return (
     <ReplyContainer>
       <ReplyHeader>
@@ -102,10 +148,16 @@ const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
         )}
       </ReplyHeader>
       <ReplyContent>
-        {message.content.length > 50 
-          ? `${message.content.substring(0, 50)}...` 
-          : message.content
-        }
+        {parsedContent.type === 'image' ? (
+          <div className="image-preview">
+            <div className="image-icon">📷</div>
+            <span>{parsedContent.text || '图片'}</span>
+          </div>
+        ) : (
+          parsedContent.text && (parsedContent.text.length > 50 
+            ? `${parsedContent.text.substring(0, 50)}...` 
+            : parsedContent.text)
+        )}
       </ReplyContent>
     </ReplyContainer>
   );

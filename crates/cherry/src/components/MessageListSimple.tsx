@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { Message } from '../types/types';
+import { Message, ImageContent } from '../types/types';
 import { useMessageStore } from '../store/message';
-import { appDataDir, appCacheDir } from '@tauri-apps/api/path';
+import { appCacheDir } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
+import QuickEmojiReply from './UI/QuickEmojiReply';
 
 const appCacheDirPath = await appCacheDir();
 
@@ -208,6 +209,27 @@ const ReplyQuoteContent = styled.div`
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   max-height: 2.6em;
+  
+  /* 支持图片预览的样式 */
+  .image-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+  
+  .image-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background-color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
 `;
 
 // 连接线样式
@@ -245,6 +267,21 @@ const ReplyConnection = styled.div<{ $isOwn: boolean }>`
   }
 `;
 
+// 图片容器
+const ImageContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+`;
+
+const ImageText = styled.div`
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: inherit;
+  margin-top: 0.5rem;
+`;
+
 // 异步图片组件
 const MessageImage: React.FC<{ url: string }> = ({ url }) => {
   const [src, setSrc] = useState<string>();
@@ -270,15 +307,67 @@ const MessageImage: React.FC<{ url: string }> = ({ url }) => {
   }, [url]);
 
   if (!src) return <span>图片加载中...</span>;
-  return <img src={`cherry://localhost?file_path=${src}`} style={{ maxWidth: '220px', maxHeight: '160px', borderRadius: '8px', margin: '4px 0' }} />;
+  return <img src={`cherry://localhost?file_path=${src}`} style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }} />;
 };
+
+// 解析消息内容的辅助函数
+const parseMessageContent = (content: string | ImageContent): { type: 'text' | 'image', text?: string, imageUrl?: string } => {
+  if (typeof content === 'string') {
+    // 尝试解析为 ImageContent
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.url && parsed.thumbnail_url) {
+        return {
+          type: 'image',
+          text: parsed.text || undefined,
+          imageUrl: parsed.url
+        };
+      }
+    } catch {
+      // 解析失败，当作普通文本
+    }
+    return { type: 'text', text: content };
+  } else {
+    // 已经是 ImageContent 对象
+    return {
+      type: 'image',
+      text: content.text || undefined,
+      imageUrl: content.url
+    };
+  }
+};
+
+const ReactionBar = styled.div`
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 2px;
+`;
+const ReactionIcon = styled.button<{ active?: boolean }>`
+  background: ${({ active }) => (active ? 'rgba(99,219,139,0.25)' : 'rgba(99,219,139,0.10)')};
+  border: 1.5px solid #6bd38b;
+  color: #222;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  padding: 0 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: ${({ active }) => (active ? 1 : 0.8)};
+  transition: all 0.15s;
+  &:hover {
+    background: #b1e6c7;
+    opacity: 1;
+  }
+`;
 
 // ==================== Component Implementation ====================
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conversationId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevMessagesLengthRef = useRef<number>(0);
-  const { setReplyingTo } = useMessageStore();
+  const { setReplyingTo, sendMessage, addReaction, removeReaction } = useMessageStore();
 
   // MessageList render
 
@@ -336,12 +425,48 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     }
   };
 
+  // 快速表情回复
+  const handleQuickReply = async (targetMessage: Message, emoji: string) => {
+    if (!conversationId) return;
+    // 直接发送表情作为内容，reply_to 指向目标消息
+    await sendMessage(
+      conversationId,
+      emoji,
+      'emoji',
+      targetMessage.id
+    );
+  };
+
+  // reaction 处理
+  const handleReactionClick = (msg: Message, emoji: string) => {
+    if (!conversationId) return;
+    // 允许同一用户多次点同一emoji
+    addReaction(conversationId, msg.id, emoji, currentUserId);
+  };
+
   const renderMessage = (message: Message) => {
     const isOwn = message.userId === currentUserId;
+    const parsedContent = parseMessageContent(message.content);
 
     return (
-      <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id}>
+      <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
         <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
+          <QuickEmojiReply onReply={emoji => handleReactionClick(message, emoji)} />
+          {/* reaction bar */}
+          {message.reactions && message.reactions.length > 0 && (
+            <ReactionBar>
+              {message.reactions.map(r => (
+                <ReactionIcon
+                  key={r.emoji + r.users.length}
+                  active={r.users.includes(currentUserId)}
+                  onClick={() => handleReactionClick(message, r.emoji)}
+                  title={r.emoji}
+                >
+                  {r.emoji} {r.users.length > 1 ? r.users.length : ''}
+                </ReactionIcon>
+              ))}
+            </ReactionBar>
+          )}
           {/* 回复连接线 */}
           {message.isReply && <ReplyConnection $isOwn={isOwn} />}
 
@@ -375,19 +500,37 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
                 <ReplyQuoteAuthor>{message.replyToMessage.userId}</ReplyQuoteAuthor>
               </ReplyQuoteHeader>
               <ReplyQuoteContent>
-                {message.replyToMessage.content}
+                {(() => {
+                  const replyContent = parseMessageContent(message.replyToMessage.content);
+                  if (replyContent.type === 'image') {
+                    return (
+                      <div className="image-preview">
+                        <div className="image-icon">📷</div>
+                        <span>{replyContent.text || '图片'}</span>
+                      </div>
+                    );
+                  } else {
+                    return replyContent.text || '';
+                  }
+                })()}
               </ReplyQuoteContent>
             </ReplyQuote>
           )}
 
           <MessageContent>
-            {message.type === 'image' ? (
-              <MessageImage url={message.content.trim()} />
+            {parsedContent.type === 'image' ? (
+              <ImageContainer>
+                <MessageImage url={parsedContent.imageUrl!} />
+                {parsedContent.text && (
+                  <ImageText>{parsedContent.text}</ImageText>
+                )}
+              </ImageContainer>
             ) : (
-              message.content
+              parsedContent.text
             )}
           </MessageContent>
 
+         
         </MessageBubble>
       </MessageContainer>
     );

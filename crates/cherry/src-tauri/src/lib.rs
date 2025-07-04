@@ -7,6 +7,7 @@ use cherrycore::client::file::FileClient;
 use cherrycore::types::{FileUploadCompleteResponse, FileUploadCreateResponse};
 use env_logger;
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
@@ -483,7 +484,7 @@ async fn cmd_refresh_contacts(
 #[tauri::command]
 async fn cmd_send_message(
     conversation_id: String,
-    content: String,
+    content: Value,
     message_type: Option<String>,
     reply_to: Option<i64>,
     state: State<'_, AppState>,

@@ -5,6 +5,7 @@ use cherrycore::{
     jwt,
     types::{DataFormat, Message, StreamEvent, StreamReadRequest},
 };
+use serde_json::json;
 use std::time::Duration;
 use tokio::time::sleep;
 use uuid::Uuid;
@@ -36,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sleep(Duration::from_secs(3)).await;
 
     // Create stream client
-    let stream_client = StreamClient::new("http://localhost:8080", Some(jwt_token));
+    let stream_client = StreamClient::new("http://localhost:8080", (&Uuid::new_v4(), &jwt_token));
 
     // Test message sending
     println!("Starting message sending tests...");
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let message = Message {
         id: 1,
         user_id: Uuid::new_v4(),
-        content: "Hello, this is a test message!".to_string(),
+        content: json!("Hello, this is a test message!"),
         timestamp: chrono::Utc::now(),
         reply_to: None,
         type_: "text".to_string(),
@@ -64,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reply_message = Message {
         id: 2,
         user_id: Uuid::new_v4(),
-        content: "This is a reply to message 1".to_string(),
+        content: json!("This is a reply to message 1"),
         timestamp: chrono::Utc::now(),
         reply_to: Some(1),
         type_: "text".to_string(),
@@ -96,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Message {
             id: 3,
             user_id: Uuid::new_v4(),
-            content: "Batch message 1".to_string(),
+            content: json!("Batch message 1"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),
@@ -107,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Message {
             id: 4,
             user_id: Uuid::new_v4(),
-            content: "Batch message 2".to_string(),
+            content: json!("Batch message 2"),
             timestamp: chrono::Utc::now(),
             reply_to: None,
             type_: "text".to_string(),

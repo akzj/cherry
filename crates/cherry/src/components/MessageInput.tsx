@@ -6,6 +6,7 @@ import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
 import { useMessageStore } from '../store/message';
+import { ImageContent } from '../types/types';
 
 interface MessageInputProps {
   onSend: (message: string, messageType: string, replyTo?: number) => Promise<void>;
@@ -129,7 +130,7 @@ const ImageThumbnailContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
   padding: 0.5rem;
   background: rgba(59, 130, 246, 0.1);
   border-radius: 12px;
@@ -232,8 +233,8 @@ const ActionButton = styled.button`
 `;
 
 const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
-  background: ${props => props.$hasContent
-    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+  background: ${props => props.$hasContent 
+    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
     : 'none'
   };
   border: none;
@@ -251,10 +252,10 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
   
   &:hover:not(:disabled) {
     transform: ${props => props.$hasContent ? 'scale(1.05)' : 'none'};
-    background: ${props => props.$hasContent
-    ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)'
-    : 'rgba(107, 114, 128, 0.1)'
-  };
+    background: ${props => props.$hasContent 
+      ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)' 
+      : 'rgba(107, 114, 128, 0.1)'
+    };
   }
   
   &:active:not(:disabled) {
@@ -268,11 +269,11 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const MessageInput: React.FC<MessageInputProps> = ({
-  onSend,
+const MessageInput: React.FC<MessageInputProps> = ({ 
+  onSend, 
   conversationId,
-  isLoading = false,
-  disabled = false
+  isLoading = false, 
+  disabled = false 
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -296,20 +297,31 @@ const MessageInput: React.FC<MessageInputProps> = ({
       try {
         let finalMessage = message;
         let messageType = 'text';
+        
         if (selectedImage) {
           try {
             const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
               conversationId: conversationId,
               filePath: selectedImage.path,
             });
-            // 用图片url替换占位符
-            finalMessage = finalMessage.replace('[[image]]', response.file_url);
+            
+            // 创建包含图片和文字的组合消息
+            const imageContent: ImageContent = {
+              url: response.file_url,
+              thumbnail_url: response.file_thumbnail_url,
+              metadata: response.file_metadata,
+              text: message.trim() || null
+            };
+            
+            // 发送图片消息，文字作为图片的附加文本
+            finalMessage = JSON.stringify(imageContent);
             messageType = 'image';
             setSelectedImage(null);
           } catch (uploadError) {
             console.error('图片上传失败:', uploadError);
           }
         }
+        
         if (finalMessage.trim()) {
           await onSend(finalMessage, messageType, replyingTo?.id);
           setMessage('');
@@ -326,25 +338,23 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  // 选图片时插入占位符并获取图片信息
+  // 选图片时获取图片信息
   const handleImageSelect = async (filePath: string) => {
     try {
       // 获取文件信息
       const fileInfo = await invoke<{ name: string; size: number }>('cmd_get_file_info', {
         filePath: filePath
       });
-
+      
       // 创建预览URL
       const previewUrl = `file://${filePath}`;
-
+      
       setSelectedImage({
         path: filePath,
         name: fileInfo.name,
         size: fileInfo.size,
         preview: previewUrl
       });
-
-      setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
     } catch (error) {
       console.error('获取文件信息失败:', error);
       // 如果获取信息失败，仍然设置基本路径
@@ -354,14 +364,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
         size: 0,
         preview: `file://${filePath}`
       });
-      setMessage(msg => (msg ? msg + ' [[image]]' : '[[image]]'));
     }
   };
 
-  // 移除图片时也移除占位符
+  // 移除图片
   const handleRemoveImage = () => {
     setSelectedImage(null);
-    setMessage(msg => msg.replace(/ ?\[\[image\]\]/, ''));
   };
 
   const handleCancelReply = () => {
@@ -373,10 +381,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
     const cursorPosition = textareaRef.current?.selectionStart || 0;
     const textBefore = message.substring(0, cursorPosition);
     const textAfter = message.substring(cursorPosition);
-
+    
     const newMessage = textBefore + emojiText + textAfter;
     setMessage(newMessage);
-
+    
     setTimeout(() => {
       if (textareaRef.current) {
         const newPosition = cursorPosition + emojiText.length;
@@ -405,12 +413,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
     <Container>
       {/* 显示回复消息 */}
       {replyingTo && (
-        <ReplyMessage
-          message={replyingTo}
+        <ReplyMessage 
+          message={replyingTo} 
           onCancel={handleCancelReply}
         />
       )}
-
+      
       <Form onSubmit={handleSubmit}>
         {/* 左侧附件按钮 */}
         <LeftButton type="button" disabled={isInputDisabled}>
@@ -421,43 +429,44 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
         {/* 输入区域 */}
         <InputContainer>
-            {/* 图片缩略图显示 */}
-            {selectedImage && (
-              <ImageThumbnailContainer>
-                <ImageThumbnail
-                  src={selectedImage.preview}
-                  alt={selectedImage.name}
-                  onError={(e) => {
-                    // 如果file://协议失败，尝试使用后端serve
-                    const target = e.target as HTMLImageElement;
-                    target.src = `cherry://localhost?file_path=${selectedImage.path}`;
-                  }}
-                />
-                <ImageInfo>
-                  <ImageName>{selectedImage.name}</ImageName>
-                  <ImageSize>{formatFileSize(selectedImage.size)}</ImageSize>
-                </ImageInfo>
-                <RemoveImageButton onClick={handleRemoveImage} title="移除图片">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </RemoveImageButton>
-              </ImageThumbnailContainer>
-            )}
+          {/* 图片缩略图显示 */}
+          {selectedImage && (
+            <ImageThumbnailContainer>
+              <ImageThumbnail
+                src={selectedImage.preview}
+                alt={selectedImage.name}
+                onError={(e) => {
+                  // 如果file://协议失败，尝试使用后端serve
+                  const target = e.target as HTMLImageElement;
+                  target.src = `cherry://localhost?file_path=${selectedImage.path}`;
+                }}
+              />
+              <ImageInfo>
+                <ImageName>{selectedImage.name}</ImageName>
+                <ImageSize>{formatFileSize(selectedImage.size)}</ImageSize>
+              </ImageInfo>
+              <RemoveImageButton onClick={handleRemoveImage} title="移除图片">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </RemoveImageButton>
+            </ImageThumbnailContainer>
+          )}
+          
           <InputRow>
             <InputField
               ref={textareaRef}
-              placeholder="Type a message..."
+              placeholder={selectedImage ? "Type a message..." : "Type a message..."}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={isInputDisabled}
               rows={1}
             />
-
+            
             <RightButtons>
               {/* 表情按钮 */}
-              <ActionButton
-                type="button"
+              <ActionButton 
+                type="button" 
                 disabled={isInputDisabled}
                 onClick={toggleEmojiPicker}
                 className={isEmojiPickerOpen ? 'active' : ''}
@@ -495,8 +504,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
               </ActionButton>
             </RightButtons>
           </InputRow>
-
-
         </InputContainer>
 
         {/* 发送按钮 */}
