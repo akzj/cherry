@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:parsing": "tsx src/test-message-parsing.ts"
+    "test:parsing": "tsx src/test-message-parsing.ts",
+    "test:reaction": "tsx src/test-reaction-toggle.ts"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",

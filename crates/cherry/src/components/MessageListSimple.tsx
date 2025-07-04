@@ -415,8 +415,18 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
   // reaction 处理
   const handleReactionClick = (msg: Message, emoji: string) => {
     if (!conversationId) return;
-    // 允许同一用户多次点同一emoji
-    addReaction(conversationId, msg.id, emoji, currentUserId);
+
+    // 检查当前用户是否已经点击过这个 emoji
+    const existingReaction = msg.reactions?.find(r => r.emoji === emoji);
+    const hasUserReacted = existingReaction?.users.includes(currentUserId);
+
+    if (hasUserReacted) {
+      // 如果用户已经点击过，则删除反应
+      removeReaction(conversationId, msg.id, emoji, currentUserId);
+    } else {
+      // 如果用户没有点击过，则添加反应
+      addReaction(conversationId, msg.id, emoji, currentUserId);
+    }
   };
 
   const renderMessage = (message: Message) => {
