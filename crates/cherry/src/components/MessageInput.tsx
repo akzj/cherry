@@ -14,6 +14,8 @@ import { sendMessage } from '../api/api';
 interface MessageInputProps {
   conversationId: string;
   disabled?: boolean;
+  replyingTo: Message | null;
+  setReplyingTo: (message: Message | null) => void;
 }
 
 interface FileUploadCompleteResponse {
@@ -45,36 +47,6 @@ const Form = styled.form`
   align-items: flex-end;
   gap: 0.75rem;
   position: relative;
-`;
-
-const LeftButton = styled.button`
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.75rem;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  
-  &:hover:not(:disabled) {
-    background: rgba(107, 114, 128, 0.1);
-    color: #374151;
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  svg {
-    width: 20px;
-    height: 20px;
-  }
 `;
 
 const InputContainer = styled.div`
@@ -271,13 +243,14 @@ const SendButton = styled.button<{ $disabled: boolean; $hasContent: boolean }>`
 // ==================== Component Implementation ====================
 const MessageInput: React.FC<MessageInputProps> = ({
   conversationId,
-  disabled = false
+  disabled = false,
+  replyingTo,
+  setReplyingTo,
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageInfo | null>(null);
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isQuillMode, setIsQuillMode] = useState(false);
   const [quillValue, setQuillValue] = useState('');
@@ -338,6 +311,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
           finalMessage = JSON.stringify(quillContent);
           messageType = 'quill';
           setQuillValue('');
+        }
+        // 方便测试发送大小消息
+        if (messageType == 'text') {
+          const messages = finalMessage.split("\n");
+          for (const message of messages) {
+            await sendMessage(conversationId, message, messageType, replyingTo?.id);
+          }
+          return;
         }
 
         if (finalMessage.trim()) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Conversation } from '../types/types';
+import { Conversation, Message } from '../types/types';
 import { useMessageStore } from '../store/message';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageListSimple';
@@ -31,7 +31,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({
 
   // 获取当前会话的消息
   const messages = getMessages(conversation.id);
-
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
 
   // 当组件变为可见时，记录日志
@@ -51,8 +51,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         messages={messages}
         currentUserId={currentUserId}
         conversationId={conversation.id}
+        setReplyingTo={setReplyingTo}
       />
       <MessageInput
+        replyingTo={replyingTo}
+        setReplyingTo={setReplyingTo}
         conversationId={conversation.id}
         disabled={false}
       />

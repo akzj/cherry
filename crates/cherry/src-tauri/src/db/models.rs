@@ -24,6 +24,7 @@ pub struct Message {
     pub conversation_id: i32,
     pub sender_id: i32,
     pub content: Value,
+    #[serde(rename = "type")]
     pub type_: String,
     pub status: String,
     pub timestamp: chrono::NaiveDateTime,

@@ -1,10 +1,18 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
+
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
 <svg fill="#c62a2a" width="64px" height="64px" viewBox="-2.4 -2.4 28.80 28.80" id="edit" data-name="Line Color" xmlns="http://www.w3.org/2000/svg" class="icon line-color" stroke="#c62a2a">
-<g id="SVGRepo_bgCarrier" stroke-width="0"/>
-<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.43200000000000005"/>
-<g id="SVGRepo_iconCarrier">
-<line id="secondary" x1="21" y1="21" x2="3" y2="21" style="fill: none; stroke: #174a1b; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;"/>
-<path id="primary" d="M19.88,7,11,15.83,7,17l1.17-4,8.88-8.88A2.09,2.09,0,0,1,20,4,2.09,2.09,0,0,1,19.88,7Z" style="fill: none; stroke: #2cce90; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;"/>
-</g>
-</svg>
+strokeLinejoin
+<g id="SVGRepo_bgCarrier" stroke-width="0"/>
+strokeLinejoin
+<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.43200000000000005"/>strokeLinejoin
+
+<g id="SVGRepo_iconCarrier">
+
+<line id="secondary" x1="21" y1="21" x2="3" y2="21" style="fill: none; stroke: #174a1b; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;"/>
+
+<path id="primary" d="M19.88,7,11,15.83,7,17l1.17-4,8.88-8.88A2.09,2.09,0,0,1,20,4,2.09,2.09,0,0,1,19.88,7Z" style="fill: none; stroke: #2cce90; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;"/>
+
+</g>
+
+</svg>
