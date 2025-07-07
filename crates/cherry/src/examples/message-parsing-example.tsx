@@ -5,14 +5,14 @@ import { parseMessageContent, Message } from '../types/types';
 const exampleMessages: Message[] = [
   {
     id: 1,
-    userId: 'alice',
+    user_id: 'alice',
     content: 'Hello, World!',
     timestamp: '2024-01-01T12:00:00Z',
-    type: 'text'
+    type_: 'text'
   },
   {
     id: 2,
-    userId: 'bob',
+    user_id: 'bob',
     content: {
       url: 'https://example.com/image.jpg',
       thumbnail_url: 'https://example.com/thumb.jpg',
@@ -20,11 +20,11 @@ const exampleMessages: Message[] = [
       text: '这是一张图片'
     },
     timestamp: '2024-01-01T12:01:00Z',
-    type: 'image'
+    type_: 'image'
   },
   {
     id: 3,
-    userId: 'charlie',
+    user_id: 'charlie',
     content: {
       url: 'https://example.com/audio.mp3',
       duration: 120,
@@ -32,11 +32,11 @@ const exampleMessages: Message[] = [
       artist: '艺术家'
     },
     timestamp: '2024-01-01T12:02:00Z',
-    type: 'audio'
+    type_: 'audio'
   },
   {
     id: 4,
-    userId: 'david',
+    user_id: 'david',
     content: {
       url: 'https://example.com/document.pdf',
       filename: 'document.pdf',
@@ -45,43 +45,43 @@ const exampleMessages: Message[] = [
       thumbnail_url: 'https://example.com/pdf-thumb.jpg'
     },
     timestamp: '2024-01-01T12:03:00Z',
-    type: 'file'
+    type_: 'file'
   },
   {
     id: 5,
-    userId: 'system',
+    user_id: 'system',
     content: {
       action: 'user_joined',
       data: { user_id: '123', username: 'alice' }
     },
     timestamp: '2024-01-01T12:04:00Z',
-    type: 'system'
+    type_: 'system'
   },
   {
     id: 6,
-    userId: 'emma',
+    user_id: 'emma',
     content: {
       native: '😊',
       unified: '1f60a',
       shortcodes: ':smile:'
     },
     timestamp: '2024-01-01T12:05:00Z',
-    type: 'emoji'
+    type_: 'emoji'
   },
   {
     id: 7,
-    userId: 'frank',
+    user_id: 'frank',
     content: {
       code: 'console.log("Hello, World!");',
       language: 'javascript',
       filename: 'test.js'
     },
     timestamp: '2024-01-01T12:06:00Z',
-    type: 'code'
+    type_: 'code'
   },
   {
     id: 8,
-    userId: 'grace',
+    user_id: 'grace',
     content: {
       latitude: 39.9042,
       longitude: 116.4074,
@@ -89,11 +89,11 @@ const exampleMessages: Message[] = [
       name: '天安门广场'
     },
     timestamp: '2024-01-01T12:07:00Z',
-    type: 'location'
+    type_: 'location'
   },
   {
     id: 9,
-    userId: 'henry',
+    user_id: 'henry',
     content: {
       user_id: '456',
       name: '张三',
@@ -102,13 +102,13 @@ const exampleMessages: Message[] = [
       email: 'zhangsan@example.com'
     },
     timestamp: '2024-01-01T12:08:00Z',
-    type: 'contact'
+    type_: 'contact'
   }
 ];
 
 // 消息渲染组件
 const MessageRenderer: React.FC<{ message: Message }> = ({ message }) => {
-  const parsedContent = parseMessageContent(message.content, message.type);
+  const parsedContent = parseMessageContent(message.content, message.type_);
   
   const renderContent = () => {
     switch (parsedContent.type) {
@@ -330,7 +330,7 @@ const MessageRenderer: React.FC<{ message: Message }> = ({ message }) => {
         fontSize: '14px',
         color: '#666'
       }}>
-        <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{message.userId}</span>
+        <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{message.user_id}</span>
         <span>{new Date(message.timestamp).toLocaleString()}</span>
       </div>
       {renderContent()}

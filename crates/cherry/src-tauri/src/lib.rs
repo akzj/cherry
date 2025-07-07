@@ -2,11 +2,26 @@
 
 mod db;
 
+use crate::db::{
+    models::{Contact as DbContact, MessageSnapshot, User},
+    repo::Repo,
+};
 use anyhow::{Context, Result};
 use cherrycore::client::file::FileClient;
 use cherrycore::types::{FileUploadCompleteResponse, FileUploadCreateResponse};
+use cherrycore::{
+    client::{
+        cherry::CherryClient,
+        stream::{StreamClient, StreamRecordDecoderMachine},
+        AuthCredentials,
+    },
+    types::{
+        Contact, Conversation, DataFormat, LoginResponse, Message, StreamEvent, StreamReadRequest,
+        UserInfo,
+    },
+};
 use env_logger;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Write;
@@ -17,26 +32,11 @@ use std::{
 };
 use streamstore::StreamId;
 use tauri::{ipc::Channel, Emitter, Manager, State};
+use tauri_plugin_log::{Target, TargetKind};
 use tokio::fs::File;
 use tokio::sync::mpsc;
 use uuid;
 use uuid::Uuid;
-use tauri_plugin_log::{Target, TargetKind};
-use crate::db::{
-    models::{Contact as DbContact, User},
-    repo::Repo,
-};
-use cherrycore::{
-    client::{
-        cherry::CherryClient,
-        stream::{StreamClient, StreamRecordDecoderMachine},
-        AuthCredentials,
-    },
-    types::{
-        CherryMessage, Contact, Conversation, DataFormat, LoginResponse, Message, StreamEvent,
-        StreamReadRequest, UserInfo,
-    },
-};
 
 #[derive(Debug, Serialize)]
 struct CommandError {
@@ -75,6 +75,11 @@ impl From<sqlx::Error> for CommandError {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum CherryMessage {
+    Message { message: MessageSnapshot },
+}
+
 #[derive(Debug, Serialize)]
 pub struct Options {
     // stream data pull/push server
@@ -97,6 +102,9 @@ struct AppStateInner {
     cherry_client: Mutex<Option<CherryClient>>,
     stream_client: Mutex<Option<StreamClient>>,
     file_client: Mutex<Option<FileClient>>,
+
+    repo: Repo,
+
     conversations: Mutex<Vec<Conversation>>,
     user_info: Mutex<Option<UserInfo>>,
     conversation_read_position: Mutex<HashMap<Uuid, i64>>,
@@ -254,7 +262,7 @@ impl AppState {
             state.read_stream_sender.lock().unwrap().replace(sender);
 
             while let Some(response) = receiver.recv().await {
-                log::info!("Received message: {:?}", response);
+                //log::info!("Received message: {:?}", response);
                 let records = decoder_machine.decode(
                     response.stream_id,
                     response.offset,
@@ -264,15 +272,6 @@ impl AppState {
                     for (record, offset) in records {
                         match record.meta.data_format {
                             DataFormat::JsonMessage => {
-                                let conversation_id =
-                                    state.find_conversation_id(response.stream_id);
-                                if conversation_id.is_err() {
-                                    log::info!(
-                                        "find_conversation_id error: {:?}",
-                                        conversation_id.err()
-                                    );
-                                    continue;
-                                }
                                 let mut decoded_message: Message =
                                     serde_json::from_slice(&record.content).unwrap();
                                 decoded_message.id = offset as i64;
@@ -282,22 +281,28 @@ impl AppState {
                                     offset,
                                     decoded_message
                                 );
-                                on_event
-                                    .send(CherryMessage::Message {
-                                        message: decoded_message,
-                                        conversation_id: conversation_id.unwrap(),
-                                    })
-                                    .unwrap();
+
+                                match state.repo.receive_message(decoded_message).await {
+                                    Ok(snapshot) => {
+                                        log::info!("receive_message: {:?}", snapshot);
+                                        on_event
+                                            .send(CherryMessage::Message { message: snapshot })
+                                            .unwrap();
+                                    }
+                                    Err(e) => {
+                                        log::error!("receive_message error: {:?}", e);
+                                    }
+                                }
                             }
                             DataFormat::JsonEvent => {
                                 let decoded_event: StreamEvent =
                                     serde_json::from_slice(&record.content).unwrap();
                                 log::info!("Decoded event: {:?}", decoded_event);
-                                on_event
-                                    .send(CherryMessage::Event {
-                                        event: decoded_event,
-                                    })
-                                    .unwrap();
+                                // on_event
+                                //     .send(CherryMessage::Event {
+                                //         event: decoded_event,
+                                //     })
+                                //     .unwrap();
                             }
                         }
                     }
@@ -523,12 +528,10 @@ async fn cmd_send_message(
         id: 0, // 服务器会分配ID
         user_id,
         content,
-        timestamp: chrono::Utc::now(),
         reply_to,
+        timestamp: chrono::Utc::now(),
+        conversation_id: conversation_uuid,
         type_: message_type.unwrap_or_else(|| "text".to_string()),
-        image_url: None,
-        image_thumbnail_url: None,
-        image_metadata: None,
     };
 
     // 获取流客户端
@@ -691,27 +694,25 @@ async fn cmd_download_file(
 }
 
 #[tauri::command]
-async fn cmd_get_file_info(
-    file_path: String,
-) -> Result<serde_json::Value, CommandError> {
+async fn cmd_get_file_info(file_path: String) -> Result<serde_json::Value, CommandError> {
     log::info!("cmd_get_file_info: file_path={}", file_path);
-    
+
     let path = std::path::Path::new(&file_path);
-    
+
     // 获取文件名
-    let name = path.file_name()
+    let name = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown")
         .to_string();
-    
+
     // 获取文件大小
-    let metadata = std::fs::metadata(&file_path)
-        .map_err(|e| CommandError {
-            message: format!("Failed to get file metadata: {}", e),
-        })?;
-    
+    let metadata = std::fs::metadata(&file_path).map_err(|e| CommandError {
+        message: format!("Failed to get file metadata: {}", e),
+    })?;
+
     let size = metadata.len();
-    
+
     Ok(serde_json::json!({
         "name": name,
         "size": size,
@@ -779,6 +780,20 @@ async fn cmd_upload_file(
 
     Ok(response)
 }
+// list_messages(&self, conversation_id: Uuid, before_id: Option<i64>, after_id: Option<i64>, limit: i64)
+
+#[tauri::command]
+async fn cmd_list_messages(
+    conversation_id: Uuid,
+    forward_id: Option<i64>,
+    backward_id: Option<i64>,
+    limit: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<MessageSnapshot>, CommandError> {
+    log::info!("cmd_list_messages: conversation_id={}, forward_id={:?}, backward_id={:?}, limit={}", conversation_id, forward_id, backward_id, limit);
+    let messages = state.repo.list_messages(conversation_id, forward_id, backward_id, limit).await?;
+    Ok(messages)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -789,24 +804,24 @@ pub async fn run() {
         env::set_var(log_level, env);
     }
 
-    // env_logger::Builder::from_default_env()
-    //     .format(|buf, record| {
-    //         writeln!(
-    //             buf,
-    //             "{}:{} level:{} {}",
-    //             record.file().unwrap(),
-    //             record.line().unwrap(),
-    //             record.level(),
-    //             record.args()
-    //         )
-    //     })
-    //     .init();
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} level:{} {}",
+                record.file().unwrap(),
+                record.line().unwrap(),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
-    // let db_path = std::env::current_dir().unwrap().join("sqlite.db");
-    // println!("db_path: {}", db_path.to_str().unwrap());
+    let db_path = std::env::current_dir().unwrap().join("sqlite.db");
+    println!("db_path: {}", db_path.to_str().unwrap());
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        //.plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -819,9 +834,8 @@ pub async fn run() {
                 user_info: Mutex::new(None),
                 conversation_read_position: Mutex::new(HashMap::new()),
                 read_stream_sender: Mutex::new(None),
+                repo: Repo::new(db_path.to_str().unwrap()).await,
             }),
-            // todo: 需要重新设计
-            // repo: Repo::new(db_path.to_str().unwrap()).await,
         })
         .register_uri_scheme_protocol("cherry", |_app, request| {
             let url = request.uri().to_string();
@@ -856,6 +870,7 @@ pub async fn run() {
             cmd_upload_file,
             cmd_download_file,
             cmd_get_file_info,
+            cmd_list_messages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -15,10 +15,11 @@ import { useWindowSize } from './hooks/useWindowsSize.ts';
 import { useAuth } from './store/auth';
 import { useNotifications } from './store/notification';
 import { useConversationStore } from './store/conversation';
-import { useMessageStore } from './store/message';
+
 import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
 import { useAuthStore } from './store/auth';
+
 // import DebugPanel from './components/DebugPanel';
 // import MessageDebug from './components/MessageDebug';
 //import ScrollTest from './components/ScrollTest';
@@ -45,10 +46,10 @@ const AppContainer = styled.div`
   }
 
   /* 全局滚动条样式 */
-  * {
+  /* * {
     scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
-  }
+    //-ms-overflow-style: none; /* IE and Edge */
+ // } */
 
   *::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
@@ -215,20 +216,7 @@ const UserStatus = styled.p<{ $status: string }>`
   }
 `;
 
-const CenterSection = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  -webkit-app-region: drag;
-`;
 
-const TitleText = styled.div`
-  color: rgba(34, 197, 94, 0.8);
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-`;
 
 const RightSection = styled.div`
   display: flex;
@@ -408,6 +396,7 @@ const App: React.FC = () => {
 
   // 调试面板状态
   const [isDebugVisible, setIsDebugVisible] = useState(false);
+  const [showVirtuaTest, setShowVirtuaTest] = useState(false);
 
   // 通知状态
   const { addNotification } = useNotifications();
@@ -420,9 +409,6 @@ const App: React.FC = () => {
     refreshConversations,
     getConversationById
   } = useConversationStore();
-
-  // 消息状态
-  const { getMessages } = useMessageStore();
 
   // 消息接收
   useMessageReceiver();
@@ -539,11 +525,11 @@ const App: React.FC = () => {
 
   // 如果未登录，显示登录页面
   if (!isLoggedIn) {
-    console.log('Showing login form - isLoggedIn:', isLoggedIn, 'forceUpdate:', forceUpdate);
+    // console.log('Showing login form - isLoggedIn:', isLoggedIn, 'forceUpdate:', forceUpdate);
     return <LoginForm />;
   }
 
-  console.log('Showing main app - user authenticated, forceUpdate:', forceUpdate);
+  //console.log('Showing main app - user authenticated, forceUpdate:', forceUpdate);
 
   // 如果正在加载会话数据，显示加载界面
   if (conversationsLoading) {
@@ -598,7 +584,7 @@ const App: React.FC = () => {
               </ActionIcon>
             </ActionButton>
 
-            <ActionButton>
+            <ActionButton onClick={() => setShowVirtuaTest(!showVirtuaTest)}>
               <ActionIcon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </ActionIcon>

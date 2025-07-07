@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { Message, parseMessageContent } from '../types/types';
 import { appCacheDir } from '@tauri-apps/api/path';
@@ -6,76 +6,30 @@ import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
 import QuickEmojiReply from './UI/QuickEmojiReply';
-import { addReaction, removeReaction } from '../api/api';
+import { addReaction, loadMessages, removeReaction } from '../api/api';
+import { BidirectionalInfiniteScroll, LoadItemsParams } from './bidirectional-infinite-scroll';
+import { DataItem, useBidirectionalData } from '../hooks/use-bidirectional-data';
+import { message } from '@tauri-apps/plugin-dialog';
 
 const appCacheDirPath = await appCacheDir();
 
 interface MessageListProps {
-  messages: Message[];
   currentUserId: string;
-  conversationId?: string;
+  conversationId: string;
   setReplyingTo: (message: Message | null) => void;
 }
 
 // ==================== Styled Components ====================
-const Container = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-height: 0; /* 重要：允许在flex容器中正确收缩 */
-  height: 100%;
-  
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
-  
-  /* 高亮动画效果 */
-  .highlight {
-    animation: highlightPulse 2s ease-in-out;
-  }
-  
-  @keyframes highlightPulse {
-    0% {
-      background-color: rgba(99, 102, 241, 0.2);
-      transform: scale(1);
-    }
-    50% {
-      background-color: rgba(99, 102, 241, 0.3);
-      transform: scale(1.02);
-    }
-    100% {
-      background-color: transparent;
-      transform: scale(1);
-    }
-  }
-`;
 
 const MessageContainer = styled.div<{ $isOwn: boolean }>`
   display: flex;
-  justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
-  align-self: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
-  align-items: flex-end;
+  border: 1px solid green;  
+  //justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
+  align-items: flex-start;
   gap: 0.5rem;
-  max-width: 70%;
+  max-width: 100%;
+  margin: 10px 0;
+  width: 100%;
 `;
 
 const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
@@ -92,6 +46,7 @@ const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
   position: relative;
   word-wrap: break-word;
   max-width: 100%;
+  flex-shrink: 0;
   
   ${props => props.$isReply && `
     margin-top: 0.25rem;
@@ -252,106 +207,50 @@ const ImageText = styled.div`
   margin-top: 0.5rem;
 `;
 
-// 异步图片组件
-const MessageImage: React.FC<{ url: string }> = ({ url }) => {
-  const [src, setSrc] = useState<string>();
-
-  useEffect(() => {
-    let mounted = true;
-    const getFile = async (url: string) => {
-      const cache_file_path = await path.join(appCacheDirPath, url);
-      const cache_file_exists = await exists(cache_file_path);
-      if (cache_file_exists) {
-        return cache_file_path;
-      }
-      return await invoke('cmd_download_file', {
-        url: url,
-        filePath: cache_file_path
-      });
-    };
-    (async () => {
-      const path = await getFile(url);
-      if (mounted) setSrc(path as string);
-    })();
-    return () => { mounted = false; };
-  }, [url]);
-
-  if (!src) return <span>图片加载中...</span>;
-  return <img src={`cherry://localhost?file_path=${src}`} style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }} />;
-};
-
-
-
 const ReactionBar = styled.div`
   display: flex;
   gap: 6px;
   margin-top: 4px;
   margin-bottom: 2px;
 `;
+
 const ReactionIcon = styled.button<{ active?: boolean }>`
-  //background: ${({ active }) => (active ? 'rgba(99, 219, 139, 0)' : 'rgba(99, 219, 139, 0)')};
-  //border: 1.5px solid #6bd38a47;
-  //color: #222;
   border-radius: 12px;
   font-size: 1.05rem;
-  padding: 0; /* 移除 padding */
+  padding: 0;
   cursor: pointer;
   display: flex;
-  width: 36px; /* 设置宽度 */
-  height: 36px; /* 设置高度为正方形 */
-  align-items: center; /* 垂直居中 */
-  justify-content: center; /* 水平居中 */
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
   opacity: ${({ active }) => (active ? 1 : 0.8)};
   transition: all 0.15s;
   &:hover {
-    //background: #72b31e36;
     transform: translate3d(1px, 1px, 3px) rotate3d(1, 3, 10, 15deg);
     opacity: 1;
   }
 `;
 
 // ==================== Component Implementation ====================
-const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conversationId, setReplyingTo }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const prevMessagesLengthRef = useRef<number>(0);
-
-
-
-  // MessageList render
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const scrollToBottomInstant = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  };
-
-  // 监听消息变化，新消息时滚动到底部
-  useEffect(() => {
-    const prevLength = prevMessagesLengthRef.current;
-    const currentLength = messages.length;
-
-    // Messages changed for conversation
-
-    // 如果有新消息添加，滚动到底部
-    if (currentLength > prevLength && prevLength > 0) {
-      // New messages detected, scrolling to bottom
-      scrollToBottom();
-    }
-    // 如果是第一次加载消息，立即滚动到底部
-    else if (prevLength === 0 && currentLength > 0) {
-      // Initial messages loaded, scrolling to bottom instantly
-      setTimeout(() => scrollToBottomInstant(), 100);
-    }
-
-    prevMessagesLengthRef.current = currentLength;
-  }, [messages, conversationId]);
-
-  const handleReply = (message: Message) => {
-    setReplyingTo(message);
-  };
+const MessageItem = React.memo<{
+  message: Message;
+  currentUserId: string;
+  onReply: (message: Message) => void;
+  onReactionClick: (message: Message, emoji: string) => void;
+  onScrollToMessage: (messageId: number) => void;
+}>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
+  const isOwn = message.user_id === currentUserId;
+  console.log('MessageItem render:', {
+    currentUserId: currentUserId,
+    messageId: message.id,
+    userId: message.user_id,
+    isOwn,
+    content: message.content,
+    timestamp: message.timestamp,
+    reactions: message.reactions?.length || 0,
+  });
+  const parsedContent = parseMessageContent(message.content, message.type_);
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -359,6 +258,211 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // 简化的异步图片组件
+  const AsyncMessageImage: React.FC<{ url: string }> = ({ url }) => {
+    const [src, setSrc] = useState<string>();
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      let mounted = true;
+      const getFile = async (url: string) => {
+        const cache_file_path = await path.join(appCacheDirPath, url);
+        const cache_file_exists = await exists(cache_file_path);
+        if (cache_file_exists) {
+          return cache_file_path;
+        }
+        return await invoke('cmd_download_file', {
+          url: url,
+          filePath: cache_file_path
+        });
+      };
+      (async () => {
+        setIsLoading(true);
+        const path = await getFile(url);
+        if (mounted) {
+          setSrc(path as string);
+          setIsLoading(false);
+        }
+      })();
+      return () => { mounted = false; };
+    }, [url]);
+
+    if (isLoading) {
+      return <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>图片加载中...</div>;
+    }
+
+    if (!src) return <span>图片加载失败</span>;
+
+    return (
+      <img
+        src={`cherry://localhost?file_path=${src}`}
+        style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }}
+      />
+    );
+  };
+
+  return (
+    <MessageContainer $isOwn={isOwn} data-message-id={message.conversation_id + message.id} className="message-container">
+      <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
+        <QuickEmojiReply
+          onReply={emoji => onReactionClick(message, emoji)}
+          onReplyMessage={() => onReply(message)}
+        />
+
+        {/* 回复连接线 */}
+        {message.isReply && <ReplyConnection $isOwn={isOwn} />}
+
+        <MessageHeader>
+          <Username>{message.id}</Username>
+          {/* <Username>{message.user_id}</Username> */}
+          <Timestamp>{formatTime(message.timestamp)}</Timestamp>
+        </MessageHeader>
+
+        {/* 新的回复引用显示 */}
+        {message.isReply && message.replyToMessage && (
+          <ReplyQuote
+            $isOwn={isOwn}
+            onClick={() => onScrollToMessage(message.replyToMessage!.id)}
+          >
+            <ReplyQuoteHeader>
+              <ReplyQuoteIcon>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z" />
+                  <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z" />
+                </svg>
+              </ReplyQuoteIcon>
+              <ReplyQuoteAuthor>{message.replyToMessage.user_id}</ReplyQuoteAuthor>
+            </ReplyQuoteHeader>
+            <ReplyQuoteContent>
+              {(() => {
+                const replyContent = parseMessageContent(message.replyToMessage.content, message.replyToMessage.type_);
+                if (replyContent.type === 'image') {
+                  return (
+                    <div className="image-preview">
+                      <div className="image-icon">📷</div>
+                      <span>{replyContent.text || '图片'}</span>
+                    </div>
+                  );
+                } else {
+                  return replyContent.text || '';
+                }
+              })()}
+            </ReplyQuoteContent>
+          </ReplyQuote>
+        )}
+
+        <MessageContent>
+          {parsedContent.type === 'image' ? (
+            <ImageContainer>
+              <AsyncMessageImage url={parsedContent.imageUrl!} />
+              {parsedContent.text && (
+                <ImageText>{parsedContent.text}</ImageText>
+              )}
+            </ImageContainer>
+          ) : parsedContent.type === 'quill' && parsedContent.html ? (
+            <div dangerouslySetInnerHTML={{ __html: parsedContent.html }} />
+          ) : (
+            parsedContent.text
+          )}
+        </MessageContent>
+
+        {/* reaction bar */}
+        {message.reactions && message.reactions.length > 0 && (
+          <ReactionBar>
+            {message.reactions.map(r => (
+              <ReactionIcon
+                key={r.emoji + r.users.length}
+                active={r.users.includes(currentUserId)}
+                onClick={() => onReactionClick(message, r.emoji)}
+                title={r.emoji}
+              >
+                {r.emoji} {r.users.length > 1 ? r.users.length : ''}
+              </ReactionIcon>
+            ))}
+          </ReactionBar>
+        )}
+
+      </MessageBubble>
+    </MessageContainer>
+  );
+}, (prevProps, nextProps) => {
+  // 自定义比较函数，只在必要时重新渲染
+  const prev = prevProps.message;
+  const next = nextProps.message;
+
+  return (
+    prev.id === next.id &&
+    prev.content === next.content &&
+    prev.timestamp === next.timestamp &&
+    JSON.stringify(prev.reactions) === JSON.stringify(next.reactions) &&
+    prevProps.currentUserId === nextProps.currentUserId
+  );
+});
+
+type MessageExt = DataItem<Message>;
+
+const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId, setReplyingTo }) => {
+
+  const loadItems = useCallback(async (params: LoadItemsParams) => {
+
+    let messageId: number = 0;
+    let direction: 'forward' | 'backward' = 'backward';
+    if (params.forward) {
+      messageId = params.forward.key as number;
+      direction = 'forward';
+    } else if (params.backward) {
+      messageId = params.backward.key as number;
+      direction = 'backward';
+    }
+
+    //await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    const messages = await loadMessages(conversationId, messageId, direction, 25);
+    if (messages.length === 0) {
+      console.info('no more message:', conversationId, messageId, direction);
+      return {
+        data: [],
+        hasNextPage: false,
+      };
+    }
+    // 处理消息数据
+    const data: MessageExt[] = messages.map(msg => ({
+      ...msg,
+      getKey(item) {
+        return item.id;
+      },
+    }) as MessageExt);
+    return {
+      data,
+      hasNextPage: true,
+    }
+
+  }, [conversationId]);
+
+
+  // 使用通用数据管理 hook
+  const {
+    loading,
+    items,
+    hasNextPage,
+    error,
+    loadMore,
+    trimItems,
+    trimForwardItems,
+    updateItem,
+    deleteItem,
+  } = useBidirectionalData({
+    loadItems,
+    initialLoadParams: { backward: { key: 1 << 60 } },
+    trimThreshold: 25,
+    enableDeduplication: true,
+  });
+
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
   };
 
   const handleScrollToMessage = (messageId: number) => {
@@ -373,6 +477,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
       }, 2000);
     }
   };
+
   // reaction 处理
   const handleReactionClick = (msg: Message, emoji: string) => {
     if (!conversationId) return;
@@ -390,102 +495,62 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId, conv
     }
   };
 
-  const renderMessage = (message: Message) => {
-    const isOwn = message.userId === currentUserId;
-    const parsedContent = parseMessageContent(message.content, message.type);
-
-    console.log(message.type);
+  const renderItem = useCallback((item: MessageExt) => {
     return (
-      <MessageContainer key={message.id} $isOwn={isOwn} data-message-id={message.id} className="message-container">
-        <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-          <QuickEmojiReply
-            onReply={emoji => handleReactionClick(message, emoji)}
-            onReplyMessage={() => handleReply(message)}
-          />
-
-          {/* 回复连接线 */}
-          {message.isReply && <ReplyConnection $isOwn={isOwn} />}
-
-          <MessageHeader>
-            <Username>{message.userId}</Username>
-            <Timestamp>{formatTime(message.timestamp)}</Timestamp>
-          </MessageHeader>
-
-          {/* 新的回复引用显示 */}
-          {message.isReply && message.replyToMessage && (
-            <ReplyQuote
-              $isOwn={isOwn}
-              onClick={() => handleScrollToMessage(message.replyToMessage!.id)}
-            >
-              <ReplyQuoteHeader>
-                <ReplyQuoteIcon>
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 17h3l2-4V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3l2 4z" />
-                    <path d="M9 12a1 1 0 0 1-1-1V8a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1z" />
-                  </svg>
-                </ReplyQuoteIcon>
-                <ReplyQuoteAuthor>{message.replyToMessage.userId}</ReplyQuoteAuthor>
-              </ReplyQuoteHeader>
-              <ReplyQuoteContent>
-                {(() => {
-                  const replyContent = parseMessageContent(message.replyToMessage.content, message.replyToMessage.type);
-                  if (replyContent.type === 'image') {
-                    return (
-                      <div className="image-preview">
-                        <div className="image-icon">📷</div>
-                        <span>{replyContent.text || '图片'}</span>
-                      </div>
-                    );
-                  } else {
-                    return replyContent.text || '';
-                  }
-                })()}
-              </ReplyQuoteContent>
-            </ReplyQuote>
-          )}
-
-          <MessageContent>
-            {parsedContent.type === 'image' ? (
-              <ImageContainer>
-                <MessageImage url={parsedContent.imageUrl!} />
-                {parsedContent.text && (
-                  <ImageText>{parsedContent.text}</ImageText>
-                )}
-              </ImageContainer>
-            ) : parsedContent.type === 'quill' && parsedContent.html ? (
-              <div dangerouslySetInnerHTML={{ __html: parsedContent.html }} />
-            ) : (
-              parsedContent.text
-            )}
-          </MessageContent>
-
-
-          {/* reaction bar */}
-          {message.reactions && message.reactions.length > 0 && (
-            <ReactionBar>
-              {message.reactions.map(r => (
-                <ReactionIcon
-                  key={r.emoji + r.users.length}
-                  active={r.users.includes(currentUserId)}
-                  onClick={() => handleReactionClick(message, r.emoji)}
-                  title={r.emoji}
-                >
-                  {r.emoji} {r.users.length > 1 ? r.users.length : ''}
-                </ReactionIcon>
-              ))}
-            </ReactionBar>
-          )}
-
-        </MessageBubble>
-      </MessageContainer>
+      <MessageItem
+        key={item.conversation_id + item.id}
+        message={item}
+        currentUserId={currentUserId}
+        onReply={handleReply}
+        onReactionClick={handleReactionClick}
+        onScrollToMessage={handleScrollToMessage}
+      />
     );
-  };
+  }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
+
+
+  const renderLoading = useCallback((refCallback: any) => {
+    return <div ref={refCallback} style={{ textAlign: 'center', padding: '1rem' }}>加载中...</div>;
+  }, []);
+
+  const renderError = useCallback(() => {
+    return (
+      <div style={{ textAlign: 'center', padding: '1rem', color: 'red' }}>
+        加载失败，请稍后重试。
+      </div>
+    );
+  }, []);
 
   return (
-    <Container ref={containerRef} data-conversation-id={conversationId}>
-      {messages.map(renderMessage)}
-      <div ref={messagesEndRef} />
-    </Container>
+    <BidirectionalInfiniteScroll<Message>
+      items={items}
+      loading={loading}
+      hasNextPage={hasNextPage}
+      error={error}
+      onLoadMore={(params) => loadMore(params)}
+      onTrimItems={(direction, count) => {
+        if (direction === 'backward') {
+          trimItems(count);
+        } else {
+          trimForwardItems(count);
+        }
+      }}
+      renderItem={renderItem}
+      renderLoading={renderLoading}
+      renderError={renderError}
+      trimThreshold={100}
+      scrollThresholdUp={0.25}
+      scrollThresholdDown={0.70}
+      bottomThreshold={30}
+      maxHeight="2000px"
+      maxWidth="2000px"
+      enableTrimming={true}
+      enableBottomLoading={true}
+      enableScrollPositionPreservation={true}
+      className="mt-4"
+      containerClassName="container"
+      renderDebugInfo={true}
+    />
   );
 };
 

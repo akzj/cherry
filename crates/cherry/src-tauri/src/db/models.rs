@@ -1,6 +1,11 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
+
+
+
+
 
 // CREATE TABLE messages (
 //     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,19 +24,36 @@ use serde_json::Value;
 // );
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Message {
-    pub id: i32,
-    pub conversation_id: i32,
-    pub sender_id: i32,
-    pub content: Value,
-    #[serde(rename = "type")]
-    pub type_: String,
-    pub status: String,
-    pub timestamp: chrono::NaiveDateTime,
-    pub reaction: Option<String>,
-    pub reply_to: Option<i32>,
-    pub media_path: Option<String>,
+pub struct Reaction {
+    pub emoji: String,
+    pub users: Vec<Uuid>,
 }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct  MessageSnapshot {
+    pub id: i64,
+    //#[sqlx(encode_as = "String", decode_as = "String")]
+    pub user_id: String,
+    pub conversation_id: String,
+    pub content: Value,
+    pub type_: String,
+    pub status: String, // unread, read, deleted
+    pub timestamp: DateTime<Utc>,
+    pub reply_to: Option<i64>,
+    pub reactions: Option<Value>,
+}
+
+// export interface Message {
+//     id: number;
+//     userId: string;
+//     content: MessageContent;
+//     timestamp: string;
+//     reply_to?: number;
+//     type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction' | 'quill';
+//     replyToMessage?: Message;
+//     isReply?: boolean;
+//     reactions?: Reaction[];
+//   }
 
 // CREATE TABLE offline_messages (
 //     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +72,7 @@ pub struct OfflineMessage {
     pub conversation_id: i32,
     pub sender_id: i32,
     pub content: Value,
-    pub timestamp: chrono::NaiveDateTime,
+    pub timestamp: NaiveDateTime,
     pub is_sent: bool,
 }
 
@@ -100,7 +122,7 @@ pub struct FriendRequest {
     pub to_user_id: i32,
     pub content: Option<String>,
     pub status: String,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 // CREATE TABLE group_requests (
@@ -119,7 +141,7 @@ pub struct GroupRequest {
     pub user_id: i32,
     pub content: Option<String>,
     pub status: String,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 // CREATE TABLE users (
@@ -161,7 +183,7 @@ pub struct Conversation {
     pub last_message_id: Option<i32>,
     pub unread_count: i32,
     pub is_pinned: bool,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 // CREATE TABLE groups (
@@ -186,12 +208,12 @@ pub struct Group {
     pub description: Option<String>,
     pub creator_id: i32,
     pub avatar_path: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: NaiveDateTime,
     pub is_encrypted: bool,
     pub encryption_key: Option<String>,
     pub visibility: String, // public, private, secret
     pub member_count: i32,
-    pub last_active: Option<chrono::NaiveDateTime>,
+    pub last_active: Option<NaiveDateTime>,
 }
 
 // CREATE TABLE group_members (
@@ -215,11 +237,11 @@ pub struct GroupMember {
     pub group_id: i32,
     pub user_id: i32,
     pub role: String,
-    pub joined_at: chrono::NaiveDateTime,
+    pub joined_at: NaiveDateTime,
     pub is_online: bool,
-    pub last_seen: Option<chrono::NaiveDateTime>,
+    pub last_seen: Option<NaiveDateTime>,
     pub is_muted: bool,
-    pub mute_until: Option<chrono::NaiveDateTime>,
+    pub mute_until: Option<NaiveDateTime>,
     pub is_banned: bool,
 }
 
@@ -245,7 +267,7 @@ pub struct File {
     pub name: String,
     pub size: i32,
     pub path: String,
-    pub uploaded_at: chrono::NaiveDateTime,
+    pub uploaded_at: NaiveDateTime,
 }
 
 // CREATE TABLE settings (

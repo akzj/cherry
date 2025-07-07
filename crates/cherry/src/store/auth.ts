@@ -91,7 +91,7 @@ export const useAuthStore = create<AuthState>()(
           
           // 设置事件监听器
           onEvent.onmessage = (message) => {
-            console.log('Received message from backend:', message);
+            //console.log('Received message from backend:', message);
             try {
               // 触发全局事件，供其他组件监听
               window.dispatchEvent(new CustomEvent('cherry-message', { 

@@ -102,7 +102,7 @@ const ReplyContent = styled.div`
 
 
 const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
-  const parsedContent = parseMessageContent(message.content, message.type);
+  const parsedContent = parseMessageContent(message.content, message.type_);
   
   return (
     <ReplyContainer>
