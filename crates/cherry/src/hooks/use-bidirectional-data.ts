@@ -52,8 +52,10 @@ export function useBidirectionalData<T>({
 
         // Remove deleted keys from deduplication set
         if (enableDeduplication) {
-          itemsToRemove.forEach((item) =>
-            loadedKeysRef.current.delete(item.getKey(item)),
+          itemsToRemove.forEach((item) => {
+            //   console.log('trimItems', item.getKey(item));
+            loadedKeysRef.current.delete(item.getKey(item));
+          }
           );
         }
 
@@ -74,8 +76,10 @@ export function useBidirectionalData<T>({
 
         // Remove deleted keys from deduplication set
         if (enableDeduplication) {
-          itemsToRemove.forEach((item) =>
-            loadedKeysRef.current.delete(item.getKey(item)),
+          itemsToRemove.forEach((item) => {
+            //    console.log('trimForwardItems', item.getKey(item));
+            loadedKeysRef.current.delete(item.getKey(item));
+          }
           );
         }
 
@@ -87,13 +91,15 @@ export function useBidirectionalData<T>({
 
   // Load more items
   const loadMore = useCallback(
-    async (params: LoadItemsParams) => {
-      if (loading) return;
-
+    (params: LoadItemsParams) => {
+      if (loading){
+        console.log('loadMore is loading, skip');
+        return Promise.resolve(true);
+      }
       setLoading(true);
-      try {
-        const { data, hasNextPage: newHasNextPage } = await loadItems(params);
 
+      const handleLoadMore = ({ data, hasNextPage: newHasNextPage }: { data: DataItem<T>[]; hasNextPage: boolean }) => {
+        //console.log('loadMore', data, newHasNextPage);
         setItems((current) => {
           if (enableDeduplication) {
             // Create set of existing keys
@@ -116,7 +122,7 @@ export function useBidirectionalData<T>({
                   typeof a.getKey(a) === 'number' &&
                   typeof b.getKey(b) === 'number'
                 ) {
-                  return (b.getKey(b) as number) - (a.getKey(a) as number) 
+                  return (b.getKey(b) as number) - (a.getKey(a) as number)
                 } else {
                   return a
                     .getKey(a)
@@ -133,7 +139,7 @@ export function useBidirectionalData<T>({
                 typeof a.getKey(a) === 'number' &&
                 typeof b.getKey(b) === 'number'
               ) {
-                return (b.getKey(b) as number) - (a.getKey(a) as number) 
+                return (b.getKey(b) as number) - (a.getKey(a) as number)
               } else {
                 return a
                   .getKey(a)
@@ -144,22 +150,24 @@ export function useBidirectionalData<T>({
           }
         });
         setHasNextPage(newHasNextPage);
-
-        if (!newHasNextPage){
+        if (!newHasNextPage) {
           //reset 1 seconds
           setTimeout(() => {
             setHasNextPage(true);
           }, 1000);
         }
+      };
 
-      } catch (error_) {
-        console.error('Error loading items:', error_);
-        setError(
-          error_ instanceof Error ? error_ : new Error('Something went wrong'),
-        );
-      } finally {
-        setLoading(false);
-      }
+      let promise = new Promise<boolean>((resolve, reject) => {
+        loadItems(params).then(({ data, hasNextPage: newHasNextPage }) => {
+          setLoading(false);
+          handleLoadMore({ data, hasNextPage: newHasNextPage });
+          resolve(false);
+        }).catch((error) => {
+          reject(error);
+        });
+      });
+      return promise;
     },
     [loading, loadItems, enableDeduplication],
   );
@@ -172,8 +180,8 @@ export function useBidirectionalData<T>({
     if (initialLoadParams) {
       loadMore(initialLoadParams);
     } else {
-      console.log('initialLoadParams is not provided, load more with key 0');
-      loadMore({ forward: { key: 0 } });
+      console.log('initialLoadParams is not provided, load more with key 1 << 60');
+      loadMore({ backward: { key: 1 << 60 } });
     }
   }, [loadMore, initialLoadParams]);
 

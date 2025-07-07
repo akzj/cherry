@@ -2,15 +2,8 @@
 
 import { throttle } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import useInfiniteScroll, {
-  UseInfiniteScrollHookRefCallback,
-} from 'react-infinite-scroll-hook';
-
-
-
 import { DataItem, ItemKeyType } from '../hooks/use-bidirectional-data';
 import { styled } from 'styled-components';
-export type { UseInfiniteScrollHookRefCallback } from 'react-infinite-scroll-hook';
 
 const Container = styled.div`
   flex: 1;
@@ -84,7 +77,7 @@ export interface BidirectionalInfiniteScrollProps<T = {}> {
   error?: Error;
 
   // 回调函数
-  onLoadMore: (params: LoadItemsParams) => void;
+  onLoadMore: (params: LoadItemsParams) => Promise<boolean>;
   onTrimItems?: (direction: 'forward' | 'backward', count: number) => void;
 
   // 配置选项
@@ -97,11 +90,6 @@ export interface BidirectionalInfiniteScrollProps<T = {}> {
 
   // 渲染函数
   renderItem: (item: DataItem<T>) => React.ReactNode;
-
-  // 加载中渲染函数
-  renderLoading?: (
-    refCallback: UseInfiniteScrollHookRefCallback,
-  ) => React.ReactNode;
 
   // 错误渲染函数
   renderError?: (error: Error) => React.ReactNode;
@@ -123,7 +111,6 @@ const DEFAULT_CONFIG = {
   trimThreshold: 25,
   scrollThresholdUp: 0.25,
   scrollThresholdDown: 0.67,
-  bottomThreshold: 10,
   maxHeight: '500px',
   maxWidth: '500px',
   enableTrimming: true,
@@ -140,32 +127,16 @@ export function BidirectionalInfiniteScroll<T = {}>(
   const lastScrollTopRef = useRef<number>(0);
   const isTrimmingRef = useRef(false);
   const isBottomLoadingRef = useRef(false);
+  const isTrimDelayRef = useRef(false);
+  const scrollSpeedRef = useRef<number>(0);
 
   // State
   const [scrollDirection, setScrollDirection] = useState<
     'up' | 'down' | 'none'
   >('none');
-  const [isAtBottom, setIsAtBottom] = useState(false);
-  const [lastItem, setLastItem] = useState<DataItem<T> | undefined>(undefined);
 
-  // Infinite scroll hook
-  const [infiniteRef, { rootRef }] = useInfiniteScroll({
-    loading: props.loading,
-    hasNextPage: props.hasNextPage,
-    onLoadMore: () => {
-      console.log('onLoadMore', props.items.length);
-      if (props.items.length > 0) {
-        const lastItem = props.items[props.items.length - 1];
-        if (lastItem) {
-          props.onLoadMore({ backward: { key: lastItem.getKey(lastItem) } });
-          return;
-        }
-      }
-      // 加载最新的消息
-      props.onLoadMore({ backward: { key: 1 << 60 } });
-    },
-    disabled: Boolean(props.error),
-  });
+
+
 
   // Reversed items for display
   const reversedItems = useMemo(
@@ -184,38 +155,54 @@ export function BidirectionalInfiniteScroll<T = {}>(
       if (isTrimmingRef.current) {
         console.log('删除操作，保持滚动位置不变');
         const currentScrollTop = scrollableRoot.scrollTop;
-        scrollableRoot.scrollTop = currentScrollTop;
+        scrollableRoot.scrollTop = currentScrollTop;//+ scrollSpeedRef.current;
         isTrimmingRef.current = false;
       } else if (isBottomLoadingRef.current) {
         console.log('底部加载操作，保持滚动位置不变');
         const currentScrollTop = scrollableRoot.scrollTop;
-        scrollableRoot.scrollTop = currentScrollTop;
+        scrollableRoot.scrollTop = currentScrollTop;//+ scrollSpeedRef.current;
         isBottomLoadingRef.current = false;
       } else {
         console.log('正常加载，保持距离底部的距离');
-        scrollableRoot.scrollTop =
-          scrollableRoot.scrollHeight - lastScrollDistanceToBottom;
+        scrollableRoot.scrollTop = scrollableRoot.scrollHeight - lastScrollDistanceToBottom //+ scrollSpeedRef.current;
       }
     }
-  }, [reversedItems, rootRef, props.enableScrollPositionPreservation]);
+  }, [reversedItems, props.enableScrollPositionPreservation]);
 
   // Root ref setter
   const rootRefSetter = useCallback(
     (node: HTMLDivElement) => {
-      rootRef(node);
       scrollableRootRef.current = node;
     },
-    [rootRef],
+    [],
   );
+
+  const lastItem = useMemo(() => {
+    if (reversedItems.length > 0) {
+      return reversedItems[reversedItems.length - 1];
+    }
+    return undefined;
+  }, [reversedItems]);
+
+  const firstItem = useMemo(() => {
+    if (reversedItems.length > 0) {
+      return reversedItems[0];
+    }
+    return undefined;
+  }, [reversedItems]);
+
+  const itemSize = useMemo(() => {
+    return props.items.length;
+  }, [props.items]);
 
   // Scroll handler
   const handleRootScroll = useCallback(() => {
     const rootNode = scrollableRootRef.current;
-    if (!rootNode) return;
+    if (!rootNode)
+      return;
 
     const currentScrollTop = rootNode.scrollTop;
     const lastScrollTop = lastScrollTopRef.current;
-
     // Detect scroll direction
     const newScrollDirection =
       currentScrollTop > lastScrollTop
@@ -227,64 +214,98 @@ export function BidirectionalInfiniteScroll<T = {}>(
     setScrollDirection(newScrollDirection);
 
     // Update scroll position tracking
-    const scrollDistanceToBottom = rootNode.scrollHeight - rootNode.scrollTop;
 
-    console.log(
-      `Scroll event: direction=${newScrollDirection}, scrollTop=${currentScrollTop}, scrollHeight=${rootNode.scrollHeight}, clientHeight=${rootNode.clientHeight}, distanceToBottom=${scrollDistanceToBottom}`,
-    );
+    // console.log(
+    //   `Scroll event: direction=${newScrollDirection}, scrollTop=${currentScrollTop}, scrollHeight=${rootNode.scrollHeight}, clientHeight=${rootNode.clientHeight}, distanceToBottom=${scrollDistanceToBottom}`,
+    // );
+    const scrollDistanceToBottom = rootNode.scrollHeight - rootNode.scrollTop;
     lastScrollDistanceToBottomRef.current = scrollDistanceToBottom;
     lastScrollTopRef.current = currentScrollTop;
-
-    const trimThreshold = props.trimThreshold ?? DEFAULT_CONFIG.trimThreshold;
-    const scrollThresholdUp =
-      props.scrollThresholdUp ?? DEFAULT_CONFIG.scrollThresholdUp;
-    const scrollThresholdDown =
-      props.scrollThresholdDown ?? DEFAULT_CONFIG.scrollThresholdDown;
-    const bottomThreshold =
-      props.bottomThreshold ?? DEFAULT_CONFIG.bottomThreshold;
-    // Trimming logic
-    if (props.enableTrimming && props.onTrimItems) {
-      if (newScrollDirection === 'up' && props.items.length > trimThreshold) {
-        if (
-          rootNode.scrollTop > 0 &&
-          rootNode.scrollTop < rootNode.scrollHeight * scrollThresholdUp
-        ) {
-          console.log('向上滚动，删除多余的 items');
-          isTrimmingRef.current = true;
-          props.onTrimItems('backward', trimThreshold);
-        }
-      } else if (
-        newScrollDirection === 'down' &&
-        props.items.length > trimThreshold
-      ) {
-        if (
-          rootNode.scrollTop > 0 &&
-          rootNode.scrollTop > rootNode.scrollHeight * scrollThresholdDown
-        ) {
-          console.log('向下滚动，删除多余的 items');
-          isTrimmingRef.current = true;
-          props.onTrimItems('forward', trimThreshold);
-        }
-      }
-    }
-
-    // Update last item
-    if (reversedItems.length > 0) {
-      const lastItem = reversedItems[reversedItems.length - 1];
-      setLastItem(lastItem);
-    }
 
     // Bottom detection and loading
     const scrollTop = rootNode.scrollTop;
     const scrollHeight = rootNode.scrollHeight;
     const clientHeight = rootNode.clientHeight;
 
-    const isBottom = scrollTop + clientHeight >= scrollHeight - bottomThreshold;
-    setIsAtBottom(isBottom);
+    const trimThreshold = props.trimThreshold ?? DEFAULT_CONFIG.trimThreshold;
+    const scrollThresholdUp =
+      props.scrollThresholdUp ?? DEFAULT_CONFIG.scrollThresholdUp;
+    const scrollThresholdDown =
+      props.scrollThresholdDown ?? DEFAULT_CONFIG.scrollThresholdDown;
 
-    if (isBottom && lastItem && props.enableBottomLoading) {
-      isBottomLoadingRef.current = true;
-      props.onLoadMore({ forward: { key: lastItem.getKey(lastItem) } });
+    const isBottom = scrollTop + clientHeight >= scrollHeight * scrollThresholdDown;
+    scrollSpeedRef.current = currentScrollTop - lastScrollTop;
+    //console.log('scrollSpeedRef', scrollSpeedRef.current);
+    // Trimming logic
+    if (props.enableTrimming && props.onTrimItems) {
+      if (newScrollDirection === 'up') {
+        if (itemSize > trimThreshold * 3) {
+          if (props.onTrimItems) {
+            if (!isTrimDelayRef.current) {
+              console.log('向上滚动，删除多余的 items');
+              isTrimDelayRef.current = true;
+              setTimeout(() => {
+                isTrimDelayRef.current = false;
+                isTrimmingRef.current = true;
+                if (props.onTrimItems) {
+                  props.onTrimItems('backward', trimThreshold);
+                }
+              }, 100);
+            }
+          }
+        }
+        if (rootNode.scrollTop > 0 && rootNode.scrollTop < rootNode.scrollHeight * 0.2) {
+          if (firstItem) {
+            console.log('向上滚动，加载更多的 items');
+            props.onLoadMore({ backward: { key: firstItem.getKey(firstItem) }, load_size: 10 }).then((skip) => {
+              if (skip) {
+                console.log('加载更多的 items 跳过');
+                return;
+              }
+              console.log('加载更多的 items 完成');
+              const currentScrollTop = rootNode.scrollTop;
+              isBottomLoadingRef.current = false;
+              const lastScrollTop = lastScrollTopRef.current;
+              //rootNode.scrollTop = currentScrollTop + (currentScrollTop - lastScrollTop);
+            }).catch((error) => {
+              console.error('加载更多的 items 失败', error);
+            });
+          }
+        }
+      } else if (newScrollDirection === 'down') {
+        if (isBottom) {
+          console.log('向下滚动，删除多余的 items');
+
+          if (itemSize > trimThreshold * 1.5 && !isTrimDelayRef.current) {
+            isTrimDelayRef.current = true;
+            setTimeout(() => {
+              isTrimDelayRef.current = false;
+              if (props.onTrimItems) {
+                isTrimmingRef.current = true;
+                props.onTrimItems('forward', trimThreshold);
+              }
+            }, 100);
+          }
+
+          if (lastItem) {
+            props.onLoadMore({ forward: { key: lastItem.getKey(lastItem) }, load_size: 10 }).then((skip) => {
+              if (skip) {
+                console.log('加载更多的 items 跳过');
+                return;
+              }
+              console.log('加载更多的 items 完成');
+              isBottomLoadingRef.current = true;
+              const scrollDistanceToBottom = rootNode.scrollHeight - rootNode.scrollTop;
+              lastScrollDistanceToBottomRef.current = scrollDistanceToBottom;
+              lastScrollTopRef.current = rootNode.scrollTop;
+
+
+            }).catch((error) => {
+              console.error('加载更多的 items 失败', error);
+            });
+          }
+        }
+      }
     }
   }, [
     props.items.length,
@@ -301,7 +322,7 @@ export function BidirectionalInfiniteScroll<T = {}>(
 
   // Throttled scroll handler
   const throttledScrollHandler = useCallback(
-    throttle(handleRootScroll, 16), // 60fps
+    throttle(handleRootScroll, 1), // 60fps
     [handleRootScroll],
   );
 
@@ -319,12 +340,6 @@ export function BidirectionalInfiniteScroll<T = {}>(
         style={{ maxHeight: props.maxHeight, maxWidth: props.maxWidth, border: '1px solid blue' }}
         onScroll={throttledScrollHandler}
       >
-        {props.hasNextPage &&
-          (props.renderLoading ? (
-            props.renderLoading(infiniteRef)
-          ) : (
-            <div ref={infiniteRef}>Loading...</div>
-          ))}
 
         <div className="flex flex-col gap-1">
           {reversedItems.map((item) => (

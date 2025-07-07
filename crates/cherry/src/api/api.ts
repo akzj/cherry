@@ -38,11 +38,10 @@ export const removeReaction = async (conversationId: string, messageId: number, 
 
 export const loadMessages = async (conversationId: string, messageId: number, direction: 'forward' | 'backward', limit: number) => {
     console.log(`Loading messages for conversation ${conversationId}, direction: ${direction}, messageId: ${messageId}, limit: ${limit}`);
-    const messages = await invoke<Message[]>('cmd_list_messages', {
+    return invoke<Message[]>('cmd_list_messages', {
       conversationId: conversationId,
       forwardId: direction === 'forward' ? messageId : undefined,
       backwardId: direction === 'backward' ? messageId : undefined,
       limit: limit,
     }); 
-    return messages;
   };

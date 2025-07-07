@@ -24,7 +24,7 @@ interface MessageListProps {
 const MessageContainer = styled.div<{ $isOwn: boolean }>`
   display: flex;
   border: 1px solid green;  
-  //justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
+  justify-content: ${props => props.$isOwn ? 'flex-end' : 'flex-start'};
   align-items: flex-start;
   gap: 0.5rem;
   max-width: 100%;
@@ -241,17 +241,7 @@ const MessageItem = React.memo<{
   onScrollToMessage: (messageId: number) => void;
 }>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
   const isOwn = message.user_id === currentUserId;
-  console.log('MessageItem render:', {
-    currentUserId: currentUserId,
-    messageId: message.id,
-    userId: message.user_id,
-    isOwn,
-    content: message.content,
-    timestamp: message.timestamp,
-    reactions: message.reactions?.length || 0,
-  });
   const parsedContent = parseMessageContent(message.content, message.type_);
-
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('zh-CN', {
@@ -406,7 +396,7 @@ type MessageExt = DataItem<Message>;
 const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId, setReplyingTo }) => {
 
   const loadItems = useCallback(async (params: LoadItemsParams) => {
-
+    const {load_size = 100 } = params
     let messageId: number = 0;
     let direction: 'forward' | 'backward' = 'backward';
     if (params.forward) {
@@ -419,7 +409,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
 
     //await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    const messages = await loadMessages(conversationId, messageId, direction, 25);
+    const messages = await loadMessages(conversationId, messageId, direction, load_size);
     if (messages.length === 0) {
       console.info('no more message:', conversationId, messageId, direction);
       return {
@@ -509,10 +499,6 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
 
-  const renderLoading = useCallback((refCallback: any) => {
-    return <div ref={refCallback} style={{ textAlign: 'center', padding: '1rem' }}>加载中...</div>;
-  }, []);
-
   const renderError = useCallback(() => {
     return (
       <div style={{ textAlign: 'center', padding: '1rem', color: 'red' }}>
@@ -536,17 +522,16 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
         }
       }}
       renderItem={renderItem}
-      renderLoading={renderLoading}
       renderError={renderError}
       trimThreshold={100}
-      scrollThresholdUp={0.25}
-      scrollThresholdDown={0.70}
-      bottomThreshold={30}
-      maxHeight="2000px"
-      maxWidth="2000px"
+      scrollThresholdUp={0.15}
+      scrollThresholdDown={0.75}
+      bottomThreshold={100}
       enableTrimming={true}
       enableBottomLoading={true}
       enableScrollPositionPreservation={true}
+      maxHeight="2000px"
+      maxWidth="2000px"
       className="mt-4"
       containerClassName="container"
       renderDebugInfo={true}
