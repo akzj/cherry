@@ -160,8 +160,8 @@ export function useBidirectionalData<T>({
 
       let promise = new Promise<boolean>((resolve, reject) => {
         loadItems(params).then(({ data, hasNextPage: newHasNextPage }) => {
-          setLoading(false);
           handleLoadMore({ data, hasNextPage: newHasNextPage });
+          setLoading(false);
           resolve(false);
         }).catch((error) => {
           reject(error);
