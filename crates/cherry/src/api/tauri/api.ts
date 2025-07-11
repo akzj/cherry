@@ -17,23 +17,6 @@ export const sendMessage = async (
     });
 };
 
-export const addReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
-    await sendMessage(
-        conversationId,
-        JSON.stringify({ emoji, users: userId, action: 'add', targetMessageId: messageId }),
-        'reaction'
-    );
-};
-
-export const removeReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
-    await sendMessage(
-        conversationId,
-        JSON.stringify({ emoji, users: userId, action: 'remove', targetMessageId: messageId }),
-        'reaction'
-    );
-};
-
-
 export const loadMessages = async (conversationId: string, messageId: number, direction: 'forward' | 'backward', limit: number) => {
     return invoke<Message[]>('cmd_list_messages', {
       conversationId: conversationId,

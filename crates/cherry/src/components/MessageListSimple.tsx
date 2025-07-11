@@ -6,7 +6,7 @@ import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
 import QuickEmojiReply from './UI/QuickEmojiReply';
-import { addReaction, loadMessages, removeReaction } from '../api/api';
+import { loadMessages, sendMessage,  } from '@/api';
 import { ScrollU } from 'scroll-u'
 
 const appCacheDirPath = await appCacheDir();
@@ -239,6 +239,24 @@ interface MessageNodeProps {
 }
 
 
+export const addReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
+  await sendMessage(
+      conversationId,
+      JSON.stringify({ emoji, users: userId, action: 'add', targetMessageId: messageId }),
+      'reaction'
+  );
+};
+
+export const removeReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
+  await sendMessage(
+      conversationId,
+      JSON.stringify({ emoji, users: userId, action: 'remove', targetMessageId: messageId }),
+      'reaction'
+  );
+};
+
+
+
 // ==================== Component Implementation ====================
 const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
   const isOwn = message.user_id === currentUserId;
@@ -436,7 +454,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
   }
 
 
-  const loadMore = useCallback(async (direction: 'pre' | 'next', node: React.ReactNode) => {
+  const loadMore = useCallback(async (direction: 'pre' | 'next', node: React.ReactNode): Promise<React.ReactNode[]> => {
     const props = getMessageProps(node)!;
     const messageId = props.message.id;
     const messages = await loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
@@ -444,24 +462,21 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
       console.info('no more message:', conversationId, messageId, direction);
       return [];
     }
-    messages.map(item => {
-      return (
-        <MessageItem
-          key={item.conversation_id + item.id}
-          message={item}
-          currentUserId={currentUserId}
-          onReply={handleReply}
-          onReactionClick={handleReactionClick}
-          onScrollToMessage={handleScrollToMessage}
-        />
-      );
-    });
+    return messages.map(item => (
+      <MessageItem
+        key={item.conversation_id + item.id}
+        message={item}
+        currentUserId={currentUserId}
+        onReply={handleReply}
+        onReactionClick={handleReactionClick}
+        onScrollToMessage={handleScrollToMessage}
+      />
+    ));
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
 
   return (
     <ScrollU renderItem={loadMore} />
-
   );
 };
 
