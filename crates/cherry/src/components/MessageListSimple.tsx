@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import styled from 'styled-components';
-import { Message, parseMessageContent } from '../types/types';
+import { Message, parseMessageContent } from '@/types';
 import { appCacheDir } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
