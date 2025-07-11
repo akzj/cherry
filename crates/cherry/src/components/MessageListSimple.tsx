@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import styled from 'styled-components';
 import { Message, parseMessageContent } from '../types/types';
 import { appCacheDir } from '@tauri-apps/api/path';
@@ -7,9 +7,7 @@ import { path } from '@tauri-apps/api';
 import { invoke } from '@tauri-apps/api/core';
 import QuickEmojiReply from './UI/QuickEmojiReply';
 import { addReaction, loadMessages, removeReaction } from '../api/api';
-import { BidirectionalInfiniteScroll, LoadItemsParams } from './bidirectional-infinite-scroll';
-import { DataItem, useBidirectionalData } from '../hooks/use-bidirectional-data';
-import { message } from '@tauri-apps/plugin-dialog';
+import { ScrollU } from 'scroll-u'
 
 const appCacheDirPath = await appCacheDir();
 
@@ -232,14 +230,17 @@ const ReactionIcon = styled.button<{ active?: boolean }>`
   }
 `;
 
-// ==================== Component Implementation ====================
-const MessageItem = React.memo<{
+interface MessageNodeProps {
   message: Message;
   currentUserId: string;
   onReply: (message: Message) => void;
   onReactionClick: (message: Message, emoji: string) => void;
-  onScrollToMessage: (messageId: number) => void;
-}>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
+  onScrollToMessage: (data_message_id: string) => void;
+}
+
+
+// ==================== Component Implementation ====================
+const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
   const isOwn = message.user_id === currentUserId;
   const parsedContent = parseMessageContent(message.content, message.type_);
   const formatTime = (timestamp: string) => {
@@ -306,7 +307,6 @@ const MessageItem = React.memo<{
 
         <MessageHeader>
           <Username>{message.id}</Username>
-          {/* <Username>{message.user_id}</Username> */}
           <Timestamp>{formatTime(message.timestamp)}</Timestamp>
         </MessageHeader>
 
@@ -314,7 +314,7 @@ const MessageItem = React.memo<{
         {message.isReply && message.replyToMessage && (
           <ReplyQuote
             $isOwn={isOwn}
-            onClick={() => onScrollToMessage(message.replyToMessage!.id)}
+            onClick={() => onScrollToMessage(message.conversation_id + message.replyToMessage!.id)}
           >
             <ReplyQuoteHeader>
               <ReplyQuoteIcon>
@@ -391,71 +391,13 @@ const MessageItem = React.memo<{
   );
 });
 
-type MessageExt = DataItem<Message>;
 
 const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId, setReplyingTo }) => {
-
-  const loadItems = useCallback(async (params: LoadItemsParams) => {
-    const {load_size = 100 } = params
-    let messageId: number = 0;
-    let direction: 'forward' | 'backward' = 'backward';
-    if (params.forward) {
-      messageId = params.forward.key as number;
-      direction = 'forward';
-    } else if (params.backward) {
-      messageId = params.backward.key as number;
-      direction = 'backward';
-    }
-
-    //await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    const messages = await loadMessages(conversationId, messageId, direction, load_size);
-    if (messages.length === 0) {
-      console.info('no more message:', conversationId, messageId, direction);
-      return {
-        data: [],
-        hasNextPage: false,
-      };
-    }
-    // 处理消息数据
-    const data: MessageExt[] = messages.map(msg => ({
-      ...msg,
-      getKey(item) {
-        return item.id;
-      },
-    }) as MessageExt);
-    return {
-      data,
-      hasNextPage: true,
-    }
-
-  }, [conversationId]);
-
-
-  // 使用通用数据管理 hook
-  const {
-    loading,
-    items,
-    hasNextPage,
-    error,
-    loadMore,
-    trimItems,
-    trimForwardItems,
-    updateItem,
-    deleteItem,
-  } = useBidirectionalData({
-    loadItems,
-    initialLoadParams: { backward: { key: 1 << 60 } },
-    trimThreshold: 25,
-    enableDeduplication: true,
-  });
-
-
-  const handleReply = (message: Message) => {
+  const handleReply = useCallback((message: Message) => {
     setReplyingTo(message);
-  };
+  }, [setReplyingTo])
 
-  const handleScrollToMessage = (messageId: number) => {
+  const handleScrollToMessage = useCallback((messageId: string) => {
     // 滚动到被回复的消息
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
     if (messageElement) {
@@ -466,7 +408,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
         messageElement.classList.remove('highlight');
       }, 2000);
     }
-  };
+  }, []);
 
   // reaction 处理
   const handleReactionClick = (msg: Message, emoji: string) => {
@@ -485,57 +427,41 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
     }
   };
 
-  const renderItem = useCallback((item: MessageExt) => {
-    return (
-      <MessageItem
-        key={item.conversation_id + item.id}
-        message={item}
-        currentUserId={currentUserId}
-        onReply={handleReply}
-        onReactionClick={handleReactionClick}
-        onScrollToMessage={handleScrollToMessage}
-      />
-    );
+
+  function getMessageProps(node: ReactNode): MessageNodeProps | undefined {
+    if (node && React.isValidElement(node)) {
+      return node.props as MessageNodeProps;
+    }
+    return undefined;
+  }
+
+
+  const loadMore = useCallback(async (direction: 'pre' | 'next', node: React.ReactNode) => {
+    const props = getMessageProps(node)!;
+    const messageId = props.message.id;
+    const messages = await loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
+    if (messages.length === 0) {
+      console.info('no more message:', conversationId, messageId, direction);
+      return [];
+    }
+    messages.map(item => {
+      return (
+        <MessageItem
+          key={item.conversation_id + item.id}
+          message={item}
+          currentUserId={currentUserId}
+          onReply={handleReply}
+          onReactionClick={handleReactionClick}
+          onScrollToMessage={handleScrollToMessage}
+        />
+      );
+    });
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
 
-  const renderError = useCallback(() => {
-    return (
-      <div style={{ textAlign: 'center', padding: '1rem', color: 'red' }}>
-        加载失败，请稍后重试。
-      </div>
-    );
-  }, []);
-
   return (
-    <BidirectionalInfiniteScroll<Message>
-      items={items}
-      loading={loading}
-      hasNextPage={hasNextPage}
-      error={error}
-      onLoadMore={(params) => loadMore(params)}
-      onTrimItems={(direction, count) => {
-        if (direction === 'backward') {
-          trimItems(count);
-        } else {
-          trimForwardItems(count);
-        }
-      }}
-      renderItem={renderItem}
-      renderError={renderError}
-      trimThreshold={100}
-      scrollThresholdUp={0.15}
-      scrollThresholdDown={0.75}
-      bottomThreshold={100}
-      enableTrimming={true}
-      enableBottomLoading={true}
-      enableScrollPositionPreservation={true}
-      maxHeight="2000px"
-      maxWidth="2000px"
-      className="mt-4"
-      containerClassName="container"
-      renderDebugInfo={true}
-    />
+    <ScrollU renderItem={loadMore} />
+
   );
 };
 

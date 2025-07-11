@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { listen } from '@tauri-apps/api/event';
@@ -8,7 +7,6 @@ import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
 import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
-// import MessageTest from './components/MessageTest';
 import LoginForm from './pages/login';
 import { User } from './types/types';
 import { useWindowSize } from './hooks/useWindowsSize.ts';
@@ -19,10 +17,6 @@ import { useConversationStore } from './store/conversation';
 import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
 import { useAuthStore } from './store/auth';
-
-// import DebugPanel from './components/DebugPanel';
-// import MessageDebug from './components/MessageDebug';
-//import ScrollTest from './components/ScrollTest';
 
 // ==================== Styled Components ====================
 const AppContainer = styled.div`
@@ -635,18 +629,6 @@ const App: React.FC = () => {
 
       {/* Notification Manager */}
       <NotificationManager />
-
-      {/* Debug Panel */}
-      {/* <DebugPanel 
-        isVisible={isDebugVisible} 
-        onToggle={() => setIsDebugVisible(!isDebugVisible)} 
-      /> */}
-
-      {/* Message Debug */}
-      {/* <MessageDebug selectedConversation={selectedConversation} /> */}
-
-      {/* Scroll Test */}
-      {/* <ScrollTest /> */}
     </AppContainer>
   );
 };

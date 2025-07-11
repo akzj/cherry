@@ -23,14 +23,6 @@ const ConversationContainer: React.FC<ConversationContainerProps> = ({
   selectedConversationId,
   currentUserId,
 }) => {
-  //console.log('ConversationContainer render:', {
-  //  conversationCount: conversations.length,
-  //  selectedConversationId,
-  //  conversationIds: conversations.map(c => c.id)
-  //});
-
-
-
   return (
     <Container>
       {conversations.map((conversation) => (
