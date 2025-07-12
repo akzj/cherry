@@ -1,62 +1,58 @@
-import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { CherryMessage, Message, StreamEvent } from '../types/types';
+// src/hooks/useMessageReceiver.ts
+import { useEffect, useState } from 'react';
+import { getEventService } from '../services/eventService';
+import type { CherryMessage, Message, StreamEvent } from '../types';
 
 export const useMessageReceiver = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
+  const [isListening, setIsListening] = useState(false);
+
   useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-    
-    const setupListener = async () => {
-      unlistenFn = await listen('cherry-message', (event) => {
-        const cherryMessage = event.payload as CherryMessage;
-        if ('message' in cherryMessage) {
-            const message: Message = cherryMessage.message;
-        } else if ('event' in cherryMessage) {
-          const streamEvent = cherryMessage.event as StreamEvent;
-          console.log('Received stream event', streamEvent);
-          // Received stream event
-          
-          // 处理流事件
-        //   if (streamEvent.ConversationCreated) {
-        //     addNotification({
-        //       type: 'conversations_updated',
-        //       data: { 
-        //           conversationId: streamEvent.ConversationCreated.conversation_id 
-        //         },
-        //       timestamp: Date.now(),
-        //     });
-        //   } else if (streamEvent.ConversationMemberAdded) {
-        //     addNotification({
-        //       type: 'new_message',
-        //       data: { 
-        //           conversationId: streamEvent.ConversationMemberAdded.conversation_id,
-        //           memberId: streamEvent.ConversationMemberAdded.member_id 
-        //         },
-        //       timestamp: Date.now(),
-        //     });
-        //   } else if (streamEvent.ConversationMemberRemoved) {
-        //     addNotification({
-        //       type: 'new_message',
-        //       data: { 
-        //           conversationId: streamEvent.ConversationMemberRemoved.conversation_id,
-        //           memberId: streamEvent.ConversationMemberRemoved.member_id 
-        //         },
-        //       timestamp: Date.now(),
-        //     });
-        //   }
-        }
-      });
+    let unlisten: (() => void) | undefined;
+    const eventService = getEventService();
+
+    const startListening = async () => {
+      try {
+        // 监听 'cherry-message' 事件
+        unlisten = await eventService.listen('cherry-message', (msg: CherryMessage) => {
+          // 类型判断：是普通消息还是流事件
+          if ('message' in msg) {
+            // 处理普通消息
+            const newMessage = msg.message;
+            setMessages(prev => [...prev, newMessage]);
+          } else if ('event' in msg) {
+            // 处理流事件
+            const newEvent = msg.event;
+            setStreamEvents(prev => [...prev, newEvent]);
+            console.log('Received stream event:', newEvent);
+          } else {
+            console.warn('Unknown message structure:', msg);
+          }
+        });
+
+        setIsListening(true);
+      } catch (error) {
+        console.error('Failed to start listening:', error);
+        setIsListening(false);
+      }
     };
-    
-     setupListener();
-    
+
+    startListening();
+
     return () => {
-      if (unlistenFn) {
-        unlistenFn();
+      if (unlisten) {
+        unlisten();
+        setIsListening(false);
       }
     };
   }, []);
 
-
-  return {  };
-}; 
+  return {
+    messages,       // 所有普通消息
+    streamEvents,   // 所有流事件
+    isListening,    // 监听状态
+    clearMessages: () => setMessages([]),
+    clearEvents: () => setStreamEvents([]),
+  };
+};

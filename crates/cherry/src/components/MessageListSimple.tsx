@@ -1,15 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import styled from 'styled-components';
 import { Message, parseMessageContent } from '@/types';
-import { appCacheDir } from '@tauri-apps/api/path';
-import { exists } from '@tauri-apps/plugin-fs';
-import { path } from '@tauri-apps/api';
-import { invoke } from '@tauri-apps/api/core';
+
 import QuickEmojiReply from './UI/QuickEmojiReply';
 import { loadMessages, sendMessage,  } from '@/api';
 import { ScrollU } from 'scroll-u'
+import AsyncMessageImage from './AsyncMessageImage';
 
-const appCacheDirPath = await appCacheDir();
+
 
 interface MessageListProps {
   currentUserId: string;
@@ -269,48 +267,7 @@ const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onRe
     });
   };
 
-  // 简化的异步图片组件
-  const AsyncMessageImage: React.FC<{ url: string }> = ({ url }) => {
-    const [src, setSrc] = useState<string>();
-    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-      let mounted = true;
-      const getFile = async (url: string) => {
-        const cache_file_path = await path.join(appCacheDirPath, url);
-        const cache_file_exists = await exists(cache_file_path);
-        if (cache_file_exists) {
-          return cache_file_path;
-        }
-        return await invoke('cmd_download_file', {
-          url: url,
-          filePath: cache_file_path
-        });
-      };
-      (async () => {
-        setIsLoading(true);
-        const path = await getFile(url);
-        if (mounted) {
-          setSrc(path as string);
-          setIsLoading(false);
-        }
-      })();
-      return () => { mounted = false; };
-    }, [url]);
-
-    if (isLoading) {
-      return <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>图片加载中...</div>;
-    }
-
-    if (!src) return <span>图片加载失败</span>;
-
-    return (
-      <img
-        src={`cherry://localhost?file_path=${src}`}
-        style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }}
-      />
-    );
-  };
 
   return (
     <MessageContainer $isOwn={isOwn} data-message-id={message.conversation_id + message.id} className="message-container">

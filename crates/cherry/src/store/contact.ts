@@ -214,6 +214,6 @@ function groupContactsByLetter(contacts: Contact[]): ContactGroup[] {
     .map(letter => ({
       id: letter,
       title: letter,
-      contacts: groups[letter].sort((a, b) => a.remark_name?.localeCompare(b.remark_name) || 0)
+      contacts: groups[letter].sort((a, b) => (a.remark_name || '').localeCompare(b.remark_name || '') || 0)
     }));
 } 

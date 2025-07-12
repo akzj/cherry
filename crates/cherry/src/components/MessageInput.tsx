@@ -5,11 +5,11 @@ import { invoke } from '@tauri-apps/api/core';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
-import { ImageContent, Message, QuillContent } from '../types/types';
+import { ImageContent, Message, QuillContent } from '@/types';
 import 'react-quill/dist/quill.snow.css';
 import ReactQuill from 'react-quill';
 import editIcon from '../assets/edit.svg';
-import { sendMessage } from '../api/api';
+import { sendMessage } from '@/api';
 
 interface MessageInputProps {
   conversationId: string;

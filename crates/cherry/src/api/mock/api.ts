@@ -1,7 +1,6 @@
 // tauri api
 import { Message } from "@/types";
 import { db } from './data/db'
-import { useRef } from "react";
 
 let user_id = "";
 // 可根据需要提供设置 user_id 的方法

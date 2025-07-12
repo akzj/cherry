@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Message, parseMessageContent } from '../types/types';
+import { Message, parseMessageContent } from '@/types';
 
 interface ReplyMessageProps {
   message: Message;
