@@ -1,5 +1,5 @@
 import type { Contact } from '@/types';
-import type { Group } from '@/types/contact';
+import type { Group } from '@/types';
 
 export interface ContactService {
   listAllContacts(): Promise<Contact[]>;
@@ -10,4 +10,12 @@ export interface ContactService {
   createGroup(groupData: any): Promise<Group>;
   joinGroup(groupId: string): Promise<void>;
   leaveGroup(groupId: string): Promise<void>;
+}
+
+export class ServiceError extends Error {
+  code: string;
+  constructor(message: string, code = 'SERVICE_ERROR') {
+    super(message);
+    this.code = code;
+  }
 } 

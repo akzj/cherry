@@ -1,4 +1,4 @@
-import { ImageContent, MessageContent, ParsedMessageContent } from ".";
+import { ImageContent, MessageContent, ParsedMessageContent, Message } from "./models/message";
 
 // 根据消息类型解析内容的函数
 export function parseMessageContent(content: MessageContent, messageType: string): ParsedMessageContent {
@@ -179,3 +179,18 @@ export function parseMessageContent(content: MessageContent, messageType: string
         };
     }
   }
+
+/**
+ * 构建消息回复关系
+ */
+export function buildReplyRelations(messages: Message[]): Message[] {
+  const msgMap = new Map<number, Message>();
+  messages.forEach(msg => msgMap.set(msg.id, msg));
+  messages.forEach(msg => {
+    if (msg.reply_to) {
+      msg.replyToMessage = msgMap.get(msg.reply_to) || undefined;
+      msg.isReply = !!msg.reply_to;
+    }
+  });
+  return messages;
+}

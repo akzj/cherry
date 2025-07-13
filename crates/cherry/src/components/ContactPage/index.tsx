@@ -7,7 +7,7 @@ import ErrorMessage from '../UI/ErrorMessage';
 import EmptyState from '../UI/EmptyState';
 import { useContactStore } from '../../store/contact';
 import { FaUserFriends, FaUsers, FaPlus, FaSearch } from 'react-icons/fa';
-import { Contact } from '../../types/contact';
+import { Contact } from '@/types';
 import ContactProfileModal from './ContactProfileModal';
 import { useConversationStore } from '../../store/conversation';
 

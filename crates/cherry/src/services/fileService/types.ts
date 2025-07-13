@@ -18,3 +18,11 @@ export interface FileService {
   toAccessibleUrl(filePath: string): string;
   getFileInfo(filePath: string): Promise<FileInfo>;
 }
+
+export class ServiceError extends Error {
+  code: string;
+  constructor(message: string, code = 'SERVICE_ERROR') {
+    super(message);
+    this.code = code;
+  }
+}

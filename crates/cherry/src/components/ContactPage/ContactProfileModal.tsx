@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Avatar } from '../UI';
-import { Contact } from '../../types/contact';
+import { Contact } from '@/types';
 import { FaEnvelope, FaCommentDots, FaPhoneAlt, FaVideo } from 'react-icons/fa';
 
 interface ContactProfileModalProps {

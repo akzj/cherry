@@ -1,0 +1,29 @@
+// {{SERVICE_NAME}} 服务类型定义
+// 文件名: types.ts
+// 描述: {{SERVICE_DESCRIPTION}}
+
+import type { {{IMPORT_TYPES}} } from '@/types';
+
+/**
+ * {{SERVICE_NAME}} 服务接口
+ * 
+ * {{SERVICE_DESCRIPTION}}
+ */
+export interface {{SERVICE_NAME}}Service {
+  {{METHOD_DEFINITIONS}}
+}
+
+/**
+ * 服务错误类型
+ * 统一的服务层错误处理
+ */
+export class ServiceError extends Error {
+  code: string;
+  constructor(message: string, code = 'SERVICE_ERROR') {
+    super(message);
+    this.code = code;
+  }
+}
+
+// 导出相关类型
+export type { {{EXPORT_TYPES}} }; 

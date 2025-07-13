@@ -1,6 +1,5 @@
 import React from 'react';
 import styled from 'styled-components';
-import { useMessageStore } from '../store/message';
 
 const DebugContainer = styled.div`
   position: fixed;
@@ -26,9 +25,9 @@ declare global {
 }
 
 const MessageDebug: React.FC<{ selectedConversation: string | null }> = ({ selectedConversation }) => {
-  const { messages } = useMessageStore();
   const [currentScrollTop, setCurrentScrollTop] = React.useState(0);
   const [savedPositions, setSavedPositions] = React.useState<Record<string, number>>({});
+  const [messages, setMessages] = React.useState<Record<string, any[]>>({});
 
   // 监听滚动位置变化
   React.useEffect(() => {

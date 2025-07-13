@@ -1,6 +1,6 @@
 import { LocalDbAdapter } from '@/services/mock/LocalDbAdapter';
 import { Contact } from '@/types';
-import { Group } from '@/types/contact';
+import { Group } from '@/types';
 
 export type ContactDbData = {
   contacts: Contact[];

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User } from '../types/types';
+import { User } from '@/types';
 import styled, { keyframes } from 'styled-components';
 
 interface StatusBarProps {

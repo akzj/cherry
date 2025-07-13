@@ -40,6 +40,7 @@ export const mockAuthService: AuthService = {
 
     // 生成模拟用户（不同邮箱对应不同头像）
     const baseUser: User = {
+      id: `mock-user-${Date.now().toString().slice(-4)}`,
       user_id: `mock-user-${Date.now().toString().slice(-4)}`,
       username: mockConfig.mockUser?.username || 'Mock User',
       email: email,

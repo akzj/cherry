@@ -1,0 +1,15 @@
+// {{SERVICE_NAME}} 服务 Mock 实现
+// 文件名: mockImpl.ts
+// 描述: {{SERVICE_DESCRIPTION}} 的 Mock 环境实现
+
+import type { {{SERVICE_NAME}}Service } from './types';
+import type { {{IMPORT_TYPES}} } from '@/types';
+
+/**
+ * {{SERVICE_NAME}} 服务的 Mock 实现
+ * 
+ * 在开发环境中，提供模拟数据和行为
+ */
+export const mock{{SERVICE_NAME}}Service: {{SERVICE_NAME}}Service = {
+  {{MOCK_METHOD_IMPLEMENTATIONS}}
+}; 

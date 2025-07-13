@@ -14,3 +14,11 @@ export interface AuthService {
   validateToken: (token: string) => Promise<boolean>;
   logout: () => Promise<void>; // 必实现（允许空操作）
 }
+
+export class ServiceError extends Error {
+  code: string;
+  constructor(message: string, code = 'SERVICE_ERROR') {
+    super(message);
+    this.code = code;
+  }
+}

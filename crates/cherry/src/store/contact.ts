@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { contactService } from '@/services/contactService';
-import { Contact, ContactGroup, Group } from '../types/contact';
+import { Contact, ContactGroup, Group } from '@/types';
 
 // 联系人状态接口
 interface ContactState {

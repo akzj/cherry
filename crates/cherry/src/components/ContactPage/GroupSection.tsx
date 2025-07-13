@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Group } from '../../types/contact';
+import { Group } from '@/types';
 import Avatar from '../UI/Avatar';
 import { FaCrown, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 

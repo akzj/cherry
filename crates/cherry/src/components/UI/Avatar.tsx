@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Contact } from '../../types/contact';
+import type { Contact } from '@/types';
 
 interface AvatarProps {
   src: string;

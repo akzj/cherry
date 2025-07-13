@@ -1,7 +1,7 @@
 // src/components/Sidebar.tsx
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Conversation, User } from '../types/types';
+import { Conversation, User } from '@/types';
 import ContactList from './ContactList.tsx';
 import { FaUserFriends } from 'react-icons/fa';
 

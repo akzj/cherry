@@ -1,0 +1,15 @@
+// {{SERVICE_NAME}} 服务 Tauri 实现
+// 文件名: tauriImpl.ts
+// 描述: {{SERVICE_DESCRIPTION}} 的 Tauri 环境实现
+
+import { invoke } from '@tauri-apps/api/core';
+import type { {{SERVICE_NAME}}Service } from './types';
+
+/**
+ * {{SERVICE_NAME}} 服务的 Tauri 实现
+ * 
+ * 在 Tauri 环境中，通过 invoke 调用后端命令
+ */
+export const tauri{{SERVICE_NAME}}Service: {{SERVICE_NAME}}Service = {
+  {{TAURI_METHOD_IMPLEMENTATIONS}}
+}; 

@@ -91,17 +91,7 @@ export interface QuillContent {
 }
 
 
-export function buildReplyRelations(messages: Message[]): Message[] {
-    const msgMap = new Map<number, Message>();
-    messages.forEach(msg => msgMap.set(msg.id, msg));
-    messages.forEach(msg => {
-        if (msg.reply_to) {
-            msg.replyToMessage = msgMap.get(msg.reply_to) || undefined;
-            msg.isReply = !!msg.reply_to;
-        }
-    });
-    return messages;
-}
+// buildReplyRelations函数已移动到typeUtils.ts
 
 export interface Reaction {
     emoji: string;

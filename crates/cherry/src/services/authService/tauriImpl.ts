@@ -17,6 +17,7 @@ export const tauriAuthService: AuthService = {
         };
         const result = await invoke<LoginResponse>('cmd_login', { email, password, onEvent });
         const user: User = {
+            id: result.user_id,
             user_id: result.user_id,
             username: result.username,
             email: result.email,

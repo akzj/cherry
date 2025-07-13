@@ -1,0 +1,15 @@
+// {{SERVICE_NAME}} 服务导出入口
+// 文件名: index.ts
+// 描述: {{SERVICE_DESCRIPTION}} 的统一导出入口
+
+import { isTauriEnv } from '@/utils';
+import { tauri{{SERVICE_NAME}}Service } from './tauriImpl';
+import { mock{{SERVICE_NAME}}Service } from './mockImpl';
+
+// 导出类型定义
+export * from './types';
+
+// 根据环境自动选择实现
+export const {{SERVICE_NAME_LOWER}}Service = isTauriEnv 
+  ? tauri{{SERVICE_NAME}}Service 
+  : mock{{SERVICE_NAME}}Service; 

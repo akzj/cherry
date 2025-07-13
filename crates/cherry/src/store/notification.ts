@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { Contact, Conversation } from '../types/types';
+import { Contact, Conversation } from '@/types';
 
 // 通知类型
 export type NotificationType = 'contacts_updated' | 'conversations_updated' | 'new_message' | 'user_status_changed';

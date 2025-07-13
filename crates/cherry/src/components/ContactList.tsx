@@ -1,7 +1,7 @@
 // src/components/ContactList.tsx
 import React from 'react';
 import styled from 'styled-components';
-import { Conversation } from '../types/types';
+import { Conversation } from '@/types';
 
 interface ContactListProps {
   conversations: Conversation[];

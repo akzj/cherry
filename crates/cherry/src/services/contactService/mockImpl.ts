@@ -1,6 +1,6 @@
 import type { ContactService } from './types';
 import type { Contact } from '@/types';
-import type { Group } from '@/types/contact';
+import type { Group } from '@/types';
 import { contactDb, defaultContactDb } from './data/db';
 
 export const mockContactService: ContactService = {

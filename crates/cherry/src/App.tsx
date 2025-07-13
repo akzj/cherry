@@ -163,6 +163,7 @@ const App: React.FC = () => {
 
   // 当前用户信息
   const currentUser: User = {
+    id: user?.user_id || 'user1',
     user_id: user?.user_id || 'user1',
     username: user?.username || 'Current User',
     email: user?.email || 'user@example.com',

@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ContactService } from './types';
 import type { Contact } from '@/types';
-import type { Group } from '@/types/contact';
+import type { Group } from '@/types';
 
 export const tauriContactService: ContactService = {
   listAllContacts: async () => {

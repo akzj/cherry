@@ -16,3 +16,11 @@ export interface EventService<T = any> {
 
 // 兼容性类型别名，保持向后兼容
 export type CherryEventService = EventService<CherryMessage>;
+
+export class ServiceError extends Error {
+  code: string;
+  constructor(message: string, code = 'SERVICE_ERROR') {
+    super(message);
+    this.code = code;
+  }
+}
