@@ -2,6 +2,9 @@
 import type { AuthService, AuthResult } from './types';
 import type { User, UserStatus, CherryMessage } from '@/types';
 import { EVT_CHERRY_MSG } from './tauriImpl'; // 复用事件名常量
+import { LocalDbAdapter } from '../mock/LocalDbAdapter';
+
+const userDb = new LocalDbAdapter<User>('mock_user');
 
 // Mock 配置（支持更细粒度的控制）
 type MockConfig = {
@@ -25,6 +28,29 @@ export const setAuthMockConfig = (config: Partial<MockConfig>) => {
   mockConfig = { ...mockConfig, ...config };
 };
 
+export async function mockLogin(email: string, password: string): Promise<User> {
+  // 1. 尝试从本地读取
+  let user = await userDb.read();
+  if (user && user.email === email) {
+    return user;
+  }
+
+  // 2. 没有则生成新用户
+  const baseUser: User = {
+    id: `mock-user-id`,
+    user_id: `mock-user-id`,
+    username: 'Mock User',
+    email,
+    avatar_url: `https://i.pravatar.cc/200?u=${email}`,
+    status: 'online',
+  };
+
+  // 3. 写入本地
+  await userDb.write(baseUser);
+
+  return baseUser;
+}
+
 // Mock 服务实现
 export const mockAuthService: AuthService = {
   login: async (email: string, password: string): Promise<AuthResult> => {
@@ -40,8 +66,8 @@ export const mockAuthService: AuthService = {
 
     // 生成模拟用户（不同邮箱对应不同头像）
     const baseUser: User = {
-      id: `mock-user-${Date.now().toString().slice(-4)}`,
-      user_id: `mock-user-${Date.now().toString().slice(-4)}`,
+      id: `mock-user-id`,
+      user_id: `mock-user-id`,
       username: mockConfig.mockUser?.username || 'Mock User',
       email: email,
       avatar_url: mockConfig.mockUser?.avatar_url || `https://i.pravatar.cc/200?u=${email}`,
