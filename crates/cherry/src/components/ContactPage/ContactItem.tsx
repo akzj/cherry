@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
-import Avatar from '../UI/Avatar';
-import { Contact } from '../../types/contact';
+import Avatar from '@/components/UI/Avatar';
+import { Contact } from '@/types';
 
 interface ContactItemProps {
   contact: Contact;

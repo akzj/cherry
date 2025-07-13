@@ -1,5 +1,5 @@
 // src/services/fileService/mockImpl.ts（增强版）
-import type { FileService } from './types';
+import type { FileService, FileUploadCompleteResponse, FileInfo } from './types';
 
 // 全局变量存储 mock 配置（可被 Storybook 参数修改）
 let mockConfig = { delay: 1000, shouldFail: false };
@@ -9,32 +9,33 @@ export const setMockConfig = (config: Partial<typeof mockConfig>) => {
 };
 
 export const mockFileService: FileService = {
-  getCacheDirPath: async () => 'mock-cache-dir',
-  exists: async (cachePath) => {
-    const cachedFiles = JSON.parse(localStorage.getItem('mock-cached-files') || '[]');
-    return cachedFiles.includes(cachePath);
+  uploadFile: async (conversationId, filePath) => {
+    await new Promise(res => setTimeout(res, 200));
+    return {
+      file_url: 'https://mock.cdn/image.png',
+      file_thumbnail_url: 'https://mock.cdn/thumb.png',
+      file_metadata: { mock: true }
+    };
+  },
+  getCacheDirPath: async () => {
+    return '/mock/cache/dir';
+  },
+  exists: async (filePath) => {
+    // 简单模拟：所有文件都不存在
+    return false;
   },
   downloadFile: async (url, cachePath) => {
-    // 模拟延迟
-    await new Promise(resolve => setTimeout(resolve, mockConfig.delay));
-    
-    // 模拟失败
-    if (mockConfig.shouldFail) {
-      throw new Error('模拟下载失败');
-    }
-
-    // 生成 mock 图片 URL（用原始 url 的 seed 保持图片一致性）
-    const seed = url.split('seed/')[1]?.split('/')[0] || 'default';
-    const mockImageUrl = `https://picsum.photos/seed/${seed}/200/200`;
-
-    // 更新缓存
-    const cachedFiles = JSON.parse(localStorage.getItem('mock-cached-files') || '[]');
-    if (!cachedFiles.includes(cachePath)) {
-      cachedFiles.push(cachePath);
-      localStorage.setItem('mock-cached-files', JSON.stringify(cachedFiles));
-    }
-
-    return mockImageUrl;
+    // 直接返回 cachePath，模拟“下载”成功
+    return cachePath;
   },
-  toAccessibleUrl: (filePath) => filePath,
+  getFileInfo: async (filePath) => {
+    return {
+      name: filePath.split('/').pop() || 'image',
+      size: 123456
+    };
+  },
+  toAccessibleUrl: (filePath) => {
+    // 直接返回 filePath 或拼接 mock 协议
+    return `mock://${filePath}`;
+  }
 };

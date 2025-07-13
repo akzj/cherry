@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
+import { contactService } from '@/services/contactService';
 import { Contact, ContactGroup, Group } from '../types/contact';
 
 // 联系人状态接口
@@ -61,7 +61,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
       set({ isLoading: true, error: null });
       
       // 获取联系人列表
-      const contacts = await invoke('cmd_contact_list_all') as Contact[];
+      const contacts = await contactService.listAll();
       
       // 将联系人按字母分组
       const contactGroups = groupContactsByLetter(contacts);
@@ -85,10 +85,10 @@ export const useContactStore = create<ContactState>((set, get) => ({
       set({ isLoading: true, error: null });
       
       // 获取我创建的群组
-      const ownedGroups = await invoke('cmd_group_list_owned') as Group[];
+      const ownedGroups = await contactService.listOwnedGroups();
       
       // 获取我加入的群组
-      const joinedGroups = await invoke('cmd_group_list_joined') as Group[];
+      const joinedGroups = await contactService.listJoinedGroups();
       
       set({ 
         ownedGroups, 
@@ -115,7 +115,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
       }
       
       // 搜索联系人
-      const searchResults = await invoke('cmd_contact_search', { query }) as Contact[];
+      const searchResults = await contactService.search(query);
       
       // 将搜索结果按字母分组
       const contactGroups = groupContactsByLetter(searchResults);
@@ -138,7 +138,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      const newGroup = await invoke('cmd_group_create', { groupData }) as Group;
+      const newGroup = await contactService.createGroup(groupData);
       
       // 更新创建的群组列表
       const currentOwnedGroups = get().ownedGroups;
@@ -159,7 +159,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('cmd_group_join', { groupId });
+      await contactService.joinGroup(groupId);
       
       // 重新加载群组数据
       await get().refreshGroups();
@@ -176,7 +176,7 @@ export const useContactStore = create<ContactState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('cmd_group_leave', { groupId });
+      await contactService.leaveGroup(groupId);
       
       // 重新加载群组数据
       await get().refreshGroups();

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled, { css } from 'styled-components';
 import ContactItem from './ContactItem';
-import type { ContactGroup, Contact } from '../../types/contact';
+import type { ContactGroup, Contact } from '@/types';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ContactGroupProps {

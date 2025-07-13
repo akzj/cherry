@@ -3,23 +3,25 @@ import { path } from '@tauri-apps/api';
 import { appCacheDir } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
+import type { FileService, FileUploadCompleteResponse, FileInfo } from './types';
 
-import type { FileService } from './types';
-
-// Tauri 环境的实现：调用真实 Tauri API
 export const tauriFileService: FileService = {
+  uploadFile: async (conversationId, filePath) => {
+    return await invoke<FileUploadCompleteResponse>('cmd_upload_file', { conversationId, filePath });
+  },
   getCacheDirPath: async () => {
-    return await appCacheDir(); // Tauri 提供的缓存目录
+    return await appCacheDir();
   },
   exists: async (filePath) => {
-    return await exists(filePath); // Tauri 的文件存在检查
+    return await exists(filePath);
   },
   downloadFile: async (url, cachePath) => {
-    // 调用 Tauri 的下载命令（原组件的 invoke 逻辑）
     return await invoke('cmd_download_file', { url, filePath: cachePath });
   },
   toAccessibleUrl: (filePath) => {
-    // Tauri 自定义协议，用于访问本地文件
     return `cherry://localhost?file_path=${filePath}`;
   },
+  getFileInfo: async (filePath) => {
+    return await invoke<FileInfo>('cmd_get_file_info', { filePath });
+  }
 };

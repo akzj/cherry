@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { vi } from 'vitest';
 import App from './App';
-import { mockTauriService } from './services/tauriService/mockImpl';
+import { mockEventService } from './services/eventService/mockImpl';
 
-// Mock Tauri服务
-vi.mock('./services/tauriService', () => ({
-  tauriServiceInstance: mockTauriService,
+// Mock Event服务
+vi.mock('./services/eventService', () => ({
+  getEventService: () => mockEventService,
 }));
 
 const meta: Meta<typeof App> = {
@@ -32,17 +32,17 @@ export const WithMockNotifications: Story = {
   play: async () => {
     // 模拟触发一些通知事件
     setTimeout(() => {
-      mockTauriService.emit('notification', {
+      mockEventService.emit('notification', {
         event_type: 'new_message',
         data: { message: 'Hello from Storybook!' }
-      });
+      } as any);
     }, 1000);
     
     setTimeout(() => {
-      mockTauriService.emit('notification', {
+      mockEventService.emit('notification', {
         event_type: 'contacts_updated',
         data: { count: 5 }
-      });
+      } as any);
     }, 2000);
   },
 };

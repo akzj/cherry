@@ -14,7 +14,7 @@ import { useConversationStore } from './store/conversation';
 import { useMessageReceiver } from './hooks/useMessageReceiver';
 import { ErrorMessage } from './components/UI';
 import { useAuthStore } from './store/auth';
-import { tauriServiceInstance } from './services/tauriService';
+import { getEventService } from './services/eventService';
 import {
   AppContainer,
   LoadingSpinner,
@@ -36,6 +36,14 @@ import {
   SettingsModalContainer,
   ContactModalContainer,
 } from './App.styles';
+
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error || e.message, e);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled promise rejection:', e.reason, e);
+});
+
 
 
 
@@ -101,8 +109,9 @@ const App: React.FC = () => {
 
   // 监听通知事件
   useEffect(() => {
-    const unlisten = tauriServiceInstance.listen('notification', (event) => {
-      const { event_type, data } = event.payload as any;
+    const eventService = getEventService();
+    const unlisten = eventService.listen('notification', (message) => {
+      const { event_type, data } = message as any;
       console.log('Received notification:', event_type, data);
 
       switch (event_type) {

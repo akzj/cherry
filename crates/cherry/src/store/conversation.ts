@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
-import { Conversation, ConversationBase, Message, User, Contact } from '../types/types';
-import { useMessageStore } from './message';
-import { useAuth } from './auth';
+import { Message, User, Contact, Conversation, ConversationBase } from '@/types';
+import { conversationService } from '@/services/conversationService';
+import { contactService } from '@/services/contactService';
 
 // 会话状态接口
 interface ConversationState {
@@ -64,18 +63,22 @@ const transformConversation = (backendConversation: ConversationBase, contacts: 
       id: contact.target_id,
       name: contact.remark_name || 'Unknown User',
       avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-      status: 'offline' as 'online' | 'offline' | 'away' // 默认离线状态
+      status: 'offline' as 'online' | 'offline' | 'away', // 默认离线状态
+      email: '',
+      user_id: "",
+      username: "",
+      avatar_url: ""
     }));
 
   // 获取该会话的消息
-  const conversationMessages = messages.filter(msg => 
+  const conversationMessages = messages.filter(msg =>
     // 这里需要根据实际的消息数据结构来过滤
     // 暂时返回空数组，消息将通过 MessageStore 单独管理
     false
   );
 
   // 获取最后一条消息
-  const lastMessage = conversationMessages.length > 0 
+  const lastMessage = conversationMessages.length > 0
     ? conversationMessages[conversationMessages.length - 1]
     : undefined;
 
@@ -124,12 +127,12 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
       // 并行获取会话列表和联系人列表
       const [backendConversations, contacts] = await Promise.all([
-        invoke('cmd_conversation_list_all') as Promise<ConversationBase[]>,
-        invoke('cmd_contact_list_all') as Promise<Contact[]>
+        conversationService.listAllConversations(),
+        contactService.listAllContacts(),
       ]);
 
       // 转换数据格式，传入联系人信息
-      const transformedConversations = backendConversations.map(conv => 
+      const transformedConversations = backendConversations.map(conv =>
         transformConversation(conv, contacts)
       );
 
@@ -158,10 +161,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   createDirectConversation: async (targetUserId: string) => {
     try {
       // 调用后端API创建会话
-      const result = await invoke('cmd_create_conversation', {
-        conversationType: 'direct',
-        members: [targetUserId],
-      }) as { conversation_id: string };
+      const result = await conversationService.createConversation(targetUserId);
       // 刷新会话列表
       await get().refreshConversations();
       return result.conversation_id;

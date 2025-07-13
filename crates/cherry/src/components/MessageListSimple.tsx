@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Message, parseMessageContent } from '@/types';
 
 import QuickEmojiReply from './UI/QuickEmojiReply';
-import { loadMessages, sendMessage,  } from '@/api';
+import { messageService } from '@/services/messageService';
 import { ScrollU } from 'scroll-u'
 import AsyncMessageImage from './AsyncMessageImage';
 
@@ -238,7 +238,7 @@ interface MessageNodeProps {
 
 
 export const addReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
-  await sendMessage(
+  await messageService.sendMessage(
       conversationId,
       JSON.stringify({ emoji, users: userId, action: 'add', targetMessageId: messageId }),
       'reaction'
@@ -246,7 +246,7 @@ export const addReaction = async (conversationId: string, messageId: number, emo
 };
 
 export const removeReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
-  await sendMessage(
+  await messageService.sendMessage(
       conversationId,
       JSON.stringify({ emoji, users: userId, action: 'remove', targetMessageId: messageId }),
       'reaction'
@@ -414,7 +414,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
   const loadMore = useCallback(async (direction: 'pre' | 'next', node: React.ReactNode): Promise<React.ReactNode[]> => {
     const props = getMessageProps(node)!;
     const messageId = props.message.id;
-    const messages = await loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
+    const messages = await messageService.loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
     if (messages.length === 0) {
       console.info('no more message:', conversationId, messageId, direction);
       return [];

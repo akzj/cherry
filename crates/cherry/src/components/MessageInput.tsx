@@ -1,7 +1,6 @@
 // src/components/MessageInput.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { invoke } from '@tauri-apps/api/core';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
@@ -9,7 +8,8 @@ import { ImageContent, Message, QuillContent } from '@/types';
 import 'react-quill/dist/quill.snow.css';
 import ReactQuill from 'react-quill';
 import editIcon from '../assets/edit.svg';
-import { sendMessage } from '@/api';
+import { messageService } from '@/services/messageService';
+import { fileService } from '@/services/fileService';
 
 interface MessageInputProps {
   conversationId: string;
@@ -280,10 +280,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
         if (selectedImage) {
           try {
-            const response = await invoke<FileUploadCompleteResponse>('cmd_upload_file', {
-              conversationId: conversationId,
-              filePath: selectedImage.path,
-            });
+            const response = await fileService.uploadFile(conversationId, selectedImage.path);
 
             // 创建包含图片和文字的组合消息
             const imageContent: ImageContent = {
@@ -316,13 +313,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
         if (messageType == 'text') {
           const messages = finalMessage.split("\n");
           for (const message of messages) {
-            await sendMessage(conversationId, message, messageType, replyingTo?.id);
+            await messageService.sendMessage(conversationId, message, messageType, replyingTo?.id);
           }
           return;
         }
 
         if (finalMessage.trim()) {
-          await sendMessage(conversationId, finalMessage, messageType, replyingTo?.id);
+          await messageService.sendMessage(conversationId, finalMessage, messageType, replyingTo?.id);
           setMessage('');
         }
         setReplyingTo(null);
@@ -341,9 +338,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleImageSelect = async (filePath: string) => {
     try {
       // 获取文件信息
-      const fileInfo = await invoke<{ name: string; size: number }>('cmd_get_file_info', {
-        filePath: filePath
-      });
+      const fileInfo = await fileService.getFileInfo(filePath);
 
       // 创建预览URL
       const previewUrl = `file://${filePath}`;

@@ -3,7 +3,7 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { useMessageReceiver } from './useMessageReceiver';
 import { getEventService, resetEventService } from '../services/eventService';
-import type { CherryMessage, Message, StreamEvent } from '../types';
+import type { CherryMessage, Message, StreamEvent } from '@/types';
 
 // 辅助函数：渲染消息内容
 const renderMessageContent = (content: any): string => {

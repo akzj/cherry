@@ -13,7 +13,7 @@ export interface Contact {
     is_favorite: boolean;
     mute_settings: any;
   }
-  
+
   // 群组类型
   export interface Group {
     id: string;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Conversation, Message } from '../types/types';
+import { Conversation, Message } from '@/types';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageListSimple';
 import MessageInput from './MessageInput';
