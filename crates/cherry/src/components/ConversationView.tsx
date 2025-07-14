@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Conversation, Message } from '@/types';
 import ChatHeader from './ChatHeader';
-import MessageList from '@/components/chatView/messageList/MessageList';
+import MessageList, { MessageListRef } from '@/components/chatView/messageList/MessageList';
 import MessageInput from '@/components/chatView/messageInput/MessageInput';
 
 
@@ -28,6 +28,18 @@ const ConversationView: React.FC<ConversationViewProps> = ({
 }) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
+  const ref = React.useRef<MessageListRef>(null);
+
+  const onSendMessage = useCallback(() => {
+    // 发送消息后可以在这里处理一些逻辑，比如重新加载消息列表
+    console.log('Message sent, reloading messages...');
+
+    if (ref.current) {
+      ref.current.onSendMessageEvent();
+    }
+
+  }, []);
+
 
   // 添加调试日志
   //  console.log('ConversationView mounted', {
@@ -40,11 +52,13 @@ const ConversationView: React.FC<ConversationViewProps> = ({
     <Container $isVisible={isVisible}>
       <ChatHeader conversation={conversation} />
       <MessageList
+        ref={ref}
         currentUserId={currentUserId}
         conversationId={conversation.id}
         setReplyingTo={setReplyingTo}
       />
       <MessageInput
+        onSendMessage={onSendMessage}
         setReplyingTo={setReplyingTo}
         replyingTo={replyingTo}
         disabled={false}

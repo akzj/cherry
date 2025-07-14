@@ -1,4 +1,3 @@
-// src/components/MessageInput.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
@@ -30,6 +29,7 @@ interface MessageInputProps {
   disabled?: boolean;
   replyingTo: Message | null;
   setReplyingTo: (message: Message | null) => void;
+  onSendMessage?: () => void;
 }
 
 interface FileUploadCompleteResponse {
@@ -54,6 +54,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
   replyingTo,
   setReplyingTo,
+  onSendMessage
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -122,12 +123,20 @@ const MessageInput: React.FC<MessageInputProps> = ({
           const messages = finalMessage.split("\n");
           for (const message of messages) {
             await messageService.sendMessage(conversationId, message, messageType, replyingTo?.id);
+            if (onSendMessage) {
+              onSendMessage();
+            }
           }
+          setMessage('');
           return;
         }
 
         if (finalMessage.trim()) {
           await messageService.sendMessage(conversationId, finalMessage, messageType, replyingTo?.id);
+          if (onSendMessage) {
+            onSendMessage();
+          }
+          // 发送成功后清空输入框
           setMessage('');
         }
         setReplyingTo(null);

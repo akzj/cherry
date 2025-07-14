@@ -1,10 +1,15 @@
-import React, { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
+import React, { useEffect, useRef, useState, useCallback, ReactNode, ForwardedRef, useImperativeHandle } from 'react';
 import { Message } from '@/types';
 
 import { messageService } from '@/services/messageService';
 import { ReactNodes, ScrollU, ScrollURef } from 'scroll-u'
 import MessageItem, { MessageNodeProps } from './messageItem.tsx';
 
+
+
+export interface MessageListRef {
+  onSendMessageEvent: () => void;
+}
 
 interface MessageListProps {
   currentUserId: string;
@@ -30,7 +35,16 @@ export const removeReaction = async (conversationId: string, messageId: number, 
 };
 
 
-const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId, setReplyingTo }) => {
+const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, ref) => {
+  const { currentUserId, conversationId, setReplyingTo } = props;
+  useImperativeHandle(ref, () => ({
+    onSendMessageEvent: () => {
+      console.log('MessageList: onSendMessageEvent called');
+      // 这里可以添加发送消息后的逻辑，比如重新加载消息列表
+      fetchMessages();
+    }
+  }));
+
   const [messages, setMessages] = React.useState<Message[]>([]);
 
   //初始化，尝试获取新的消息列表
@@ -38,8 +52,8 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
     if (!conversationId) return;
     const messages = await messageService.loadMessages(conversationId, 0, 'backward', 25);
     console.log(messages);
-    if (scrollUref.current) {
-      scrollUref.current.updateNodes((nodes: ReactNodes): ReactNodes => {
+    if (scrollURef.current) {
+      scrollURef.current.updateNodes((nodes: ReactNodes): ReactNodes => {
         return messages.map(item =>
         (<MessageItem
           key={item.conversation_id + item.id}
@@ -124,7 +138,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
     ));
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
-  const scrollUref = useRef<ScrollURef>(null);
+  const scrollURef = useRef<ScrollURef>(null);
 
 
   return (
@@ -133,7 +147,7 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
         重新加载消息
       </button>
       <ScrollU
-        ref={scrollUref}
+        ref={scrollURef}
         renderItem={loadMore}
         initialItems={messages.map(item => {
           return (
@@ -151,6 +165,6 @@ const MessageList: React.FC<MessageListProps> = ({ currentUserId, conversationId
       />
     </div>
   );
-};
+});
 
 export default MessageList; 
