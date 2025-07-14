@@ -5,6 +5,21 @@ import { LocalDbAdapter } from '../mock/LocalDbAdapter';
 // 全局变量存储 mock 配置（可被 Storybook 参数修改）
 
 // Blob序列化/反序列化工具
+async function getImageSize(blob: Blob): Promise<{ width: number; height: number } | undefined> {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => resolve(undefined);
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => resolve(undefined);
+    reader.readAsDataURL(blob);
+  });
+}
 function simpleHash(str: string): string {
   // 简单hash算法，避免依赖node crypto
   let hash = 0, i, chr;
@@ -51,6 +66,7 @@ export const mockFileService: FileService = {
     await new Promise(res => setTimeout(res, 200));
     let blob: Blob = new Blob([], { type: 'image/png' });
     let info: FileInfo = { name: 'image', size: 0 };
+    let image_metadata: { height?: number; width?: number; size?: number } | undefined;
     if (filePath.startsWith('blob:')) {
       try {
         const res = await fetch(filePath);
@@ -59,6 +75,11 @@ export const mockFileService: FileService = {
           blob = fetchedBlob;
         }
         info = { name: filePath, size: blob.size };
+        const size = await getImageSize(blob);
+        image_metadata = {
+          ...size,
+          size: blob.size
+        };
       } catch {
         // fetch失败，blob保持为空Blob
         info = { name: filePath, size: 0 };
@@ -67,6 +88,11 @@ export const mockFileService: FileService = {
       // 模拟本地文件，实际项目可扩展
       blob = new Blob(['mock'], { type: 'image/png' });
       info = { name: filePath.split('/').pop() || 'image', size: blob.size };
+      const size = await getImageSize(blob);
+      image_metadata = {
+        ...size,
+        size: blob.size
+      };
     }
     // 生成唯一ID
     const id = `${conversationId}_${Date.now()}`;
@@ -86,11 +112,10 @@ export const mockFileService: FileService = {
       await imageDb.write(db);
     }
     console.log('Mock file uploaded skip store repeated file :', finalId, info);
-    const file_url = `mock-img://${finalId}`;
+    const url = `mock-img://${finalId}`;
     return {
-      file_url,
-      file_thumbnail_url: file_url,
-      file_metadata: info
+      url: url,
+      image_metadata: { thumbnail_url: url, ...image_metadata }
     };
   },
   downloadFile: async (url) => {

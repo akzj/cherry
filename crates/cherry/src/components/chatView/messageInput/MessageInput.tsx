@@ -90,12 +90,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
         if (selectedImage) {
           try {
             const response = await fileService.uploadFile(conversationId, selectedImage.path);
-
+            console.log('图片上传成功:', response);
             // 创建包含图片和文字的组合消息
             const imageContent: ImageContent = {
-              url: response.file_url,
-              thumbnail_url: response.file_thumbnail_url,
-              metadata: response.file_metadata,
+              url: response.url,
+              thumbnail_url: response.image_metadata?.thumbnail_url,
+              metadata: response.image_metadata,
               text: message.trim() || undefined
             };
 

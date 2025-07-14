@@ -8,7 +8,11 @@ export interface TextContent {
 export interface ImageContent {
     url: string;
     thumbnail_url: string | undefined;
-    metadata: any | undefined;
+    metadata: {
+        height?: number;
+        width?: number;
+        size?: number;
+    } | undefined;
     text: string | undefined;
 }
 
@@ -161,6 +165,8 @@ export interface ParsedMessageContent {
     eventType?: string;
     eventData?: any;
     delta?: any;
+    imageHeight?: number;
+    imageWidth?: number;
 }
 
 
@@ -184,5 +190,3 @@ export interface StreamEvent {
 export type CherryMessage =
     | { message: Message }
     | { event: StreamEvent };
-
-

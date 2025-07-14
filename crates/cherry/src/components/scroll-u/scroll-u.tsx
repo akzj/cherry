@@ -187,6 +187,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         }
       }
       if (removeIndex !== -1 && removeIndex < nodes?.length - 1) {
+        console.log('cleanItemsFromButton removeIndex:', removeIndex, 'items length:', items.length);
         removeIndex += 1; // prevent reload from button 
         setItems(prev => prev.slice(0, removeIndex));
       }
@@ -215,6 +216,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     }
     if (removeIndex !== -1 && removeIndex > 0) {
       removeIndex -= 1; // prevent reload from top
+      console.log('cleanItemsFromTop removeIndex:', removeIndex, 'items length:', items.length);
+      // 记录当前的translateY和content高度，便于后续调整
       const currentTranslateY = translateY;
       const oldHeight = contentRef.current ? contentRef.current.offsetHeight : 0;
       setPendingPreAdjust({ oldHeight, currentTranslateY });
@@ -234,8 +237,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
       setTranslateY(prev => {
         const next = prev - velocity;
-        const max = containerRef.current!.offsetHeight * 0.01;
-        const min = containerRef.current!.offsetHeight - contentRef.current!.offsetHeight;
+        const max = containerRef.current!.offsetHeight * 2 / 3;
+        const min = containerRef.current!.offsetHeight * 2 / 3 - contentRef.current!.offsetHeight;
         const newTranslateY = Math.max(min, Math.min(max, next));
         return newTranslateY;
       });
@@ -309,10 +312,20 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const newHeight = contentRef.current.offsetHeight;
 
       const heightDiff = newHeight - pendingPreAdjust.oldHeight;
+      console.log('Pending pre-adjust height diff:',
+        'newHeight:', newHeight,
+        'oldHeight:', pendingPreAdjust.oldHeight,
+        'heightDiff:', heightDiff,
+        'currentTranslateY:', pendingPreAdjust.currentTranslateY);
       if (heightDiff !== 0) {
         setTranslateY(prevTranslateY => {
+          console.log('Adjusting translateY from:', prevTranslateY, 'by height diff:', heightDiff);
           return prevTranslateY - heightDiff;
         });
+
+        setTimeout(() => {
+          console.log('Final content:', translateY);
+        }, 100); // 等待DOM更新
       }
       setPendingPreAdjust(false);
     }

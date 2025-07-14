@@ -20,17 +20,18 @@ import {
 import QuickEmojiReply from '@/components/UI/QuickEmojiReply';
 import AsyncMessageImage from './AsyncMessageImage';
 import { Message, parseMessageContent } from '@/types';
+import SafeQuillContent from './SafeQuillContent';
 
 
 
 export interface MessageNodeProps {
-    message: Message;
-    currentUserId: string;
-    onReply: (message: Message) => void;
-    onReactionClick: (message: Message, emoji: string) => void;
-    onScrollToMessage: (data_message_id: string) => void;
-  }
-  
+  message: Message;
+  currentUserId: string;
+  onReply: (message: Message) => void;
+  onReactionClick: (message: Message, emoji: string) => void;
+  onScrollToMessage: (data_message_id: string) => void;
+}
+
 
 const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
   const isOwn = message.user_id === currentUserId;
@@ -95,13 +96,15 @@ const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onRe
         <MessageContent>
           {parsedContent.type === 'image' ? (
             <ImageContainer>
-              <AsyncMessageImage url={parsedContent.imageUrl!} />
-              {parsedContent.text && (
-                <ImageText>{parsedContent.text}</ImageText>
-              )}
+              <AsyncMessageImage
+                url={parsedContent.imageUrl!}
+                width={parsedContent.imageWidth}
+                height={parsedContent.imageHeight}
+              />
+              {parsedContent.text && <ImageText>{parsedContent.text}</ImageText>}
             </ImageContainer>
           ) : parsedContent.type === 'quill' && parsedContent.html ? (
-            <div dangerouslySetInnerHTML={{ __html: parsedContent.html }} />
+            <SafeQuillContent html={parsedContent.html} />
           ) : (
             parsedContent.text
           )}

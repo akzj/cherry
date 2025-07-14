@@ -1,65 +1,115 @@
-
 // src/components/AsyncMessageImage.tsx
 import { fileService } from '@/services/fileService';
 import React, { useState, useEffect } from 'react';
 
-const AsyncMessageImage: React.FC<{ url: string }> = ({ url }) => {
+export interface AsyncMessageImageProps {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+const AsyncMessageImage: React.FC<AsyncMessageImageProps> = ({
+  url,
+  width,
+  height,
+}) => {
   const [src, setSrc] = useState<string>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
+  console.log('AsyncMessageImage: url', url, 'width', width, 'height', height);
+
+  /* ---------- 异步下载 ---------- */
   useEffect(() => {
-    let mounted = true;
-
-    const loadImage = async () => {
+    let alive = true;
+    const load = async () => {
       try {
-        setIsLoading(true);
-        setError(false);
-
-        // 只需调用 downloadFile，内部自动处理缓存和下载
-        const filePath = await fileService.downloadFile(url);
-        // 转换为可访问的 URL（适配环境的协议）
-        const imageUrl = fileService.toAccessibleUrl(filePath);
-        // 设置图片源 
-        // 注意：如果是 blob URL，可能需要转换为 object URL
-
-        if (mounted) {
-          setSrc(imageUrl);
-        }
-      } catch (err) {
-        console.error('加载图片失败:', err);
-        if (mounted) setError(true);
-      } finally {
-        if (mounted) setIsLoading(false);
+        // 如需真实网络延迟可保留，否则删掉
+        await new Promise(r => setTimeout(r, 1000));
+        const path = await fileService.downloadFile(url);
+        const imgUrl = fileService.toAccessibleUrl(path);
+        if (alive) setSrc(imgUrl);
+      } catch {
+        if (alive) setError(true);
       }
     };
-
-    loadImage();
-    return () => { mounted = false; };
+    load();
+    return () => { alive = false; };
   }, [url]);
 
-  if (isLoading) {
-    return (
-      <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        图片加载中...
-      </div>
-    );
-  }
+  /* ---------- 计算容器尺寸 ---------- */
+  const maxWidth = width && width > 400 ? 400 : width || 220; // px
+  const finalHeight = width && height
+    ? Math.round((maxWidth / width) * height)
+    : 120; // 兜底高度
 
-  if (error || !src) {
+  /* ---------- 占位框 ---------- */
+  const skeleton = (
+    <div
+      style={{
+        width: maxWidth,
+        height: finalHeight,
+        background: '#f2f2f2',
+        borderRadius: 8,
+      }}
+    />
+  );
+
+  /* ---------- 错误态 ---------- */
+  if (error) {
     return (
-      <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'red' }}>
+      <div
+        style={{
+          width: maxWidth,
+          height: finalHeight,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#f56c6c',
+          fontSize: 12,
+          background: '#f2f2f2',
+          borderRadius: 8,
+        }}
+      >
         图片加载失败
       </div>
     );
   }
 
+  /* ---------- 渲染 ---------- */
   return (
-    <img
-      src={src}
-      style={{ maxWidth: '220px', maxHeight: '220px', borderRadius: '8px', margin: '4px 0' }}
-      alt="消息图片"
-    />
+    <div
+      style={{
+        position: 'relative',
+        width: maxWidth,
+        height: finalHeight,
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
+      {/* 占位骨架始终存在 */}
+      {skeleton}
+
+      {/* 真实图片淡入覆盖 */}
+      {src && (
+        <img
+          src={src}
+          alt="消息图片"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            borderRadius: 8,
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 200ms',
+          }}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      )}
+    </div>
   );
 };
 

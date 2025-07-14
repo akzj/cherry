@@ -2,7 +2,7 @@ import React, { useRef, useCallback, ReactNode, useImperativeHandle } from 'reac
 import { Message } from '@/types';
 
 import { messageService } from '@/services/messageService';
-import { ReactNodes, ScrollU, ScrollURef } from 'scroll-u'
+import { ReactNodes, ScrollU, ScrollURef } from '@/components/scroll-u';
 import MessageItem, { MessageNodeProps } from './messageItem.tsx';
 
 
