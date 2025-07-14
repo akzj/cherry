@@ -9,8 +9,5 @@ export * from './api';
 // 数据模型类型
 export * from './models';
 
-// UI组件类型
-export * from './ui';
-
 // 类型工具函数
 export * from './typeUtils';

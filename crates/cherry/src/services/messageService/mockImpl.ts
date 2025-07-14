@@ -1,14 +1,21 @@
 import type { MessageService } from './types';
 import type { Message } from '@/types';
 import { messageDb, defaultMessageDb } from './data/db';
+import { getCurrentUserId } from '@/store/auth';
 
-let user_id = '';
-export function setMockUserId(id: string) {
-  user_id = id;
+// 声明window全局变量类型
+declare global {
+  interface Window {
+    __CURRENT_USER_ID__?: string;
+  }
 }
 
 export const mockMessageService: MessageService = {
   sendMessage: async (conversationId, content, messageType = 'text', replyTo) => {
+    const userId = window.__CURRENT_USER_ID__ || '';
+
+    console.log(conversationId, userId, content, messageType, replyTo)
+
     const data = (await messageDb.read()) || defaultMessageDb;
     if (!data.messagesMap[conversationId]) {
       data.messagesMap[conversationId] = [];
@@ -20,7 +27,7 @@ export const mockMessageService: MessageService = {
       reply_to: replyTo,
       id: Date.now(),
       timestamp: new Date().toISOString(),
-      user_id: user_id || '',
+      user_id: userId,
     });
     await messageDb.write(data);
   },

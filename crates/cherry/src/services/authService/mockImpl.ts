@@ -97,6 +97,7 @@ export const mockAuthService: AuthService = {
   },
 
   validateToken: async (token: string): Promise<boolean> => {
+    return false;
     if (!token) return false; // 空 token 直接无效
     if (mockConfig.delay) {
       await new Promise(resolve => setTimeout(resolve, (mockConfig.delay || 0) / 2)); // 验证延迟短一些

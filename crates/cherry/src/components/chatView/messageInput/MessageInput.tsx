@@ -7,7 +7,7 @@ import ImageUploader from './ImageUploader';
 import { ImageContent, Message, QuillContent } from '@/types';
 import 'react-quill/dist/quill.snow.css';
 import ReactQuill from 'react-quill';
-import editIcon from '../assets/edit.svg';
+import editIcon from '@/assets/edit.svg';
 import { messageService } from '@/services/messageService';
 import { fileService } from '@/services/fileService';
 

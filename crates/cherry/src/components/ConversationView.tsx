@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Conversation, Message } from '@/types';
 import ChatHeader from './ChatHeader';
-import MessageList from './MessageListSimple';
-import MessageInput from './MessageInput';
+import MessageList from '@/components/chatView/messageList/MessageList';
+import MessageInput from '@/components/chatView/messageInput/MessageInput';
 
 
 interface ConversationViewProps {
@@ -27,14 +27,14 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   isVisible,
 }) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
- 
+
 
   // 添加调试日志
- console.log('ConversationView mounted', {
-    conversationId: conversation.id,
-    isVisible,
-    currentUserId,
-  });
+  //  console.log('ConversationView mounted', {
+  //     conversationId: conversation.id,
+  //     isVisible,
+  //     currentUserId,
+  //   });
 
   return (
     <Container $isVisible={isVisible}>
@@ -45,10 +45,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         setReplyingTo={setReplyingTo}
       />
       <MessageInput
-        replyingTo={replyingTo}
         setReplyingTo={setReplyingTo}
-        conversationId={conversation.id}
+        replyingTo={replyingTo}
         disabled={false}
+        conversationId={conversation.id}
       />
     </Container>
   );

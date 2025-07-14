@@ -1,5 +1,3 @@
-// src/components/AsyncMessageImage.stories.tsx
-import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import AsyncMessageImage from './AsyncMessageImage';
 

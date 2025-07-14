@@ -90,6 +90,7 @@ const authStateCreator: StateCreator<
 
     try {
       const { user, jwt_token } = await authService.login(email, password);
+      console.log(user)
       set({
         isAuthenticated: true,
         user,
@@ -98,6 +99,7 @@ const authStateCreator: StateCreator<
         error: null,
         isInitialized: true,
       });
+      window.__CURRENT_USER_ID__ = user.user_id;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '登录失败';
       set({
@@ -169,3 +171,5 @@ export const useAuth = () => {
     isLoading: auth.isLoading || !auth.isInitialized,
   };
 };
+
+export const getCurrentUserId = () => useAuthStore().user?.user_id;
