@@ -1,7 +1,6 @@
 // src/services/fileService/mockImpl.ts（增强版）
-import type { FileService, FileUploadCompleteResponse, FileInfo } from './types';
+import type { FileService, FileInfo } from './types';
 import { LocalDbAdapter } from '../mock/LocalDbAdapter';
-import { createHash } from 'crypto';
 
 // 全局变量存储 mock 配置（可被 Storybook 参数修改）
 

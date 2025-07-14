@@ -39,12 +39,12 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   }, []);
 
 
-  // 添加调试日志
-  //  console.log('ConversationView mounted', {
-  //     conversationId: conversation.id,
-  //     isVisible,
-  //     currentUserId,
-  //   });
+  //添加调试日志
+  console.log('ConversationView mounted', {
+    conversationId: conversation.id,
+    isVisible,
+    currentUserId,
+  });
 
   return (
     <Container $isVisible={isVisible}>
