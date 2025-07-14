@@ -16,20 +16,14 @@ const AsyncMessageImage: React.FC<{ url: string }> = ({ url }) => {
         setIsLoading(true);
         setError(false);
 
-        // 1. 获取缓存路径（通过抽象服务，而非直接调用 Tauri 的 path）
-        const cacheDir = await fileService.getCacheDirPath();
-        const cacheFilePath = `${cacheDir}/${url.split('/').pop()}`; // 简化的缓存路径生成
-
-        // 2. 检查缓存是否存在（通过抽象服务）
-        const cacheExists = await fileService.exists(cacheFilePath);
-
-        // 3. 缓存存在则直接用，否则下载（通过抽象服务）
-        const filePath = cacheExists 
-          ? cacheFilePath 
-          : await fileService.downloadFile(url, cacheFilePath);
-
-        // 4. 转换为可访问的 URL（适配环境的协议）
+        // 只需调用 downloadFile，内部自动处理缓存和下载
+        const filePath = await fileService.downloadFile(url);
+        // 转换为可访问的 URL（适配环境的协议）
         const imageUrl = fileService.toAccessibleUrl(filePath);
+
+        console.log('加载图片:', imageUrl);
+        // 设置图片源 
+        // 注意：如果是 blob URL，可能需要转换为 object URL
 
         if (mounted) {
           setSrc(imageUrl);

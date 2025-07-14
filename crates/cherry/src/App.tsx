@@ -64,7 +64,6 @@ const App: React.FC = () => {
   const [forceUpdate, setForceUpdate] = useState(0);
 
   // 调试面板状态
-  const [isDebugVisible, setIsDebugVisible] = useState(false);
   const [showVirtuaTest, setShowVirtuaTest] = useState(false);
 
   // 通知状态

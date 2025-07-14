@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, ReactNode, ForwardedRef, useImperativeHandle } from 'react';
+import React, { useRef, useCallback, ReactNode, useImperativeHandle } from 'react';
 import { Message } from '@/types';
 
 import { messageService } from '@/services/messageService';
@@ -45,7 +45,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     }
   }));
 
-  const [messages, setMessages] = React.useState<Message[]>([]);
+  const scrollURef = useRef<ScrollURef>(null);
 
   //初始化，尝试获取新的消息列表
   const fetchMessages = React.useCallback(async () => {
@@ -123,7 +123,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     const messageId = props.message.id;
     const messages = await messageService.loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
     if (messages.length === 0) {
-      console.info('no more message:', conversationId, messageId, direction);
+      console.info('no more message:', props, direction);
       return [];
     }
     return messages.map(item => (
@@ -138,32 +138,11 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     ));
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
-  const scrollURef = useRef<ScrollURef>(null);
-
-
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <button onClick={fetchMessages} style={{ margin: '8px 0', padding: '4px 12px', borderRadius: 4, background: '#f3f4f6', border: '1px solid #e5e7eb', cursor: 'pointer' }}>
-        重新加载消息
-      </button>
-      <ScrollU
-        ref={scrollURef}
-        renderItem={loadMore}
-        initialItems={messages.map(item => {
-          return (
-            <MessageItem
-              key={item.conversation_id + item.id}
-              message={item}
-              currentUserId={currentUserId}
-              onReply={handleReply}
-              onReactionClick={handleReactionClick}
-              onScrollToMessage={handleScrollToMessage}
-            />
-          )
-
-        })}
-      />
-    </div>
+    <ScrollU
+      ref={scrollURef}
+      renderItem={loadMore}
+    />
   );
 });
 

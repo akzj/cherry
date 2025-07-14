@@ -16,7 +16,6 @@ const Container = styled.div<{ $isVisible: boolean }>`
   flex: 1;
   display: ${props => props.$isVisible ? 'flex' : 'none'};
   flex-direction: column;
-  overflow: hidden;
   height: 100%;
   min-height: 0; /* 重要：允许flex子元素收缩 */
 `;
@@ -33,7 +32,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   const onSendMessage = useCallback(() => {
     // 发送消息后可以在这里处理一些逻辑，比如重新加载消息列表
     console.log('Message sent, reloading messages...');
-
     if (ref.current) {
       ref.current.onSendMessageEvent();
     }

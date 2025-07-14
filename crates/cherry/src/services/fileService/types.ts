@@ -12,9 +12,7 @@ export interface FileInfo {
 
 export interface FileService {
   uploadFile(conversationId: string, filePath: string): Promise<FileUploadCompleteResponse>;
-  getCacheDirPath(): Promise<string>;
-  exists(filePath: string): Promise<boolean>;
-  downloadFile(url: string, cachePath: string): Promise<string>;
+  downloadFile(url: string): Promise<string>;
   toAccessibleUrl(filePath: string): string;
   getFileInfo(filePath: string): Promise<FileInfo>;
 }

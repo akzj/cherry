@@ -153,13 +153,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   // 选图片时获取图片信息
   const handleImageSelect = async (filePath: string) => {
+    console.log('选中的图片路径:', filePath);
     try {
       // 获取文件信息
       const fileInfo = await fileService.getFileInfo(filePath);
 
-      // 创建预览URL
-      const previewUrl = `file://${filePath}`;
+      console.log('获取到的文件信息:', fileInfo);
 
+      // 创建预览URL，兼容本地路径和blob URL
+      let previewUrl = filePath;
+      if (!filePath.startsWith('blob:') && !filePath.startsWith('http')) {
+        previewUrl = `file://${filePath}`;
+      }
       setSelectedImage({
         path: filePath,
         name: fileInfo.name,

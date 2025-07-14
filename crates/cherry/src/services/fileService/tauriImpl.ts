@@ -1,5 +1,3 @@
-// src/services/fileService/tauriImpl.ts
-import { path } from '@tauri-apps/api';
 import { appCacheDir } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,14 +7,20 @@ export const tauriFileService: FileService = {
   uploadFile: async (conversationId, filePath) => {
     return await invoke<FileUploadCompleteResponse>('cmd_upload_file', { conversationId, filePath });
   },
-  getCacheDirPath: async () => {
-    return await appCacheDir();
-  },
-  exists: async (filePath) => {
-    return await exists(filePath);
-  },
-  downloadFile: async (url, cachePath) => {
-    return await invoke('cmd_download_file', { url, filePath: cachePath });
+  downloadFile: async (url) => {
+    const cachePath = await appCacheDir();
+    // 自动处理缓存路径和exist检查
+    let finalCachePath = cachePath;
+    if (!finalCachePath) {
+      const cacheDir = await appCacheDir();
+      finalCachePath = `${cacheDir}/${url.split('/').pop()}`;
+    }
+    const alreadyExists = await exists(finalCachePath);
+    if (alreadyExists) {
+      return finalCachePath;
+    }
+    // 下载并缓存
+    return await invoke('cmd_download_file', { url, filePath: finalCachePath });
   },
   toAccessibleUrl: (filePath) => {
     return `cherry://localhost?file_path=${filePath}`;

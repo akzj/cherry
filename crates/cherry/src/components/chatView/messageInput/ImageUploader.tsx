@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
-import { open } from '@tauri-apps/plugin-dialog';
+import { dialogService } from '@/services/dialogService';
 
 // Types
 interface ImageUploaderProps {
@@ -47,13 +47,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   // 选择图片，获取真实路径
   const handleSelectImage = useCallback(async () => {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
-      });
-      
-      if (typeof selected === 'string') {
-        onImageSelect(selected);
+      const filePath = await dialogService.openImageDialog();
+      if (filePath) {
+        onImageSelect(filePath);
       }
     } catch (error) {
       console.error('选择图片失败:', error);
