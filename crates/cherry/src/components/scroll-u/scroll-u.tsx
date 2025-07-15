@@ -74,10 +74,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const [isLoadingPre, setIsLoadingPre] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
-  /* stable keys for duplicate detection */
-  const prevFirstKey = useRef<React.Key | null>(null);
-  const prevLastKey = useRef<React.Key | null>(null);
-
   /* pending scroll adjustment after prepend */
   const pendingPreAdjust = useRef<null | { oldHeight: number; oldTranslateY: number }>(null);
 
@@ -105,21 +101,12 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
     const first = elements[0];
     if (!first) return;
-    // 获取第一个元素的 key
-    const key = getElementKey(first);
-    if (key === prevFirstKey.current) {
-      console.warn('ScrollU: handlePre called with same first key, skipping');
-      return;
-    }
-
-    prevFirstKey.current = key;
     setIsLoadingPre(true);
 
     try {
       const newItems = await renderMore('pre', first);
       if (!newItems?.length) {
         console.warn('ScrollU: handlePre returned no new items');
-        prevFirstKey.current = null; // reset first key
         return;
       }
 
@@ -135,12 +122,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
   const handleNext = useCallback(async () => {
     if (!renderMore || isLoadingNext) return;
-
     const last = elements[elements.length - 1];
-    const key = getElementKey(last);
-    if (key != null && key === prevLastKey.current) return;
-
-    prevLastKey.current = key;
     setIsLoadingNext(true);
 
     try {
