@@ -53,7 +53,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     const messages = await messageService.loadMessages(conversationId, 0, 'backward', 25);
     console.log(messages);
     if (scrollURef.current) {
-      scrollURef.current.updateNodes((nodes: ReactNodes): ReactNodes => {
+      scrollURef.current.updateElements((nodes: ReactNodes): ReactNodes => {
         return messages.map(item =>
         (<MessageItem
           key={item.conversation_id + item.id}
@@ -118,10 +118,15 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
   }
 
 
-  const loadMore = useCallback(async (direction: 'pre' | 'next', node: React.ReactNode): Promise<React.ReactNode[]> => {
-    const props = getMessageProps(node)!;
-    const messageId = props.message.id;
-    const messages = await messageService.loadMessages(conversationId, messageId, direction == 'pre' ? 'backward' : 'forward', 10);
+  const loadMore = useCallback(async (direction: 'pre' | 'next', contextData?: any): Promise<any[]> => {
+    // contextData is expected to be ElementWithKey<any>
+    const props = contextData && contextData.props ? contextData.props as MessageNodeProps : undefined;
+    const messageId = props?.message?.id;
+    if (!messageId) {
+      console.warn('MessageList: loadMore called without messageId', props);
+      return [];
+    }
+    const messages = await messageService.loadMessages(conversationId, messageId, direction === 'pre' ? 'backward' : 'forward', 10);
     if (messages.length === 0) {
       console.info('no more message:', props, direction);
       return [];
@@ -141,7 +146,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
   return (
     <ScrollU
       ref={scrollURef}
-      renderItem={loadMore}
+      renderMore={loadMore}
     />
   );
 });

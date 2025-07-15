@@ -17,15 +17,13 @@ const AsyncMessageImage: React.FC<AsyncMessageImageProps> = ({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  console.log('AsyncMessageImage: url', url, 'width', width, 'height', height);
-
+  //console.log('AsyncMessageImage: url', url, 'width', width, 'height', height);
   /* ---------- 异步下载 ---------- */
   useEffect(() => {
     let alive = true;
     const load = async () => {
       try {
         // 如需真实网络延迟可保留，否则删掉
-        await new Promise(r => setTimeout(r, 1000));
         const path = await fileService.downloadFile(url);
         const imgUrl = fileService.toAccessibleUrl(path);
         if (alive) setSrc(imgUrl);
