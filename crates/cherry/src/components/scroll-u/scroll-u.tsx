@@ -91,8 +91,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     },
   }));
 
-  /* ----------  FETCH HELPERS  ---------- */
-  const getElementKey = (node: ElementWithKey): Key => node.key!;
 
   const handlePre = useCallback(async () => {
     console.log('ScrollU: handlePre called');
@@ -122,7 +120,9 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
   const handleNext = useCallback(async () => {
     if (!renderMore || isLoadingNext) return;
+
     const last = elements[elements.length - 1];
+
     setIsLoadingNext(true);
 
     try {
@@ -195,7 +195,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
   /* ----------  INERTIA SCROLL  ---------- */
   const startInertia = useCallback((initialVelocity: number) => {
-    if (rafId.current) cancelAnimationFrame(rafId.current);
+    //if (rafId.current) cancelAnimationFrame(rafId.current);
 
     let velocity = initialVelocity;
     const animate = () => {
@@ -207,11 +207,10 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         const min = max - (contentRef.current?.offsetHeight ?? 0);
         return Math.max(min, Math.min(max, next));
       });
-
-      velocity *= 0.95;
-      rafId.current = requestAnimationFrame(animate);
+      //rafId.current = requestAnimationFrame(animate);
     };
-    rafId.current = requestAnimationFrame(animate);
+    animate();
+    //rafId.current = requestAnimationFrame(animate);
   }, []);
 
   /* ----------  WHEEL LISTENER  ---------- */
