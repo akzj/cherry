@@ -7,10 +7,8 @@ import React, {
   useLayoutEffect,
   useImperativeHandle,
   forwardRef,
-  Ref,
 } from 'react';
 import { DefaultScrollBar } from './scroll-bar';
-
 import { ReactElement, Key } from 'react';
 
 // 定义必须包含 key 的 ReactElement 类型
@@ -36,7 +34,6 @@ export interface ScrollUProps {
   scrollBarRender?: (height: number, top: number) => React.ReactNode;
   scrollbarGutter?: number;
 }
-
 
 export function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
   return (node: T) => {
@@ -64,25 +61,30 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   /* ----------  REFS & STATE  ---------- */
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [translateY, setTranslateY] = useState<number>(0);
   const [scrollBar, setScroll] = useState({ height: 0, top: 0 });
 
   const rafId = useRef<number | null>(null);
   const intersectionObserver = useRef<IntersectionObserver | null>(null);
 
   const [elements, setElements] = useState<ElementWithKeyArr>(initialItems);
-  const [isLoadingPre, setIsLoadingPre] = useState(false);
-  const [isLoadingNext, setIsLoadingNext] = useState(false);
+  const isLoadingPre: React.MutableRefObject<boolean> = useRef<boolean>(false);
+  const isLoadingNext: React.MutableRefObject<boolean> = useRef<boolean>(false);
 
-  /* pending scroll adjustment after prepend */
-  const pendingPreAdjust = useRef<null | { oldHeight: number; oldTranslateY: number }>(null);
+  /* 顶部添加元素后的滚动位置调整 */
+  const pendingPreAdjust = useRef<null | { oldHeight: number; oldScrollTop: number }>(null);
+  /* 顶部清理元素后的滚动位置调整 */
+  const pendingTopCleanAdjust = useRef<null | { oldHeight: number }>(null);
 
   /* ----------  IMPERATIVE HANDLE  ---------- */
   useImperativeHandle(ref, () => ({
     updateElements: (handler: UpdateElementHandle) => {
-      const oldHeight = contentRef.current?.offsetHeight ?? 0;
-      pendingPreAdjust.current = { oldHeight, oldTranslateY: translateY };
+      const container = containerRef.current;
+      if (!container) return;
 
+      const oldHeight = contentRef.current?.scrollHeight ?? 0;
+      const oldScrollTop = container.scrollTop;
+
+      pendingPreAdjust.current = { oldHeight, oldScrollTop };
       setElements(prev => handler(prev));
     },
     listNodes: () => elements,
@@ -91,45 +93,57 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     },
   }));
 
-
   const handlePre = useCallback(async () => {
     console.log('ScrollU: handlePre called');
     if (!containerRef.current || !contentRef.current) return;
-    if (!renderMore || isLoadingPre) return;
+    if (!renderMore) return;
+
+    if (isLoadingPre.current) {
+      console.warn('ScrollU: handlePre already loading');
+      return;
+    }
 
     const first = elements[0];
     if (!first) return;
-    setIsLoadingPre(true);
+    isLoadingPre.current = true;
+
+    console.log('ScrollU: handlePre fetching more items', first);
 
     try {
       const newItems = await renderMore('pre', first);
       if (!newItems?.length) {
         console.warn('ScrollU: handlePre returned no new items');
-        return;
-      }
+      } else {
+        console.log('ScrollU: handlePre new items', newItems);
+        const container = containerRef.current;
+        if (!container) return;
 
-      pendingPreAdjust.current = {
-        oldHeight: contentRef.current!.offsetHeight,
-        oldTranslateY: translateY,
-      };
-      setElements(prev => [...newItems, ...prev]);
+        pendingPreAdjust.current = {
+          oldHeight: contentRef.current!.scrollHeight,
+          oldScrollTop: container.scrollTop,
+        };
+        setElements(prev => [...newItems, ...prev]);
+      }
     } finally {
-      setIsLoadingPre(false);
+      isLoadingPre.current = false;
     }
-  }, [renderMore, isLoadingPre, elements, translateY]);
+  }, [renderMore, isLoadingPre, elements]);
 
   const handleNext = useCallback(async () => {
-    if (!renderMore || isLoadingNext) return;
+    if (!renderMore || isLoadingNext.current) return;
 
     const last = elements[elements.length - 1];
-
-    setIsLoadingNext(true);
-
+    if (!last) return;
+    isLoadingNext.current = true;
     try {
       const newItems = await renderMore('next', last);
-      if (newItems?.length) setElements(prev => [...prev, ...newItems]);
+      if (!newItems?.length) {
+        console.warn('ScrollU: handleNext returned no new items');
+      } else {
+        if (newItems?.length) setElements(prev => [...prev, ...newItems]);
+      }
     } finally {
-      setIsLoadingNext(false);
+      isLoadingNext.current = false;
     }
   }, [renderMore, isLoadingNext, elements]);
 
@@ -150,6 +164,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
     if (removeIndex !== -1 && removeIndex < nodes.length - 1) {
       setElements(prev => prev.slice(0, removeIndex + 1));
+      console.log('ScrollU: cleanItemsFromBottom removing', nodes.length - removeIndex - 1, 'items', 'container.scrollTop', container.scrollTop);
     }
   }, []);
 
@@ -167,114 +182,123 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       else break;
     }
 
-    if (removeIndex > 0) {
-      pendingPreAdjust.current = {
-        oldHeight: contentRef.current!.offsetHeight,
-        oldTranslateY: translateY,
-      };
+    if (removeIndex > 3) {
+      removeIndex -= 3; // 保留前3个元素
+
+      // 记录清理前的总高度
+      const oldHeight = contentRef.current?.scrollHeight ?? 0;
+      pendingTopCleanAdjust.current = { oldHeight };
+
+      console.log('ScrollU: cleanItemsFromTop removing', removeIndex, 'items', 'oldHeight', oldHeight, 'container.scrollTop', container.scrollTop);
       setElements(prev => prev.slice(removeIndex));
     }
-  }, [translateY]);
-
-  /* ----------  SCROLLBAR  ---------- */
-  useEffect(() => {
-    if (!containerRef.current || !contentRef.current) return;
-
-    const containerHeight = containerRef.current.offsetHeight;
-    const contentHeight = contentRef.current.offsetHeight;
-
-    const topHidden = Math.max(0, -translateY);
-    const scrollBarHeight = Math.min(
-      containerHeight,
-      (containerHeight / (contentHeight || 1)) * containerHeight
-    );
-    const scrollBarTop = (topHidden / (contentHeight || 1)) * containerHeight;
-
-    setScroll({ height: scrollBarHeight, top: scrollBarTop });
-  }, [translateY, elements]);
-
-  /* ----------  INERTIA SCROLL  ---------- */
-  const startInertia = useCallback((initialVelocity: number) => {
-    //if (rafId.current) cancelAnimationFrame(rafId.current);
-
-    let velocity = initialVelocity;
-    const animate = () => {
-      if (Math.abs(velocity) < 0.1) return;
-
-      setTranslateY(prev => {
-        const next = prev - velocity;
-        const max = (containerRef.current?.offsetHeight ?? 0) * 2 / 3;
-        const min = max - (contentRef.current?.offsetHeight ?? 0);
-        return Math.max(min, Math.min(max, next));
-      });
-      //rafId.current = requestAnimationFrame(animate);
-    };
-    animate();
-    //rafId.current = requestAnimationFrame(animate);
   }, []);
 
-  /* ----------  WHEEL LISTENER  ---------- */
-  const handleWheel = useCallback(
-    (e: WheelEvent) => {
-      e.preventDefault();
-      startInertia(e.deltaY);
+  /* ----------  SCROLLBAR  ---------- */
+  const updateScrollBar = useCallback(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
 
-      // debounced cleanup
-      clearTimeout((cleanTimers.current as any).bottom);
-      clearTimeout((cleanTimers.current as any).top);
-      (cleanTimers.current as any).bottom = setTimeout(cleanItemsFromBottom, 300);
-      (cleanTimers.current as any).top = setTimeout(cleanItemsFromTop, 500);
-    },
-    [startInertia, cleanItemsFromBottom, cleanItemsFromTop]
-  );
+    const containerHeight = container.clientHeight;
+    const contentHeight = content.scrollHeight;
+    const scrollTop = container.scrollTop;
 
+    const scrollBarHeight = Math.min(
+      containerHeight,
+      (containerHeight / contentHeight) * containerHeight
+    );
+    const scrollBarTop = (scrollTop / contentHeight) * containerHeight;
+
+    setScroll({ height: scrollBarHeight, top: scrollBarTop });
+  }, []);
+
+
+  // 初始化滚动条
+
+  const scrollSpeed = useRef(0);
+  const lastScrollTop = useRef(0);
+
+  // 处理滚动事件
+  const handleScroll = useCallback(() => {
+    updateScrollBar();
+    const container = containerRef.current;
+    if (!container) return;
+    const currentScrollTop = container.scrollTop;
+    const scrollDiff = currentScrollTop - lastScrollTop.current;
+    lastScrollTop.current = currentScrollTop;
+    scrollSpeed.current = scrollDiff;
+
+
+    // 防抖清理
+    clearTimeout(cleanTimers.current.bottom);
+    clearTimeout(cleanTimers.current.top);
+    cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, 3000);
+    cleanTimers.current.top = setTimeout(cleanItemsFromTop, 1000);
+  }, [updateScrollBar, cleanItemsFromBottom, cleanItemsFromTop]);
+
+  // 监听滚动事件
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-    };
-  }, [handleWheel]);
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
-  /* ----------  PREPEND SCROLL ADJUSTMENT  ---------- */
+  // 初始化和元素变化时更新滚动条
+  useEffect(() => {
+    updateScrollBar();
+  }, [elements, updateScrollBar]);
+
+  /* ----------  SCROLL POSITION ADJUSTMENTS  ---------- */
   useLayoutEffect(() => {
-    if (pendingPreAdjust.current && contentRef.current) {
-      const { oldHeight, oldTranslateY } = pendingPreAdjust.current;
-      const newHeight = contentRef.current.offsetHeight;
+    const container = containerRef.current;
+    if (!container) return;
+
+    // 处理顶部添加新元素后的滚动位置调整
+    if (pendingPreAdjust.current) {
+      const { oldHeight, oldScrollTop } = pendingPreAdjust.current;
+      const newHeight = contentRef.current?.scrollHeight || 0;
       const diff = newHeight - oldHeight;
 
-      if (diff !== 0) setTranslateY(oldTranslateY - diff);
+      container.scrollTop += diff + scrollSpeed.current * 2;
       pendingPreAdjust.current = null;
+      console.log('ScrollU: pendingPreAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'diff', diff);
+      return;
+    }
+
+    // 处理顶部清理后的滚动位置调整
+    if (pendingTopCleanAdjust.current) {
+      const { oldHeight } = pendingTopCleanAdjust.current;
+      const newHeight = contentRef.current?.scrollHeight || 0;
+      const delta = oldHeight - newHeight;
+      console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'delta', delta, ' container.scrollTop', container.scrollTop);
+      // container.scrollTop -= delta;
+      pendingTopCleanAdjust.current = null;
     }
   }, [elements]);
 
-
-  /* 1. 内部私有 ref，给 observer 用 */
+  /* ----------  INTERSECTION OBSERVER  ---------- */
   const _firstNode = useRef<HTMLDivElement | null>(null);
   const _lastNode = useRef<HTMLDivElement | null>(null);
 
-  /* 2. observer 里用私有 ref 判断 */
   useEffect(() => {
     const io = new IntersectionObserver(
-      entries =>
+      entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             if (entry.target === _firstNode.current) handlePre();
             else if (entry.target === _lastNode.current) handleNext();
           }
-        }),
+        });
+      },
       { root: containerRef.current, rootMargin: '50px', threshold: 0.1 }
     );
     intersectionObserver.current = io;
     return () => io.disconnect();
   }, [handlePre, handleNext]);
 
-
-
-  /* 工具：安全 observe / unobserve */
   function safeObserve(
     io: IntersectionObserver | null,
     oldEl: Element | null,
@@ -285,7 +309,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     if (newEl && newEl !== oldEl) io.observe(newEl);
   }
 
-  /* 渲染时闭包缓存当前 observer */
   const handleFirstRef = (node: HTMLDivElement | null) => {
     safeObserve(intersectionObserver.current, _firstNode.current, node);
     _firstNode.current = node;
@@ -296,7 +319,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     _lastNode.current = node;
   };
 
-
   const cleanTimers = useRef({ top: 0, bottom: 0 });
 
   return (
@@ -305,7 +327,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       className={className}
       style={{
         height: '100%',
-        overflow: 'hidden',
+        overflow: 'auto',
         position: 'relative',
         width: '100%',
         display: 'flex',
@@ -315,8 +337,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       <div
         ref={contentRef}
         style={{
-          transform: `translateY(${translateY}px)`,
-          willChange: 'transform',
           paddingRight: showScrollBar ? scrollbarGutter : 0,
         }}
       >
@@ -331,7 +351,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
             </div>
           );
         })}
-
       </div>
       {showScrollBar && scrollBarRender(scrollBar.height, scrollBar.top)}
     </div>

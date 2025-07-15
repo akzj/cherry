@@ -7,8 +7,17 @@ import { getCurrentUserId } from '@/store/auth';
 declare global {
   interface Window {
     __CURRENT_USER_ID__?: string;
+    __AUTO_INCREMENT_ID__: number;
   }
 }
+
+// 初始化全局变量
+if (typeof window !== 'undefined') {
+  if (!window.__AUTO_INCREMENT_ID__) {
+    window.__AUTO_INCREMENT_ID__ = Date.now();
+  }
+}
+
 
 export const mockMessageService: MessageService = {
   sendMessage: async (conversationId, content, messageType = 'text', replyTo) => {
@@ -25,7 +34,7 @@ export const mockMessageService: MessageService = {
       conversation_id: conversationId,
       type_: messageType as Message['type_'],
       reply_to: replyTo,
-      id: Date.now(),
+      id: window.__AUTO_INCREMENT_ID__++,
       timestamp: new Date().toISOString(),
       user_id: userId,
     });
