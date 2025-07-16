@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import { DefaultScrollBar } from './scroll-bar';
 import { ReactElement, Key } from 'react';
-import { set } from 'lodash';
 
 // 定义必须包含 key 的 ReactElement 类型
 export type ElementWithKey<P = any> = ReactElement<P> & { key: Key };
@@ -70,6 +69,17 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const [elements, setElements] = useState<ElementWithKeyArr>(initialItems);
   const isLoadingPre: React.MutableRefObject<boolean> = useRef<boolean>(false);
   const isLoadingNext: React.MutableRefObject<boolean> = useRef<boolean>(false);
+  
+  // IntersectionObserver 节流相关
+  const preThrottleTimer = useRef<number | null>(null);
+  const nextThrottleTimer = useRef<number | null>(null);
+  const lastPreTrigger = useRef<number>(0);
+  const lastNextTrigger = useRef<number>(0);
+  
+  // 滚动状态跟踪
+  const isScrolling = useRef<boolean>(false);
+  const scrollEndTimer = useRef<number | null>(null);
+  const lastScrollTime = useRef<number>(0);
 
   /* 顶部添加元素后的滚动位置调整 */
   const pendingPreAdjust = useRef<null | { oldHeight: number; oldScrollTop: number }>(null);
@@ -126,6 +136,30 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     }
   }, [renderMore, isLoadingPre, elements]);
 
+  // 节流版本的handlePre - 防止频繁触发但不会卡住
+  const throttledHandlePre = useCallback(() => {
+    const now = Date.now();
+    // 如果正在加载，直接返回
+    if (isLoadingPre.current) return;
+    
+    // 检查滚动状态，快速滚动时延长节流时间
+    const currentScrollSpeed = Math.abs(scrollSpeed.current || 0);
+    const throttleTime = currentScrollSpeed > 100 ? 300 : 100; // 高速滚动时使用更长的节流时间
+    
+    // 如果距离上次触发少于节流时间，使用定时器延迟执行
+    if (now - lastPreTrigger.current < throttleTime) {
+      if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
+      preThrottleTimer.current = window.setTimeout(() => {
+        lastPreTrigger.current = Date.now();
+        handlePre();
+      }, throttleTime);
+    } else {
+      // 立即执行
+      lastPreTrigger.current = now;
+      handlePre();
+    }
+  }, [handlePre]);
+
   const handleNext = useCallback(async () => {
     if (!renderMore || isLoadingNext.current) return;
 
@@ -143,6 +177,30 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       isLoadingNext.current = false;
     }
   }, [renderMore, isLoadingNext, elements]);
+
+  // 节流版本的handleNext - 防止频繁触发但不会卡住
+  const throttledHandleNext = useCallback(() => {
+    const now = Date.now();
+    // 如果正在加载，直接返回
+    if (isLoadingNext.current) return;
+    
+    // 检查滚动状态，快速滚动时延长节流时间
+    const currentScrollSpeed = Math.abs(scrollSpeed.current || 0);
+    const throttleTime = currentScrollSpeed > 100 ? 300 : 100; // 高速滚动时使用更长的节流时间
+    
+    // 如果距离上次触发少于节流时间，使用定时器延迟执行
+    if (now - lastNextTrigger.current < throttleTime) {
+      if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
+      nextThrottleTimer.current = window.setTimeout(() => {
+        lastNextTrigger.current = Date.now();
+        handleNext();
+      }, throttleTime);
+    } else {
+      // 立即执行
+      lastNextTrigger.current = now;
+      handleNext();
+    }
+  }, [handleNext]);
 
   /* ----------  CLEAN-UP (TOP / BOTTOM)  ---------- */
   const cleanItemsFromBottom = useCallback(() => {
@@ -218,7 +276,22 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
   // 处理滚动事件
   const handleScroll = useCallback(() => {
-    updateScrollBar();
+    const now = Date.now();
+    isScrolling.current = true;
+    lastScrollTime.current = now;
+    
+    // 检测滚动结束
+    if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
+    scrollEndTimer.current = window.setTimeout(() => {
+      isScrolling.current = false;
+    }, 150); // 150ms没有滚动事件就认为滚动结束
+    
+    // 使用 RAF 节流滚动条更新
+    if (rafId.current) cancelAnimationFrame(rafId.current);
+    rafId.current = requestAnimationFrame(() => {
+      updateScrollBar();
+    });
+    
     const container = containerRef.current;
     if (!container) return;
     const currentScrollTop = container.scrollTop;
@@ -228,10 +301,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
     // console.log('ScrollU: handleScroll currentScrollTop', currentScrollTop, 'scrollDiff', scrollDiff);
 
-
     // 防抖清理
     clearTimeout(cleanTimers.current.bottom);
-
     clearTimeout(cleanTimers.current.top);
     cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, 2000);
     cleanTimers.current.top = setTimeout(cleanItemsFromTop, 3500);
@@ -243,7 +314,12 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     if (!container) return;
 
     container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      // 清理所有定时器和 RAF
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+      if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
+    };
   }, [handleScroll]);
 
   // 初始化和元素变化时更新滚动条
@@ -261,10 +337,18 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const { oldHeight, oldScrollTop } = pendingPreAdjust.current;
       const newHeight = contentRef.current?.scrollHeight || 0;
       const heightDelta = newHeight - oldHeight;
-      const scrollDelta = container.scrollTop - oldScrollTop;
-      const delta = Math.max(0, heightDelta - scrollDelta);
-
-      container.scrollTop += delta + scrollSpeed.current;
+      
+      // 如果正在快速滚动，使用更保守的调整策略
+      if (isScrolling.current || Math.abs(scrollSpeed.current) > 50) {
+        // 快速滚动时只做基本的高度调整，不添加scrollSpeed补偿
+        container.scrollTop = oldScrollTop + heightDelta;
+      } else {
+        // 慢速滚动时使用原来的精确调整
+        const scrollDelta = container.scrollTop - oldScrollTop;
+        const delta = Math.max(0, heightDelta - scrollDelta);
+        container.scrollTop += delta + Math.min(scrollSpeed.current, 50); // 限制scrollSpeed的影响
+      }
+      
       pendingPreAdjust.current = null;
       //console.log('ScrollU: pendingPreAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'heightDelta', heightDelta, ' scrollDelta', scrollDelta, 'container.scrollTop', container.scrollTop, 'delta', delta);
       //console.log('ScrollU: pendingPreAdjust Adjusted scrollTop by', oldScrollTop, 'new scrollTop', container.scrollTop);
@@ -277,15 +361,19 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const { oldHeight, oldScrollTop } = pendingTopCleanAdjust.current;
       const newHeight = contentRef.current?.scrollHeight || 0;
       const deltaHeight = oldHeight - newHeight;
-      const deltaScrollTop = oldScrollTop - container.scrollTop;
-      //console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight,'deltaHeight', deltaHeight, 'deltaScroll', deltaScrollTop, ' container.scrollTop', container.scrollTop);
+      
+      // 如果正在快速滚动，跳过清理后的位置调整
+      if (!isScrolling.current && Math.abs(scrollSpeed.current) < 50) {
+        const deltaScrollTop = oldScrollTop - container.scrollTop;
+        //console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight,'deltaHeight', deltaHeight, 'deltaScroll', deltaScrollTop, ' container.scrollTop', container.scrollTop);
 
-      const delta = Math.max(0, deltaHeight - deltaScrollTop);
-      if (delta > 0) {
-        //console.log('ScrollU: pendingTopCleanAdjust Adjusting scrollTop by', delta);
-        container.scrollTop -= delta;
-      } else {
-        //console.log('ScrollU: pendingTopCleanAdjust No adjustment needed, delta is negative or zero');
+        const delta = Math.max(0, deltaHeight - deltaScrollTop);
+        if (delta > 0) {
+          //console.log('ScrollU: pendingTopCleanAdjust Adjusting scrollTop by', delta);
+          container.scrollTop -= delta;
+        } else {
+          //console.log('ScrollU: pendingTopCleanAdjust No adjustment needed, delta is negative or zero');
+        }
       }
 
       pendingTopCleanAdjust.current = null;
@@ -301,16 +389,21 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            if (entry.target === _firstNode.current) handlePre();
-            else if (entry.target === _lastNode.current) handleNext();
+            if (entry.target === _firstNode.current) throttledHandlePre();
+            else if (entry.target === _lastNode.current) throttledHandleNext();
           }
         });
       },
       { root: containerRef.current, rootMargin: '50px', threshold: 0.1 }
     );
     intersectionObserver.current = io;
-    return () => io.disconnect();
-  }, [handlePre, handleNext]);
+    return () => {
+      io.disconnect();
+      // 清理定时器
+      if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
+      if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
+    };
+  }, [throttledHandlePre, throttledHandleNext]);
 
   function safeObserve(
     io: IntersectionObserver | null,
