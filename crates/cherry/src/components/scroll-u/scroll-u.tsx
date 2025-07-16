@@ -104,6 +104,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const lastNextContext = useRef<ElementWithKey | null>(null);
   const lastPreTime = useRef<number>(0);
   const lastNextTime = useRef<number>(0);
+  const lastPreloadCount = useRef<number>(0);
 
   /* 顶部添加元素后的滚动位置调整 */
   const pendingPreAdjust = useRef<null | { oldHeight: number; oldScrollTop: number }>(null);
@@ -193,6 +194,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         }
       } else {
         console.log('ScrollU: handlePre new items', newItems);
+        lastPreloadCount.current = newItems.length;
         const container = containerRef.current;
         if (!container) return;
 
@@ -297,7 +299,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   // 节流版本的handlePre - 防止频繁触发但不会卡住
   const throttledHandlePre = useCallback((forceDelay: number = 0) => {
     const now = Date.now();
-    
+
     // 如果正在加载，设置延迟重试而不是直接返回
     if (isLoadingPre.current) {
       console.log('ScrollU: Pre loading in progress, scheduling delayed retry');
@@ -350,6 +352,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         handlePre();
       }, throttleTime);
     } else {
+      console.log('ScrollU: handlePre triggered immediately', forceDelay,
+        now - lastPreTrigger.current, 'ms since last trigger');
       // 立即执行
       lastPreTrigger.current = now;
       handlePre();
@@ -359,7 +363,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   // 节流版本的handleNext - 防止频繁触发但不会卡住
   const throttledHandleNext = useCallback((forceDelay: number = 0) => {
     const now = Date.now();
-    
+
     // 如果正在加载，设置延迟重试而不是直接返回
     if (isLoadingNext.current) {
       console.log('ScrollU: Next loading in progress, scheduling delayed retry');
@@ -634,7 +638,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     if (delayedObserveTimer.current) {
       clearTimeout(delayedObserveTimer.current);
     }
-    
+
     delayedObserveTimer.current = window.setTimeout(() => {
       if (_firstNode.current === node && intersectionObserver.current && !isLoadingPre.current) {
         console.log(`ScrollU: Observing first node after delay (${reason})`);
@@ -653,6 +657,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
   /* ----------  SCROLL POSITION ADJUSTMENTS  ---------- */
   useLayoutEffect(() => {
+    lastPreloadCount.current = 0; // 重置预加载计数
     const container = containerRef.current;
     if (!container) return;
 
@@ -687,8 +692,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       pendingPreAdjust.current = null;
       isLoadingPre.current = false;
 
-      // 使用统一的延迟观察函数，延迟时间较短因为滚动位置已经调整
-      // 这里处理之前在 handleFirstRef 中因为 loading 状态而延迟的观察
+      // 滚动位置调整完成后，确保第一个节点能正确观察
       if (_firstNode.current) {
         scheduleDelayedObserve(_firstNode.current, 100, 'scroll adjustment');
       }
@@ -779,18 +783,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const handleFirstRef = (node: HTMLDivElement | null) => {
     const oldNode = _firstNode.current;
     _firstNode.current = node;
-    
-    // 如果正在加载中，标记需要延迟观察，但不立即处理
-    // 让 useLayoutEffect 在滚动位置调整后统一处理
-    if (isLoadingPre.current) {
-      console.log('ScrollU: Deferring first node observation - loading in progress, will handle in useLayoutEffect');
-      // 先取消观察旧节点
-      if (oldNode && intersectionObserver.current) {
-        intersectionObserver.current.unobserve(oldNode);
-      }
-      return;
-    }
-    
+
     // 如果是新节点且之前有节点，说明是因为新增元素导致的变化
     // 在这种情况下，我们需要延迟观察以避免立即触发
     if (node && oldNode !== node && oldNode) {
@@ -799,7 +792,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       if (intersectionObserver.current) {
         intersectionObserver.current.unobserve(oldNode);
       }
-      // 使用统一的延迟观察函数
+      // 使用统一的延迟观察函数，延迟观察新节点
       scheduleDelayedObserve(node, 200, 'node change');
     } else {
       // 正常观察（初始化或节点为空的情况）
@@ -832,7 +825,16 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         }}
       >
         {elements.map((item, idx) => {
-          const isFirst = idx === 0;
+
+          let isFirst = idx === 0;
+          if (lastPreloadCount.current > 60) {
+            // 如果加载了很多元素，可能需要调整第一个元素的判断
+            isFirst = idx == 30;
+            if (isFirst) {
+              console.log('ScrollU: Adjusting first element check due to large preload count', lastPreloadCount.current);
+              lastPreloadCount.current = 0; // 重置计数
+            }
+          }
           const isLast = idx === elements.length - 1;
           const targetRef = isFirst ? handleFirstRef : isLast ? handleLastRef : undefined;
 

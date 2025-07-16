@@ -214,7 +214,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
       console.warn('MessageList: loadMore called without messageId', props);
       return [];
     }
-    const messages = await messageService.loadMessages(conversationId, messageId, direction === 'pre' ? 'backward' : 'forward', 25);
+    const messages = await messageService.loadMessages(conversationId, messageId, direction === 'pre' ? 'backward' : 'forward', 10);
     if (messages.length === 0) {
       console.info('no more message:', props, direction);
       return [];
