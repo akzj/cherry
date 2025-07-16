@@ -34,14 +34,6 @@ interface MessageInputProps {
   onSendMessage?: () => void;
 }
 
-interface FileUploadCompleteResponse {
-  file_id: string;
-  file_name: string;
-  file_url: string;
-  file_thumbnail_url: string;
-  file_metadata: any;
-}
-
 interface SelectedImageInfo {
   path: string;
   name: string;
@@ -80,6 +72,134 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   }, [message]);
 
+  // 为 Quill 编辑器添加粘贴事件监听
+  useEffect(() => {
+    if (isQuillMode) {
+      const quillContainer = document.querySelector('.ql-editor');
+      if (quillContainer) {
+        quillContainer.addEventListener('paste', handleQuillPaste);
+        return () => {
+          quillContainer.removeEventListener('paste', handleQuillPaste);
+        };
+      }
+    }
+  }, [isQuillMode]);
+
+  // 组件卸载时清理 blob URL
+  useEffect(() => {
+    return () => {
+      if (selectedImage && selectedImage.path.startsWith('blob:')) {
+        URL.revokeObjectURL(selectedImage.path);
+      }
+    };
+  }, [selectedImage]);
+
+  // 为 Quill 编辑器处理粘贴事件
+  const handleQuillPaste = (e: any) => {
+    const clipboardData = e.clipboardData || (window as any).clipboardData;
+    const items = clipboardData.items;
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // 检查是否是图片
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        
+        const file = item.getAsFile();
+        if (file) {
+          try {
+            // 创建临时的 blob URL
+            const blobUrl = URL.createObjectURL(file);
+            
+            // 获取图片信息
+            const img = new Image();
+            img.onload = async () => {
+              const fileInfo = {
+                name: file.name || `pasted-image-${Date.now()}.png`,
+                size: file.size,
+                type: file.type,
+                width: img.width,
+                height: img.height
+              };
+              
+              // 设置选中的图片信息，使用 blob URL 作为路径
+              setSelectedImage({
+                path: blobUrl,
+                name: fileInfo.name,
+                size: fileInfo.size,
+                preview: blobUrl
+              });
+            };
+            
+            img.onerror = () => {
+              console.error('无法加载粘贴的图片');
+              URL.revokeObjectURL(blobUrl);
+            };
+            
+            img.src = blobUrl;
+          } catch (error) {
+            console.error('处理粘贴图片失败:', error);
+          }
+        }
+        break;
+      }
+    }
+  };
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // 检查是否是图片
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        
+        const file = item.getAsFile();
+        if (file) {
+          try {
+            // 创建临时的 blob URL
+            const blobUrl = URL.createObjectURL(file);
+            
+            // 获取图片信息
+            const img = new Image();
+            img.onload = async () => {
+              const fileInfo = {
+                name: file.name || `pasted-image-${Date.now()}.png`,
+                size: file.size,
+                type: file.type,
+                width: img.width,
+                height: img.height
+              };
+              
+              // 设置选中的图片信息，使用 blob URL 作为路径
+              setSelectedImage({
+                path: blobUrl,
+                name: fileInfo.name,
+                size: fileInfo.size,
+                preview: blobUrl
+              });
+              
+              // 注意：不要立即清理 URL 对象，因为后续上传时还需要使用
+              // URL.revokeObjectURL(blobUrl);
+            };
+            
+            img.onerror = () => {
+              console.error('无法加载粘贴的图片');
+              URL.revokeObjectURL(blobUrl);
+            };
+            
+            img.src = blobUrl;
+          } catch (error) {
+            console.error('处理粘贴图片失败:', error);
+          }
+        }
+        break;
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     console.log(quillValue);
     e.preventDefault();
@@ -93,6 +213,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
           try {
             const response = await fileService.uploadFile(conversationId, selectedImage.path);
             console.log('图片上传成功:', response);
+            
+            // 如果是 blob URL，清理它
+            if (selectedImage.path.startsWith('blob:')) {
+              URL.revokeObjectURL(selectedImage.path);
+            }
+            
             // 创建包含图片和文字的组合消息
             const imageContent: ImageContent = {
               url: response.url,
@@ -187,6 +313,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   // 移除图片
   const handleRemoveImage = () => {
+    if (selectedImage && selectedImage.path.startsWith('blob:')) {
+      // 清理 blob URL 以释放内存
+      URL.revokeObjectURL(selectedImage.path);
+    }
     setSelectedImage(null);
   };
 
@@ -228,7 +358,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <Container>
+    <Container onPaste={handlePaste}>
       {/* 显示回复消息 */}
       {replyingTo && (
         <ReplyMessage
@@ -269,6 +399,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             placeholder={selectedImage ? "Type a message..." : "Type a message..."}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onPaste={handlePaste}
             disabled={isInputDisabled}
             rows={1}
             style={{ display: isQuillMode ? 'none' : undefined }}
