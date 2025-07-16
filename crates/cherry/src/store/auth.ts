@@ -100,6 +100,7 @@ const authStateCreator: StateCreator<
         isInitialized: true,
       });
       window.__CURRENT_USER_ID__ = user.user_id;
+      window.__USER__ = user;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '登录失败';
       set({

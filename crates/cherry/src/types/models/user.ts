@@ -11,6 +11,7 @@ export interface User {
   user_id: string;      // 兼容旧版本
   username: string;     // 用户名
   name?: string;        // 显示名称
+  remark?: string;      // 备注
   email: string;        // 邮箱
   avatar?: string;      // 头像URL
   avatar_url?: string;  // 兼容旧版本

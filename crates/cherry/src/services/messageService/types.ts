@@ -1,10 +1,10 @@
-import type { Message } from '@/types';
+import type { Message, MessageContentType } from '@/types';
 
 export interface MessageService {
   sendMessage(
     conversationId: string,
     content: string,
-    messageType?: string,
+    messageType: MessageContentType,
     replyTo?: number
   ): Promise<void>;
 

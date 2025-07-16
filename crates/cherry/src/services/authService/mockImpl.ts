@@ -37,8 +37,8 @@ export async function mockLogin(email: string, password: string): Promise<User> 
 
   // 2. 没有则生成新用户
   const baseUser: User = {
-    id: `mock-user-id`,
-    user_id: `mock-user-id`,
+    id: `mock-user-id-1`,
+    user_id: `mock-user-id-2`,
     username: 'Mock User',
     email,
     avatar_url: `https://i.pravatar.cc/200?u=${email}`,

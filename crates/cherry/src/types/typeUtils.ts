@@ -1,4 +1,5 @@
-import { ImageContent, MessageContent, ParsedMessageContent, Message } from "./models/message";
+
+import { ImageContent, MessageContent, ParsedMessageContent, Message, ReactionContent } from "./models/message";
 
 // 根据消息类型解析内容的函数
 export function parseMessageContent(content: MessageContent, messageType: string): ParsedMessageContent {
@@ -155,13 +156,10 @@ export function parseMessageContent(content: MessageContent, messageType: string
       return { type: 'custom', text: '自定义消息' };
 
     case 'reaction':
-      if ('emoji' in content && 'users' in content) {
-        return {
-          type: 'reaction',
-          text: `反应: ${content.emoji}`
-        };
-      }
-      return { type: 'reaction', text: '反应消息' };
+      return {
+        type: 'reaction',
+        ...(content as ReactionContent)
+      };
 
     case 'quill':
       if ('html' in content) {

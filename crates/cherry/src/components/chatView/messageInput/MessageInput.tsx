@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
-import { ImageContent, Message, QuillContent } from '@/types';
+import { ImageContent, Message, MessageContentType, QuillContent } from '@/types';
 import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css'; // Quill样式
+import 'react-quill/dist/quill.bubble.css'; // Quill气泡样式
 import editIcon from '@/assets/edit.svg';
 import { messageService } from '@/services/messageService';
 import { fileService } from '@/services/fileService';
@@ -85,7 +87,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       setIsSending(true);
       try {
         let finalMessage = message;
-        let messageType = 'text';
+        let messageType: MessageContentType = 'text';
 
         if (selectedImage) {
           try {
@@ -276,10 +278,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
           {isQuillMode && (
             <div >
               <ReactQuill
-                theme="snow"
+                //theme="snow"
                 value={quillValue}
                 onChange={setQuillValue}
-                style={{ background: '#fff', color: '#222' }}
+              //  style={{ background: '#fff', color: '#222' }}
               />
             </div>
           )}

@@ -10,10 +10,6 @@ export const MessageContainer = styled.div<{ $isOwn: boolean }>`
 `;
 
 export const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>`
-  background: ${props => props.$isOwn
-    ? 'linear-gradient(135deg,rgba(117, 211, 80, 0.15) 0%,rgba(109, 186, 161, 0.59) 100%)'
-    : 'linear-gradient(135deg,rgba(90, 186, 83, 0.1) 0%,rgba(255, 255, 255, 0.1) 100%)'
-  };
   color: ${props => props.$isOwn ? 'rgba(0, 0, 0, 0.71)' : 'rgba(15, 6, 6, 0.72)'};
   padding: 0.75rem 1rem;
   border-radius: 1rem;
@@ -29,9 +25,10 @@ export const MessageBubble = styled.div<{ $isOwn: boolean; $isReply?: boolean }>
 
 export const MessageHeader = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: end;
   align-items: center;
   margin-bottom: 0.25rem;
+  gap: 0.75rem; 
   font-size: 0.75rem;
   opacity: 0.7;
 `;
@@ -194,4 +191,3 @@ export const ReactionIcon = styled.button<{ active?: boolean }>`
     opacity: 1;
   }
 `;
-

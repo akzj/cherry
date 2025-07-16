@@ -16,7 +16,7 @@ import { set } from 'lodash';
 export type ElementWithKey<P = any> = ReactElement<P> & { key: Key };
 /* ----------  TYPES  ---------- */
 export type ElementWithKeyArr = ElementWithKey[];
-export type UpdateElementHandle = (items: ElementWithKeyArr) => ElementWithKeyArr;
+export type UpdateElementHandle = (elements: ElementWithKeyArr) => ElementWithKeyArr;
 
 export interface ScrollURef {
   updateElements: (handle: UpdateElementHandle) => void;
@@ -81,11 +81,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     updateElements: (handler: UpdateElementHandle) => {
       const container = containerRef.current;
       if (!container) return;
-
-      const oldHeight = contentRef.current?.scrollHeight ?? 0;
-      const oldScrollTop = container.scrollTop;
-
-      pendingPreAdjust.current = { oldHeight, oldScrollTop };
       setElements(prev => handler(prev));
     },
     listNodes: () => elements,

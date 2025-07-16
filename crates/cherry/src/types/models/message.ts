@@ -83,6 +83,7 @@ export interface CustomContent {
 }
 
 export interface ReactionContent {
+    message_id: number; // 目标消息ID
     emoji: string;
     users: string;
     action: 'add' | 'remove';
@@ -121,6 +122,9 @@ export type MessageContent =
     | ReactionContent
     | QuillContent;
 
+
+export type MessageContentType = 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction' | 'quill'
+
 export interface Message {
     id: number;
     conversation_id: string;
@@ -128,7 +132,7 @@ export interface Message {
     content: MessageContent;
     timestamp: string;
     reply_to?: number;
-    type_: 'text' | 'image' | 'audio' | 'video' | 'file' | 'system' | 'emoji' | 'code' | 'location' | 'contact' | 'event' | 'custom' | 'reaction' | 'quill';
+    type_: MessageContentType
     replyToMessage?: Message;
     isReply?: boolean;
     reactions?: Reaction[];

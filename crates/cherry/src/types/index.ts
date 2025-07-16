@@ -11,3 +11,5 @@ export * from './models';
 
 // 类型工具函数
 export * from './typeUtils';
+
+export * from './global';

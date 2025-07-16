@@ -20,20 +20,24 @@ import {
 import QuickEmojiReply from '@/components/UI/QuickEmojiReply';
 import AsyncMessageImage from './AsyncMessageImage';
 import { Message, parseMessageContent } from '@/types';
+import { userService } from '@/services/userService';
 import SafeQuillContent from './SafeQuillContent';
+import { Avatar } from '@/components/UI';
 
 
 
-export interface MessageNodeProps {
+export interface MessageItemProps {
   message: Message;
+  groupId?: string;
   currentUserId: string;
   onReply: (message: Message) => void;
   onReactionClick: (message: Message, emoji: string) => void;
   onScrollToMessage: (data_message_id: string) => void;
+  onCopyMessage?: (message: Message) => void;
 }
 
 
-const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onReply, onReactionClick, onScrollToMessage }) => {
+const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, groupId, onReply, onReactionClick, onScrollToMessage, onCopyMessage }) => {
   const isOwn = message.user_id === currentUserId;
   const parsedContent = parseMessageContent(message.content, message.type_);
   const formatTime = (timestamp: string) => {
@@ -44,20 +48,42 @@ const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onRe
     });
   };
 
+  const [username, setUsername] = React.useState<string>('');
+  const [userAvatar, setUserAvatar] = React.useState<string>('');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    userService.getUserName(message.user_id, groupId).then(name => {
+      if (isMounted) setUsername(name);
+    });
+
+
+    userService.getUserInfo(message.user_id).then(user => {
+      if (isMounted && user) {
+        setUserAvatar(user.avatar_url || user.avatar || '');
+      }
+    });
+
+
+    return () => { isMounted = false; };
+  }, [message.user_id, groupId]);
+
   return (
     <MessageContainer $isOwn={isOwn} data-message-id={message.conversation_id + message.id} className="message-container">
       <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-        <QuickEmojiReply
+        <QuickEmojiReply isOwn={isOwn}
           onReply={emoji => onReactionClick(message, emoji)}
           onReplyMessage={() => onReply(message)}
+          onCopyMessage={() => onCopyMessage && onCopyMessage(message)}
         />
 
         {/* 回复连接线 */}
         {message.isReply && <ReplyConnection $isOwn={isOwn} />}
 
         <MessageHeader>
-          <Username>{message.id}</Username>
           <Timestamp>{formatTime(message.timestamp)}</Timestamp>
+          <Username>{username}</Username>
+          {!!isOwn && (<Avatar src={userAvatar} alt='' />)}
         </MessageHeader>
 
         {/* 新的回复引用显示 */}
@@ -113,16 +139,18 @@ const MessageItem = React.memo<MessageNodeProps>(({ message, currentUserId, onRe
         {/* reaction bar */}
         {message.reactions && message.reactions.length > 0 && (
           <ReactionBar>
-            {message.reactions.map(r => (
-              <ReactionIcon
-                key={r.emoji + r.users.length}
-                active={r.users.includes(currentUserId)}
-                onClick={() => onReactionClick(message, r.emoji)}
-                title={r.emoji}
-              >
-                {r.emoji} {r.users.length > 1 ? r.users.length : ''}
-              </ReactionIcon>
-            ))}
+            {message.reactions.map(r => {
+              return (
+                <ReactionIcon
+                  key={r.emoji + r.users.length}
+                  active={r.users.includes(currentUserId)}
+                  onClick={() => onReactionClick(message, r.emoji)}
+                  title={r.emoji}
+                >
+                  {r.emoji} {r.users.length > 1 ? r.users.length : ''}
+                </ReactionIcon>
+              )
+            })}
           </ReactionBar>
         )}
 

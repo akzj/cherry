@@ -30,8 +30,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   const ref = React.useRef<MessageListRef>(null);
 
   const onSendMessage = useCallback(() => {
-    // 发送消息后可以在这里处理一些逻辑，比如重新加载消息列表
-    console.log('Message sent, reloading messages...');
     if (ref.current) {
       ref.current.onSendMessageEvent();
     }
@@ -40,11 +38,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({
 
 
   //添加调试日志
-  console.log('ConversationView mounted', {
-    conversationId: conversation.id,
-    isVisible,
-    currentUserId,
-  });
+  // console.log('ConversationView mounted', {
+  //   conversationId: conversation.id,
+  //   isVisible,
+  //   currentUserId,
+  // });
 
   return (
     <Container $isVisible={isVisible}>

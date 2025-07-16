@@ -1,10 +1,13 @@
 import React, { useRef, useCallback, ReactNode, useImperativeHandle } from 'react';
-import { Message } from '@/types';
+import { Message, ReactionContent } from '@/types';
 
 import { messageService } from '@/services/messageService';
-import { ReactNodes, ScrollU, ScrollURef } from '@/components/scroll-u';
-import MessageItem, { MessageNodeProps } from './messageItem.tsx';
+import { ElementWithKey, ScrollU, ScrollURef } from '@/components/scroll-u';
+import MessageItem, { MessageItemProps } from './messageItem.tsx';
 import { uniqueId } from 'lodash';
+import { listenerService } from '@/services/listenService/index.ts';
+import { makeNewMessageEvent } from '@/types/events.ts';
+import { ElementWithKeyArr } from '@/components/scroll-u/scroll-u.tsx';
 
 
 
@@ -22,7 +25,7 @@ interface MessageListProps {
 export const addReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
   await messageService.sendMessage(
     conversationId,
-    JSON.stringify({ emoji, users: userId, action: 'add', targetMessageId: messageId }),
+    JSON.stringify({ emoji, users: userId, action: 'add', message_id: messageId }),
     'reaction'
   );
 };
@@ -30,21 +33,95 @@ export const addReaction = async (conversationId: string, messageId: number, emo
 export const removeReaction = async (conversationId: string, messageId: number, emoji: string, userId: string) => {
   await messageService.sendMessage(
     conversationId,
-    JSON.stringify({ emoji, users: userId, action: 'remove', targetMessageId: messageId }),
+    JSON.stringify({ emoji, users: userId, action: 'remove', message_id: messageId }),
     'reaction'
   );
 };
 
 
+const onCopyMessage = (message: Message) => {
+  if (message.content) {
+    navigator.clipboard.writeText(message.content as string);
+    console.log('Message copied to clipboard:', message.content);
+  } else {
+    console.warn('Message content is empty, cannot copy');
+  }
+}
+
 const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, ref) => {
   const { currentUserId, conversationId, setReplyingTo } = props;
   useImperativeHandle(ref, () => ({
     onSendMessageEvent: () => {
-      console.log('MessageList: onSendMessageEvent called');
+      //  console.log('MessageList: onSendMessageEvent called');
       // 这里可以添加发送消息后的逻辑，比如重新加载消息列表
-      fetchMessages();
+      ///fetchMessages();
     }
   }));
+
+  const mewMessageHandler = useCallback((message: Message) => {
+    console.log('MessageList: New message received', message);
+    if (message.conversation_id === conversationId) {
+      if (scrollURef.current) {
+        scrollURef.current.updateElements((elements: ElementWithKey[]): ElementWithKey[] => {
+          let replaced = false;
+          // Check if the message already exists in the list
+          // update the existing message
+          const updatedElements = elements.map((node: ElementWithKey) => {
+            if (
+              React.isValidElement(node) &&
+              (node as React.ReactElement<MessageItemProps>).props.message.id === message.id
+            ) {
+              replaced = true;
+              return (
+                <MessageItem
+                  key={message.conversation_id + message.id + uniqueId()}
+                  currentUserId={currentUserId}
+                  message={message}
+                  onReactionClick={handleReactionClick}
+                  onReply={handleReply}
+                  onScrollToMessage={handleScrollToMessage}
+                />
+              );
+            }
+            return node;
+          });
+          if (replaced) {
+            console.log('MessageList: Message updated', message.id);
+            return updatedElements as ElementWithKey[];
+          }
+
+          return [
+            ...elements,
+            React.createElement(MessageItem, {
+              key: message.conversation_id + message.id + uniqueId(),
+              message: message,
+              currentUserId: currentUserId,
+              onReply: handleReply,
+              onReactionClick: handleReactionClick,
+              onScrollToMessage: handleScrollToMessage,
+              onCopyMessage: onCopyMessage,
+            }) as ElementWithKey,
+          ];
+        });
+      }
+    } else {
+      console.warn('MessageList: Received message for different conversation', {
+        messageConversationId: message.conversation_id,
+        currentConversationId: conversationId,
+      });
+    }
+  }, [conversationId, currentUserId]);
+
+  // 添加监听器
+  React.useEffect(() => {
+    listenerService.on(makeNewMessageEvent(conversationId), mewMessageHandler);
+    console.log('MessageList: Listener added for conversation', conversationId);
+    return () => {
+      // 清理监听器
+      listenerService.off(makeNewMessageEvent(conversationId), mewMessageHandler);
+      console.log('MessageList: Listener removed for conversation', conversationId);
+    };
+  }, [conversationId]);
 
   const scrollURef = useRef<ScrollURef>(null);
 
@@ -54,7 +131,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     const messages = await messageService.loadMessages(conversationId, 0, 'backward', 50);
     console.log(messages);
     if (scrollURef.current) {
-      scrollURef.current.updateElements((nodes: ReactNodes): ReactNodes => {
+      scrollURef.current.updateElements((nodes: ElementWithKeyArr): ElementWithKeyArr => {
         return messages.map(item =>
         (<MessageItem
           key={item.conversation_id + item.id}
@@ -63,9 +140,10 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
           onReply={handleReply}
           onReactionClick={handleReactionClick}
           onScrollToMessage={handleScrollToMessage}
+          onCopyMessage={onCopyMessage}
         />
         )
-        )
+        ) as ElementWithKeyArr;
       });
     }
   }, [conversationId]);
@@ -111,17 +189,11 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
   };
 
 
-  function getMessageProps(node: ReactNode): MessageNodeProps | undefined {
-    if (node && React.isValidElement(node)) {
-      return node.props as MessageNodeProps;
-    }
-    return undefined;
-  }
 
 
   const loadMore = useCallback(async (direction: 'pre' | 'next', contextData?: any): Promise<any[]> => {
     // contextData is expected to be ElementWithKey<any>
-    const props = contextData && contextData.props ? contextData.props as MessageNodeProps : undefined;
+    const props = contextData && contextData.props ? contextData.props as MessageItemProps : undefined;
     const messageId = props?.message?.id;
     if (!messageId) {
       console.warn('MessageList: loadMore called without messageId', props);
@@ -140,6 +212,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
         onReply={handleReply}
         onReactionClick={handleReactionClick}
         onScrollToMessage={handleScrollToMessage}
+        onCopyMessage={onCopyMessage}
       />
     ));
   }, [currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
