@@ -1,10 +1,9 @@
-import React, { useRef, useCallback, ReactNode, useImperativeHandle } from 'react';
-import { Message, ReactionContent } from '@/types';
+import React, { useRef, useCallback, useImperativeHandle } from 'react';
+import { Message } from '@/types';
 
 import { messageService } from '@/services/messageService';
 import { ElementWithKey, ScrollU, ScrollURef } from '@/components/scroll-u';
 import MessageItem, { MessageItemProps } from './messageItem.tsx';
-import { uniqueId } from 'lodash';
 import { listenerService } from '@/services/listenService/index.ts';
 import { makeNewMessageEvent } from '@/types/events.ts';
 import { ElementWithKeyArr } from '@/components/scroll-u/scroll-u.tsx';
@@ -64,36 +63,52 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
       if (scrollURef.current) {
         scrollURef.current.updateElements((elements: ElementWithKey[]): ElementWithKey[] => {
           let replaced = false;
-          // Check if the message already exists in the list
-          // update the existing message
+          
+          // 先检查是否已存在，如果存在则更新
           const updatedElements = elements.map((node: ElementWithKey) => {
             if (
               React.isValidElement(node) &&
               (node as React.ReactElement<MessageItemProps>).props.message.id === message.id
             ) {
-              replaced = true;
-              return (
-                <MessageItem
-                  key={message.conversation_id + message.id + uniqueId()}
-                  currentUserId={currentUserId}
-                  message={message}
-                  onReactionClick={handleReactionClick}
-                  onReply={handleReply}
-                  onScrollToMessage={handleScrollToMessage}
-                />
-              );
+              const existingProps = (node as React.ReactElement<MessageItemProps>).props;
+              
+              // 浅比较：只有真正变化时才更新
+              if (
+                existingProps.message.content !== message.content ||
+                existingProps.message.timestamp !== message.timestamp ||
+                existingProps.message.type_ !== message.type_ ||
+                JSON.stringify(existingProps.message.reactions) !== JSON.stringify(message.reactions)
+              ) {
+                replaced = true;
+                return (
+                  <MessageItem
+                    key={message.conversation_id + message.id}
+                    currentUserId={currentUserId}
+                    message={message}
+                    onReactionClick={handleReactionClick}
+                    onReply={handleReply}
+                    onScrollToMessage={handleScrollToMessage}
+                    onCopyMessage={onCopyMessage}
+                  />
+                );
+              }
+              // 如果没有变化，返回原来的节点
+              return node;
             }
             return node;
           });
+          
+          // 如果替换了现有消息，直接返回
           if (replaced) {
             console.log('MessageList: Message updated', message.id);
             return updatedElements as ElementWithKey[];
           }
 
+          // 如果是新消息，添加到末尾
           return [
             ...elements,
             React.createElement(MessageItem, {
-              key: message.conversation_id + message.id + uniqueId(),
+              key: message.conversation_id + message.id,
               message: message,
               currentUserId: currentUserId,
               onReply: handleReply,
@@ -131,7 +146,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     const messages = await messageService.loadMessages(conversationId, 0, 'backward', 50);
     console.log(messages);
     if (scrollURef.current) {
-      scrollURef.current.updateElements((nodes: ElementWithKeyArr): ElementWithKeyArr => {
+      scrollURef.current.updateElements((): ElementWithKeyArr => {
         return messages.map(item =>
         (<MessageItem
           key={item.conversation_id + item.id}
@@ -206,7 +221,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     }
     return messages.map(item => (
       <MessageItem
-        key={item.conversation_id + item.id + uniqueId()}
+        key={item.conversation_id + item.id}
         message={item}
         currentUserId={currentUserId}
         onReply={handleReply}

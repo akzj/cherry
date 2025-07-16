@@ -157,6 +157,17 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
       </MessageBubble>
     </MessageContainer>
   );
+}, (prevProps, nextProps) => {
+  // 自定义比较函数，只有真正变化的部分才重新渲染
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.timestamp === nextProps.message.timestamp &&
+    prevProps.message.type_ === nextProps.message.type_ &&
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.groupId === nextProps.groupId &&
+    JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions)
+  );
 });
 
 export default MessageItem;
