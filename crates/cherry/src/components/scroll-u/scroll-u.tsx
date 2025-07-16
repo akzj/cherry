@@ -88,6 +88,17 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const pendingNextLoad = useRef<boolean>(false);
   const retryLoadTimer = useRef<number | null>(null);
 
+  // 延迟重试定时器 - 专门用于处理重复请求的延迟重试
+  const delayedRetryTimer = useRef<number | null>(null);
+
+  // 延迟观察定时器 - 统一管理第一个节点的延迟观察
+  const delayedObserveTimer = useRef<number | null>(null);
+
+  // IntersectionObserver 冷却时间
+  const lastPreIntersectionTime = useRef<number>(0);
+  const lastNextIntersectionTime = useRef<number>(0);
+  const INTERSECTION_COOLDOWN = 300; // 300ms冷却时间，增加以防止快速重复触发
+
   // 防重复请求的状态跟踪
   const lastPreContext = useRef<ElementWithKey | null>(null);
   const lastNextContext = useRef<ElementWithKey | null>(null);
@@ -148,13 +159,26 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     // 检查是否与上次请求的上下文相同，以及是否在短时间内重复请求
     if (lastPreContext.current && lastPreContext.current.key === first.key &&
       now - lastPreTime.current < 800) { // 800ms内不允许重复请求
-      console.warn('ScrollU: handlePre skipping duplicate request for same context', first.key, 'time diff:', now - lastPreTime.current);
+      const retryDelay = Math.min(800 - (now - lastPreTime.current) + 100, 500); // 最大延迟500ms
+      console.warn('ScrollU: handlePre skipping duplicate request for same context', first.key, 'time diff:', now - lastPreTime.current, 'will retry in', retryDelay, 'ms');
+
+      // 不直接跳过，而是设置延迟重试
+      if (delayedRetryTimer.current) clearTimeout(delayedRetryTimer.current);
+      delayedRetryTimer.current = window.setTimeout(() => {
+        console.log('ScrollU: Retrying handlePre after duplicate detection');
+        handlePre();
+      }, retryDelay);
       return;
     }
 
     isLoadingPre.current = true;
     lastPreContext.current = first; // 记录当前请求的上下文
     lastPreTime.current = now; // 记录请求时间
+
+    // 在开始加载时立即停止观察第一个节点，防止重复触发
+    if (_firstNode.current) {
+      intersectionObserver.current?.unobserve(_firstNode.current);
+    }
 
     console.log('ScrollU: handlePre fetching more items', first, 'context set at:', now);
 
@@ -163,6 +187,10 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       if (!newItems?.length) {
         console.warn('ScrollU: handlePre returned no new items');
         isLoadingPre.current = false;
+        // 重新观察第一个节点
+        if (_firstNode.current) {
+          intersectionObserver.current?.observe(_firstNode.current);
+        }
       } else {
         console.log('ScrollU: handlePre new items', newItems);
         const container = containerRef.current;
@@ -172,7 +200,6 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
           oldHeight: contentRef.current!.scrollHeight,
           oldScrollTop: container.scrollTop,
         };
-        intersectionObserver.current?.unobserve(_firstNode.current!);
         setElements(prev => [...newItems, ...prev]);
         // 不要立即清空上下文，只在元素真正改变时清空
       }
@@ -181,6 +208,10 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       isLoadingPre.current = false;
       // 只在错误时清空上下文，允许重试
       lastPreContext.current = null;
+      // 重新观察第一个节点
+      if (_firstNode.current) {
+        intersectionObserver.current?.observe(_firstNode.current);
+      }
     } finally {
     }
   }, [renderMore, isLoadingPre, elements]);
@@ -196,7 +227,15 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     // 检查是否与上次请求的上下文相同，以及是否在短时间内重复请求
     if (lastNextContext.current && lastNextContext.current.key === last.key &&
       now - lastNextTime.current < 800) { // 800ms内不允许重复请求
-      console.warn('ScrollU: handleNext skipping duplicate request for same context', last.key, 'time diff:', now - lastNextTime.current);
+      const retryDelay = Math.min(800 - (now - lastNextTime.current) + 100, 500); // 最大延迟500ms
+      console.warn('ScrollU: handleNext skipping duplicate request for same context', last.key, 'time diff:', now - lastNextTime.current, 'will retry in', retryDelay, 'ms');
+
+      // 不直接跳过，而是设置延迟重试
+      if (delayedRetryTimer.current) clearTimeout(delayedRetryTimer.current);
+      delayedRetryTimer.current = window.setTimeout(() => {
+        console.log('ScrollU: Retrying handleNext after duplicate detection');
+        handleNext();
+      }, retryDelay);
       return;
     }
 
@@ -256,10 +295,20 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   }, [elements, handlePre, handleNext]);
 
   // 节流版本的handlePre - 防止频繁触发但不会卡住
-  const throttledHandlePre = useCallback(() => {
+  const throttledHandlePre = useCallback((forceDelay: number = 0) => {
     const now = Date.now();
-    // 如果正在加载，直接返回
-    if (isLoadingPre.current) return;
+    
+    // 如果正在加载，设置延迟重试而不是直接返回
+    if (isLoadingPre.current) {
+      console.log('ScrollU: Pre loading in progress, scheduling delayed retry');
+      pendingPreLoad.current = true;
+      // 设置延迟重试，确保不会卡住
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      retryLoadTimer.current = window.setTimeout(() => {
+        retryPendingLoads();
+      }, Math.max(forceDelay, 300)); // 至少300ms延迟
+      return;
+    }
 
     // 计算滚动速度（更精确）
     const timeDelta = now - lastScrollTimestamp.current;
@@ -284,13 +333,13 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     }
 
     // 根据滚动速度调整节流时间 - 更精细的控制
-    let throttleTime = 50; // 默认值
+    let throttleTime = Math.max(forceDelay, 50); // 考虑强制延迟参数
     if (isVeryFastScrolling) {
-      throttleTime = 300;
+      throttleTime = Math.max(forceDelay, 300);
     } else if (isFastScrolling) {
-      throttleTime = 200;
+      throttleTime = Math.max(forceDelay, 200);
     } else if (isMediumScrolling) {
-      throttleTime = 100;
+      throttleTime = Math.max(forceDelay, 100);
     }
 
     // 如果距离上次触发少于节流时间，使用定时器延迟执行
@@ -308,10 +357,20 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   }, [handlePre, retryPendingLoads]);
 
   // 节流版本的handleNext - 防止频繁触发但不会卡住
-  const throttledHandleNext = useCallback(() => {
+  const throttledHandleNext = useCallback((forceDelay: number = 0) => {
     const now = Date.now();
-    // 如果正在加载，直接返回
-    if (isLoadingNext.current) return;
+    
+    // 如果正在加载，设置延迟重试而不是直接返回
+    if (isLoadingNext.current) {
+      console.log('ScrollU: Next loading in progress, scheduling delayed retry');
+      pendingNextLoad.current = true;
+      // 设置延迟重试，确保不会卡住
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      retryLoadTimer.current = window.setTimeout(() => {
+        retryPendingLoads();
+      }, Math.max(forceDelay, 300)); // 至少300ms延迟
+      return;
+    }
 
     // 计算滚动速度（更精确）
     const timeDelta = now - lastScrollTimestamp.current;
@@ -336,13 +395,13 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     }
 
     // 根据滚动速度调整节流时间 - 更精细的控制
-    let throttleTime = 50; // 默认值
+    let throttleTime = Math.max(forceDelay, 50); // 考虑强制延迟参数
     if (isVeryFastScrolling) {
-      throttleTime = 300;
+      throttleTime = Math.max(forceDelay, 300);
     } else if (isFastScrolling) {
-      throttleTime = 200;
+      throttleTime = Math.max(forceDelay, 200);
     } else if (isMediumScrolling) {
-      throttleTime = 100;
+      throttleTime = Math.max(forceDelay, 100);
     }
 
     // 如果距离上次触发少于节流时间，使用定时器延迟执行
@@ -366,7 +425,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       console.log('ScrollU: cleanItemsFromBottom skipped - still scrolling');
       return;
     }
-    
+
     const container = containerRef.current;
     const nodes = Array.from(contentRef.current?.children ?? []);
     if (!container || !nodes.length) return;
@@ -392,7 +451,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       console.log('ScrollU: cleanItemsFromTop skipped - still scrolling');
       return;
     }
-    
+
     console.log('ScrollU: cleanItemsFromTop called');
     const container = containerRef.current;
     const nodes = Array.from(contentRef.current?.children ?? []);
@@ -476,23 +535,23 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     scrollVelocity.current = currentScrollVelocity;
 
     // 检测滚动结束 - 根据滚动速度动态调整检测时间
-    const scrollEndDelay = currentScrollVelocity > 0.5 ? 150 : 100; // 快速滚动时延长检测时间
+    const scrollEndDelay = currentScrollVelocity > 0.5 ? 3500 : 2000; // 快速滚动时延长检测时间
 
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
     scrollEndTimer.current = window.setTimeout(() => {
       isScrolling.current = false;
       // 滚动结束后，重试待加载的请求
       retryPendingLoads();
-      
+
       // 滚动结束后才进行清理，避免滚动时的性能问题和状态混乱
       console.log('ScrollU: Scroll ended, starting cleanup');
-      
+
       // 清理底部元素
       setTimeout(() => {
         console.log('ScrollU: Bottom cleanup timer fired');
         cleanItemsFromBottom();
       }, 500); // 短暂延迟确保滚动完全结束
-      
+
       // 清理顶部元素
       setTimeout(() => {
         console.log('ScrollU: Top cleanup timer fired');
@@ -524,6 +583,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
       if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
       if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      if (delayedRetryTimer.current) clearTimeout(delayedRetryTimer.current);
+      if (delayedObserveTimer.current) clearTimeout(delayedObserveTimer.current);
       if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
       if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
     };
@@ -536,6 +597,8 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
       if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
       if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      if (delayedRetryTimer.current) clearTimeout(delayedRetryTimer.current);
+      if (delayedObserveTimer.current) clearTimeout(delayedObserveTimer.current);
       if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
       if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
 
@@ -550,6 +613,43 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   useEffect(() => {
     updateScrollBar();
   }, [elements, updateScrollBar]);
+
+  /* ----------  INTERSECTION OBSERVER UTILITIES  ---------- */
+  const _firstNode = useRef<HTMLDivElement | null>(null);
+  const _lastNode = useRef<HTMLDivElement | null>(null);
+
+  function safeObserve(
+    io: IntersectionObserver | null,
+    oldEl: Element | null,
+    newEl: Element | null
+  ) {
+    if (!io) return;
+    if (oldEl && oldEl !== newEl) io.unobserve(oldEl);
+    if (newEl && newEl !== oldEl) io.observe(newEl);
+  }
+
+  // 统一的延迟观察函数
+  const scheduleDelayedObserve = useCallback((node: HTMLDivElement, delay: number = 150, reason: string = 'default') => {
+    // 清除之前的延迟观察定时器
+    if (delayedObserveTimer.current) {
+      clearTimeout(delayedObserveTimer.current);
+    }
+    
+    delayedObserveTimer.current = window.setTimeout(() => {
+      if (_firstNode.current === node && intersectionObserver.current && !isLoadingPre.current) {
+        console.log(`ScrollU: Observing first node after delay (${reason})`);
+        // 先取消观察，再重新观察，确保状态一致
+        try {
+          intersectionObserver.current.unobserve(node);
+        } catch (e) {
+          // 忽略 unobserve 错误
+        }
+        intersectionObserver.current.observe(node);
+        // 重置冷却时间，给更长的冷却期以防止立即触发
+        lastPreIntersectionTime.current = Date.now();
+      }
+    }, delay);
+  }, []);
 
   /* ----------  SCROLL POSITION ADJUSTMENTS  ---------- */
   useLayoutEffect(() => {
@@ -586,6 +686,13 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
       pendingPreAdjust.current = null;
       isLoadingPre.current = false;
+
+      // 使用统一的延迟观察函数，延迟时间较短因为滚动位置已经调整
+      // 这里处理之前在 handleFirstRef 中因为 loading 状态而延迟的观察
+      if (_firstNode.current) {
+        scheduleDelayedObserve(_firstNode.current, 100, 'scroll adjustment');
+      }
+
       return;
     }
 
@@ -611,22 +718,36 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     }
   }, [elements]);
 
-  /* ----------  INTERSECTION OBSERVER  ---------- */
-  const _firstNode = useRef<HTMLDivElement | null>(null);
-  const _lastNode = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     const io = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            // 添加额外的检查，确保元素仍然有效
+            const now = Date.now();
+            // 添加额外的检查，确保元素仍然有效，并且有冷却时间
+            // 同时检查是否正在进行滚动位置调整
             if (entry.target === _firstNode.current && _firstNode.current) {
-              console.log('ScrollU: IntersectionObserver triggered for first node');
-              throttledHandlePre();
+              if (now - lastPreIntersectionTime.current > INTERSECTION_COOLDOWN) {
+                console.log('ScrollU: IntersectionObserver triggered for first node');
+                lastPreIntersectionTime.current = now;
+                throttledHandlePre();
+              } else {
+                console.log('ScrollU: IntersectionObserver for first node in cooldown, using delayed loading');
+                // 冷却期内使用延迟加载
+                const remainingCooldown = INTERSECTION_COOLDOWN - (now - lastPreIntersectionTime.current);
+                throttledHandlePre(remainingCooldown + 50); // 额外加50ms确保冷却完成
+              }
             } else if (entry.target === _lastNode.current && _lastNode.current) {
-              console.log('ScrollU: IntersectionObserver triggered for last node');
-              throttledHandleNext();
+              if (now - lastNextIntersectionTime.current > INTERSECTION_COOLDOWN) {
+                console.log('ScrollU: IntersectionObserver triggered for last node');
+                lastNextIntersectionTime.current = now;
+                throttledHandleNext();
+              } else {
+                console.log('ScrollU: IntersectionObserver for last node in cooldown, using delayed loading');
+                // 冷却期内使用延迟加载
+                const remainingCooldown = INTERSECTION_COOLDOWN - (now - lastNextIntersectionTime.current);
+                throttledHandleNext(remainingCooldown + 50); // 额外加50ms确保冷却完成
+              }
             }
           }
         });
@@ -650,22 +771,40 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
       if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
       if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      if (delayedRetryTimer.current) clearTimeout(delayedRetryTimer.current);
+      if (delayedObserveTimer.current) clearTimeout(delayedObserveTimer.current);
     };
   }, [throttledHandlePre, throttledHandleNext]);
 
-  function safeObserve(
-    io: IntersectionObserver | null,
-    oldEl: Element | null,
-    newEl: Element | null
-  ) {
-    if (!io) return;
-    if (oldEl && oldEl !== newEl) io.unobserve(oldEl);
-    if (newEl && newEl !== oldEl) io.observe(newEl);
-  }
-
   const handleFirstRef = (node: HTMLDivElement | null) => {
-    safeObserve(intersectionObserver.current, _firstNode.current, node);
+    const oldNode = _firstNode.current;
     _firstNode.current = node;
+    
+    // 如果正在加载中，标记需要延迟观察，但不立即处理
+    // 让 useLayoutEffect 在滚动位置调整后统一处理
+    if (isLoadingPre.current) {
+      console.log('ScrollU: Deferring first node observation - loading in progress, will handle in useLayoutEffect');
+      // 先取消观察旧节点
+      if (oldNode && intersectionObserver.current) {
+        intersectionObserver.current.unobserve(oldNode);
+      }
+      return;
+    }
+    
+    // 如果是新节点且之前有节点，说明是因为新增元素导致的变化
+    // 在这种情况下，我们需要延迟观察以避免立即触发
+    if (node && oldNode !== node && oldNode) {
+      console.log('ScrollU: Delaying first node observation due to node change');
+      // 先取消观察旧节点
+      if (intersectionObserver.current) {
+        intersectionObserver.current.unobserve(oldNode);
+      }
+      // 使用统一的延迟观察函数
+      scheduleDelayedObserve(node, 200, 'node change');
+    } else {
+      // 正常观察（初始化或节点为空的情况）
+      safeObserve(intersectionObserver.current, oldNode, node);
+    }
   };
 
   const handleLastRef = (node: HTMLDivElement | null) => {
