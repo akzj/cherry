@@ -174,7 +174,7 @@ export const ReactionBar = styled.div`
   margin-bottom: 2px;
 `;
 
-export const ReactionIcon = styled.button<{ active?: boolean }>`
+export const ReactionIcon = styled.button<{ $active?: boolean }>`
   border-radius: 12px;
   font-size: 1.05rem;
   padding: 0;
@@ -184,7 +184,7 @@ export const ReactionIcon = styled.button<{ active?: boolean }>`
   height: 36px;
   align-items: center;
   justify-content: center;
-  opacity: ${({ active }) => (active ? 1 : 0.8)};
+  opacity: ${({ $active }) => ($active ? 1 : 0.8)};
   transition: all 0.15s;
   &:hover {
     transform: translate3d(1px, 1px, 3px) rotate3d(1, 3, 10, 15deg);

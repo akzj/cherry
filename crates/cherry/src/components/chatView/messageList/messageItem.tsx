@@ -143,9 +143,9 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
               return (
                 <ReactionIcon
                   key={r.emoji + r.users.length}
-                  active={r.users.includes(currentUserId)}
                   onClick={() => onReactionClick(message, r.emoji)}
                   title={r.emoji}
+                  $active={r.users.includes(currentUserId)}
                 >
                   {r.emoji} {r.users.length > 1 ? r.users.length : ''}
                 </ReactionIcon>

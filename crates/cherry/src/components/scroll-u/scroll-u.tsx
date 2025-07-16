@@ -80,6 +80,19 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   const isScrolling = useRef<boolean>(false);
   const scrollEndTimer = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
+  const scrollVelocity = useRef<number>(0);
+  const lastScrollTimestamp = useRef<number>(0);
+  
+  // 延迟加载相关
+  const pendingPreLoad = useRef<boolean>(false);
+  const pendingNextLoad = useRef<boolean>(false);
+  const retryLoadTimer = useRef<number | null>(null);
+  
+  // 防重复请求的状态跟踪
+  const lastPreContext = useRef<ElementWithKey | null>(null);
+  const lastNextContext = useRef<ElementWithKey | null>(null);
+  const lastPreTime = useRef<number>(0);
+  const lastNextTime = useRef<number>(0);
 
   /* 顶部添加元素后的滚动位置调整 */
   const pendingPreAdjust = useRef<null | { oldHeight: number; oldScrollTop: number }>(null);
@@ -99,6 +112,24 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     },
   }));
 
+  // 监听元素变化，清空对应的上下文
+  useEffect(() => {
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+    
+    // 如果第一个元素发生变化，清空 pre 上下文
+    if (lastPreContext.current && first && lastPreContext.current.key !== first.key) {
+      console.log('ScrollU: Clearing pre context due to element change');
+      lastPreContext.current = null;
+    }
+    
+    // 如果最后一个元素发生变化，清空 next 上下文
+    if (lastNextContext.current && last && lastNextContext.current.key !== last.key) {
+      console.log('ScrollU: Clearing next context due to element change');
+      lastNextContext.current = null;
+    }
+  }, [elements]);
+
   const handlePre = useCallback(async () => {
     console.log('ScrollU: handlePre called');
     if (!containerRef.current || !contentRef.current) return;
@@ -111,7 +142,19 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
     const first = elements[0];
     if (!first) return;
+    
+    const now = Date.now();
+    
+    // 检查是否与上次请求的上下文相同，以及是否在短时间内重复请求
+    if (lastPreContext.current && lastPreContext.current.key === first.key && 
+        now - lastPreTime.current < 1000) { // 1秒内不允许重复请求
+      console.warn('ScrollU: handlePre skipping duplicate request for same context', first.key, 'time diff:', now - lastPreTime.current);
+      return;
+    }
+    
     isLoadingPre.current = true;
+    lastPreContext.current = first; // 记录当前请求的上下文
+    lastPreTime.current = now; // 记录请求时间
 
     console.log('ScrollU: handlePre fetching more items', first);
 
@@ -131,10 +174,86 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
         };
         intersectionObserver.current?.unobserve(_firstNode.current!);
         setElements(prev => [...newItems, ...prev]);
+        // 不要立即清空上下文，只在元素真正改变时清空
       }
+    } catch (error) {
+      console.error('ScrollU: handlePre error', error);
+      isLoadingPre.current = false;
+      // 只在错误时清空上下文，允许重试
+      lastPreContext.current = null;
     } finally {
     }
   }, [renderMore, isLoadingPre, elements]);
+
+  const handleNext = useCallback(async () => {
+    if (!renderMore || isLoadingNext.current) return;
+
+    const last = elements[elements.length - 1];
+    if (!last) return;
+    
+    const now = Date.now();
+    
+    // 检查是否与上次请求的上下文相同，以及是否在短时间内重复请求
+    if (lastNextContext.current && lastNextContext.current.key === last.key && 
+        now - lastNextTime.current < 1000) { // 1秒内不允许重复请求
+      console.warn('ScrollU: handleNext skipping duplicate request for same context', last.key, 'time diff:', now - lastNextTime.current);
+      return;
+    }
+    
+    isLoadingNext.current = true;
+    lastNextContext.current = last; // 记录当前请求的上下文
+    lastNextTime.current = now; // 记录请求时间
+    
+    try {
+      const newItems = await renderMore('next', last);
+      if (!newItems?.length) {
+        console.warn('ScrollU: handleNext returned no new items');
+      } else {
+        if (newItems?.length) setElements(prev => [...prev, ...newItems]);
+        // 不要立即清空上下文，只在元素真正改变时清空
+      }
+    } catch (error) {
+      console.error('ScrollU: handleNext error', error);
+      // 只在错误时清空上下文，允许重试
+      lastNextContext.current = null;
+    } finally {
+      isLoadingNext.current = false;
+    }
+  }, [renderMore, isLoadingNext, elements]);
+
+  // 延迟加载函数 - 在滚动结束后重试
+  const retryPendingLoads = useCallback(() => {
+    const now = Date.now();
+    
+    // 检查是否真的需要重试，避免不必要的重复
+    if (pendingPreLoad.current && !isLoadingPre.current) {
+      const first = elements[0];
+      // 只有当前元素与上次请求的上下文不同时才重试，并且时间间隔足够
+      if (first && (!lastPreContext.current || lastPreContext.current.key !== first.key || 
+          now - lastPreTime.current >= 1000)) {
+        pendingPreLoad.current = false;
+        console.log('ScrollU: Retrying pending pre load for', first.key);
+        handlePre();
+      } else {
+        console.log('ScrollU: Skipping pre retry - same context or too soon');
+        pendingPreLoad.current = false;
+      }
+    }
+    
+    if (pendingNextLoad.current && !isLoadingNext.current) {
+      const last = elements[elements.length - 1];
+      // 只有当前元素与上次请求的上下文不同时才重试，并且时间间隔足够
+      if (last && (!lastNextContext.current || lastNextContext.current.key !== last.key || 
+          now - lastNextTime.current >= 1000)) {
+        pendingNextLoad.current = false;
+        console.log('ScrollU: Retrying pending next load for', last.key);
+        handleNext();
+      } else {
+        console.log('ScrollU: Skipping next retry - same context or too soon');
+        pendingNextLoad.current = false;
+      }
+    }
+  }, [elements, handlePre, handleNext]);
 
   // 节流版本的handlePre - 防止频繁触发但不会卡住
   const throttledHandlePre = useCallback(() => {
@@ -142,9 +261,25 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     // 如果正在加载，直接返回
     if (isLoadingPre.current) return;
     
-    // 检查滚动状态，快速滚动时延长节流时间
+    // 计算滚动速度（更精确）
+    const timeDelta = now - lastScrollTimestamp.current;
     const currentScrollSpeed = Math.abs(scrollSpeed.current || 0);
-    const throttleTime = currentScrollSpeed > 100 ? 300 : 100; // 高速滚动时使用更长的节流时间
+    scrollVelocity.current = timeDelta > 0 ? currentScrollSpeed / timeDelta : 0;
+    
+    // 如果滚动速度很快，标记为待加载，不直接跳过
+    if (currentScrollSpeed > 200) {
+      console.log('ScrollU: Deferring handlePre due to fast scrolling', currentScrollSpeed);
+      pendingPreLoad.current = true;
+      // 设置延迟重试
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      retryLoadTimer.current = window.setTimeout(() => {
+        retryPendingLoads();
+      }, 300); // 300ms后重试
+      return;
+    }
+    
+    // 根据滚动速度调整节流时间
+    const throttleTime = currentScrollSpeed > 100 ? 200 : 50; // 降低节流时间
     
     // 如果距离上次触发少于节流时间，使用定时器延迟执行
     if (now - lastPreTrigger.current < throttleTime) {
@@ -158,25 +293,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       lastPreTrigger.current = now;
       handlePre();
     }
-  }, [handlePre]);
-
-  const handleNext = useCallback(async () => {
-    if (!renderMore || isLoadingNext.current) return;
-
-    const last = elements[elements.length - 1];
-    if (!last) return;
-    isLoadingNext.current = true;
-    try {
-      const newItems = await renderMore('next', last);
-      if (!newItems?.length) {
-        console.warn('ScrollU: handleNext returned no new items');
-      } else {
-        if (newItems?.length) setElements(prev => [...prev, ...newItems]);
-      }
-    } finally {
-      isLoadingNext.current = false;
-    }
-  }, [renderMore, isLoadingNext, elements]);
+  }, [handlePre, retryPendingLoads]);
 
   // 节流版本的handleNext - 防止频繁触发但不会卡住
   const throttledHandleNext = useCallback(() => {
@@ -184,9 +301,25 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     // 如果正在加载，直接返回
     if (isLoadingNext.current) return;
     
-    // 检查滚动状态，快速滚动时延长节流时间
+    // 计算滚动速度（更精确）
+    const timeDelta = now - lastScrollTimestamp.current;
     const currentScrollSpeed = Math.abs(scrollSpeed.current || 0);
-    const throttleTime = currentScrollSpeed > 100 ? 300 : 100; // 高速滚动时使用更长的节流时间
+    scrollVelocity.current = timeDelta > 0 ? currentScrollSpeed / timeDelta : 0;
+    
+    // 如果滚动速度很快，标记为待加载，不直接跳过
+    if (currentScrollSpeed > 200) {
+      console.log('ScrollU: Deferring handleNext due to fast scrolling', currentScrollSpeed);
+      pendingNextLoad.current = true;
+      // 设置延迟重试
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
+      retryLoadTimer.current = window.setTimeout(() => {
+        retryPendingLoads();
+      }, 300); // 300ms后重试
+      return;
+    }
+    
+    // 根据滚动速度调整节流时间
+    const throttleTime = currentScrollSpeed > 100 ? 200 : 50; // 降低节流时间
     
     // 如果距离上次触发少于节流时间，使用定时器延迟执行
     if (now - lastNextTrigger.current < throttleTime) {
@@ -200,7 +333,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       lastNextTrigger.current = now;
       handleNext();
     }
-  }, [handleNext]);
+  }, [handleNext, retryPendingLoads]);
 
   /* ----------  CLEAN-UP (TOP / BOTTOM)  ---------- */
   const cleanItemsFromBottom = useCallback(() => {
@@ -277,35 +410,41 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
   // 处理滚动事件
   const handleScroll = useCallback(() => {
     const now = Date.now();
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const currentScrollTop = container.scrollTop;
+    const scrollDiff = currentScrollTop - lastScrollTop.current;
+    
+    // 更精确的滚动状态跟踪
     isScrolling.current = true;
     lastScrollTime.current = now;
+    lastScrollTimestamp.current = now;
+    lastScrollTop.current = currentScrollTop;
+    scrollSpeed.current = scrollDiff;
     
     // 检测滚动结束
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
     scrollEndTimer.current = window.setTimeout(() => {
       isScrolling.current = false;
-    }, 150); // 150ms没有滚动事件就认为滚动结束
+      // 滚动结束后，重试待加载的请求
+      retryPendingLoads();
+    }, 100); // 缩短到100ms以提高响应性
     
     // 使用 RAF 节流滚动条更新
     if (rafId.current) cancelAnimationFrame(rafId.current);
     rafId.current = requestAnimationFrame(() => {
       updateScrollBar();
     });
-    
-    const container = containerRef.current;
-    if (!container) return;
-    const currentScrollTop = container.scrollTop;
-    const scrollDiff = currentScrollTop - lastScrollTop.current;
-    lastScrollTop.current = currentScrollTop;
-    scrollSpeed.current = scrollDiff;
 
     // console.log('ScrollU: handleScroll currentScrollTop', currentScrollTop, 'scrollDiff', scrollDiff);
 
-    // 防抖清理
+    // 防抖清理 - 快速滚动时延长清理时间
+    const isHighSpeed = Math.abs(scrollDiff) > 100;
     clearTimeout(cleanTimers.current.bottom);
     clearTimeout(cleanTimers.current.top);
-    cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, 2000);
-    cleanTimers.current.top = setTimeout(cleanItemsFromTop, 3500);
+    cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, isHighSpeed ? 3000 : 2000);
+    cleanTimers.current.top = setTimeout(cleanItemsFromTop, isHighSpeed ? 4000 : 3500);
   }, [updateScrollBar, cleanItemsFromBottom, cleanItemsFromTop]);
 
   // 监听滚动事件
@@ -319,6 +458,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       // 清理所有定时器和 RAF
       if (rafId.current) cancelAnimationFrame(rafId.current);
       if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
     };
   }, [handleScroll]);
 
@@ -338,20 +478,29 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const newHeight = contentRef.current?.scrollHeight || 0;
       const heightDelta = newHeight - oldHeight;
       
-      // 如果正在快速滚动，使用更保守的调整策略
-      if (isScrolling.current || Math.abs(scrollSpeed.current) > 50) {
-        // 快速滚动时只做基本的高度调整，不添加scrollSpeed补偿
+      // 获取当前滚动速度
+      const currentScrollSpeed = Math.abs(scrollSpeed.current);
+      
+      // 根据滚动状态使用不同的调整策略
+      if (currentScrollSpeed > 150) {
+        // 极高速滚动：使用简单的高度补偿，避免复杂计算
         container.scrollTop = oldScrollTop + heightDelta;
+        console.log('ScrollU: High speed adjustment, simple height compensation');
+      } else if (currentScrollSpeed > 50 || isScrolling.current) {
+        // 中等速度滚动：使用保守的调整策略
+        // 限制scrollSpeed的影响，避免过度调整
+        const speedCompensation = Math.min(Math.abs(scrollSpeed.current), 30) * Math.sign(scrollSpeed.current);
+        container.scrollTop = oldScrollTop + heightDelta + speedCompensation;
+        console.log('ScrollU: Medium speed adjustment with compensation');
       } else {
-        // 慢速滚动时使用原来的精确调整
+        // 慢速滚动或静止：使用精确调整
         const scrollDelta = container.scrollTop - oldScrollTop;
         const delta = Math.max(0, heightDelta - scrollDelta);
-        container.scrollTop += delta + Math.min(scrollSpeed.current, 50); // 限制scrollSpeed的影响
+        container.scrollTop += delta + Math.min(scrollSpeed.current, 20);
+        console.log('ScrollU: Precise adjustment for slow/static scroll', { delta, scrollDelta, heightDelta });
       }
       
       pendingPreAdjust.current = null;
-      //console.log('ScrollU: pendingPreAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'heightDelta', heightDelta, ' scrollDelta', scrollDelta, 'container.scrollTop', container.scrollTop, 'delta', delta);
-      //console.log('ScrollU: pendingPreAdjust Adjusted scrollTop by', oldScrollTop, 'new scrollTop', container.scrollTop);
       isLoadingPre.current = false;
       return;
     }
@@ -361,19 +510,17 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const { oldHeight, oldScrollTop } = pendingTopCleanAdjust.current;
       const newHeight = contentRef.current?.scrollHeight || 0;
       const deltaHeight = oldHeight - newHeight;
+      const currentScrollSpeed = Math.abs(scrollSpeed.current);
       
-      // 如果正在快速滚动，跳过清理后的位置调整
-      if (!isScrolling.current && Math.abs(scrollSpeed.current) < 50) {
+      // 快速滚动时跳过清理后的位置调整，避免干扰
+      if (currentScrollSpeed < 100 && !isScrolling.current) {
         const deltaScrollTop = oldScrollTop - container.scrollTop;
-        //console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight,'deltaHeight', deltaHeight, 'deltaScroll', deltaScrollTop, ' container.scrollTop', container.scrollTop);
-
         const delta = Math.max(0, deltaHeight - deltaScrollTop);
         if (delta > 0) {
-          //console.log('ScrollU: pendingTopCleanAdjust Adjusting scrollTop by', delta);
           container.scrollTop -= delta;
-        } else {
-          //console.log('ScrollU: pendingTopCleanAdjust No adjustment needed, delta is negative or zero');
         }
+      } else {
+        console.log('ScrollU: Skipping top clean adjustment due to fast scrolling');
       }
 
       pendingTopCleanAdjust.current = null;
@@ -402,6 +549,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       // 清理定时器
       if (preThrottleTimer.current) clearTimeout(preThrottleTimer.current);
       if (nextThrottleTimer.current) clearTimeout(nextThrottleTimer.current);
+      if (retryLoadTimer.current) clearTimeout(retryLoadTimer.current);
     };
   }, [throttledHandlePre, throttledHandleNext]);
 
