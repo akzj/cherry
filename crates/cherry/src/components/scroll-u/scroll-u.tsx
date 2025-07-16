@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { DefaultScrollBar } from './scroll-bar';
 import { ReactElement, Key } from 'react';
+import { set } from 'lodash';
 
 // 定义必须包含 key 的 ReactElement 类型
 export type ElementWithKey<P = any> = ReactElement<P> & { key: Key };
@@ -113,6 +114,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const newItems = await renderMore('pre', first);
       if (!newItems?.length) {
         console.warn('ScrollU: handlePre returned no new items');
+        isLoadingPre.current = false;
       } else {
         console.log('ScrollU: handlePre new items', newItems);
         const container = containerRef.current;
@@ -122,10 +124,10 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
           oldHeight: contentRef.current!.scrollHeight,
           oldScrollTop: container.scrollTop,
         };
+        intersectionObserver.current?.unobserve(_firstNode.current!);
         setElements(prev => [...newItems, ...prev]);
       }
     } finally {
-      isLoadingPre.current = false;
     }
   }, [renderMore, isLoadingPre, elements]);
 
@@ -164,7 +166,7 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
 
     if (removeIndex !== -1 && removeIndex < nodes.length - 1) {
       setElements(prev => prev.slice(0, removeIndex + 1));
-      console.log('ScrollU: cleanItemsFromBottom removing', nodes.length - removeIndex - 1, 'items', 'container.scrollTop', container.scrollTop);
+      //console.log('ScrollU: cleanItemsFromBottom removing', nodes.length - removeIndex - 1, 'items', 'container.scrollTop', container.scrollTop);
     }
   }, []);
 
@@ -229,13 +231,15 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     lastScrollTop.current = currentScrollTop;
     scrollSpeed.current = scrollDiff;
 
+    // console.log('ScrollU: handleScroll currentScrollTop', currentScrollTop, 'scrollDiff', scrollDiff);
+
 
     // 防抖清理
     clearTimeout(cleanTimers.current.bottom);
 
     clearTimeout(cleanTimers.current.top);
-    cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, 3000);
-    cleanTimers.current.top = setTimeout(cleanItemsFromTop, 1000);
+    cleanTimers.current.bottom = setTimeout(cleanItemsFromBottom, 2000);
+    cleanTimers.current.top = setTimeout(cleanItemsFromTop, 3500);
   }, [updateScrollBar, cleanItemsFromBottom, cleanItemsFromTop]);
 
   // 监听滚动事件
@@ -261,11 +265,15 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
     if (pendingPreAdjust.current) {
       const { oldHeight, oldScrollTop } = pendingPreAdjust.current;
       const newHeight = contentRef.current?.scrollHeight || 0;
-      const diff = newHeight - oldHeight;
+      const heightDelta = newHeight - oldHeight;
+      const scrollDelta = container.scrollTop - oldScrollTop;
+      const delta = Math.max(0, heightDelta - scrollDelta);
 
-      container.scrollTop += diff + scrollSpeed.current * 2;
+      container.scrollTop += delta + scrollSpeed.current;
       pendingPreAdjust.current = null;
-      console.log('ScrollU: pendingPreAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'diff', diff);
+      //console.log('ScrollU: pendingPreAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight, 'heightDelta', heightDelta, ' scrollDelta', scrollDelta, 'container.scrollTop', container.scrollTop, 'delta', delta);
+      //console.log('ScrollU: pendingPreAdjust Adjusted scrollTop by', oldScrollTop, 'new scrollTop', container.scrollTop);
+      isLoadingPre.current = false;
       return;
     }
 
@@ -275,15 +283,14 @@ const ScrollU = forwardRef<ScrollURef, ScrollUProps>((props, ref) => {
       const newHeight = contentRef.current?.scrollHeight || 0;
       const deltaHeight = oldHeight - newHeight;
       const deltaScrollTop = oldScrollTop - container.scrollTop;
-      console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight,
-        'deltaHeight', deltaHeight, 'deltaScroll', deltaScrollTop, ' container.scrollTop', container.scrollTop);
+      //console.log('ScrollU:  pendingTopCleanAdjust Adjusting oldHeight', oldHeight, 'newHeight', newHeight,'deltaHeight', deltaHeight, 'deltaScroll', deltaScrollTop, ' container.scrollTop', container.scrollTop);
 
       const delta = Math.max(0, deltaHeight - deltaScrollTop);
       if (delta > 0) {
-        console.log('ScrollU: pendingTopCleanAdjust Adjusting scrollTop by', delta);
+        //console.log('ScrollU: pendingTopCleanAdjust Adjusting scrollTop by', delta);
         container.scrollTop -= delta;
       } else {
-        console.log('ScrollU: pendingTopCleanAdjust No adjustment needed, delta is negative or zero');
+        //console.log('ScrollU: pendingTopCleanAdjust No adjustment needed, delta is negative or zero');
       }
 
       pendingTopCleanAdjust.current = null;

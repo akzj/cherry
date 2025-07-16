@@ -37,3 +37,13 @@ textarea,
 select {
   -webkit-app-region: no-drag;
 }
+
+
+
+/* 方案 A：直接禁用回弹（最彻底）*/
+.scroll-box {
+  -webkit-overflow-scrolling: auto;
+  /* 关闭硬件加速 */
+  overscroll-behavior: none;
+  /* 同时关闭弹性效果 */
+}

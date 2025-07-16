@@ -4,6 +4,7 @@ import { Message } from '@/types';
 import { messageService } from '@/services/messageService';
 import { ReactNodes, ScrollU, ScrollURef } from '@/components/scroll-u';
 import MessageItem, { MessageNodeProps } from './messageItem.tsx';
+import { uniqueId } from 'lodash';
 
 
 
@@ -50,7 +51,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
   //初始化，尝试获取新的消息列表
   const fetchMessages = React.useCallback(async () => {
     if (!conversationId) return;
-    const messages = await messageService.loadMessages(conversationId, 0, 'backward', 25);
+    const messages = await messageService.loadMessages(conversationId, 0, 'backward', 50);
     console.log(messages);
     if (scrollURef.current) {
       scrollURef.current.updateElements((nodes: ReactNodes): ReactNodes => {
@@ -126,14 +127,14 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
       console.warn('MessageList: loadMore called without messageId', props);
       return [];
     }
-    const messages = await messageService.loadMessages(conversationId, messageId, direction === 'pre' ? 'backward' : 'forward', 10);
+    const messages = await messageService.loadMessages(conversationId, messageId, direction === 'pre' ? 'backward' : 'forward', 25);
     if (messages.length === 0) {
       console.info('no more message:', props, direction);
       return [];
     }
     return messages.map(item => (
       <MessageItem
-        key={item.conversation_id + item.id}
+        key={item.conversation_id + item.id + uniqueId()}
         message={item}
         currentUserId={currentUserId}
         onReply={handleReply}
