@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import ContactGroup from './ContactGroup';
+import ContactItem from './ContactItem';
 import GroupSection from './GroupSection';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import ErrorMessage from '../UI/ErrorMessage';
@@ -12,6 +12,7 @@ import { useConversationStore } from '../../store/conversation';
 
 interface ContactPageProps {
   onSelectConversation?: (conversationId: string) => void;
+  onSwitchToMessages?: () => void; // 添加切换到消息模式的回调
 }
 
 // 联系人二级导航类型
@@ -21,29 +22,48 @@ type ContactTabType = 'contacts' | 'groups' | 'tags';
 
 const ContactContainer = styled.div`
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
+  padding: 1rem;
 `;
 
-const ContactVerticalNav = styled.div`
+const ContactHeader = styled.div`
   display: flex;
-  flex-direction: column;
-  margin-right: 1rem;
-  width: 120px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
+
+const ContactTitle = styled.h2`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+`;
+
+const ContactHorizontalNav = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const ContactNavButton = styled.button<{ $active?: boolean }>`
-  padding: 1rem 0.5rem;
+  padding: 0.5rem 1rem;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   position: relative;
   transition: all 0.2s ease;
   background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.1)' : 'transparent'};
-  border-radius: 12px;
-  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  flex: 1;
   
   &:hover {
     background-color: ${props => props.$active ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.05)'};
@@ -54,13 +74,11 @@ const ContactNavButton = styled.button<{ $active?: boolean }>`
 const ContactNavIconWrapper = styled.div`
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
 `;
 
 const ContactNavLabel = styled.span<{ $active?: boolean }>`
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
+  font-size: 0.875rem;
   color: ${props => props.$active ? '#6366f1' : '#6b7280'};
   font-weight: ${props => props.$active ? '600' : '500'};
 `;
@@ -70,21 +88,6 @@ const ContactMainContent = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-`;
-
-const ContactHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding: 0 0.5rem;
-`;
-
-const ContactTitle = styled.h2`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
 `;
 
 const ContactSearchBar = styled.div`
@@ -204,7 +207,7 @@ const ContactSection = styled.div`
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 1rem;
@@ -214,6 +217,12 @@ const ContactSection = styled.div`
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   }
+`;
+
+const ContactItemsWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 `;
 
 const ContactEmptyState = styled.div`
@@ -270,13 +279,13 @@ const ContactActionButton = styled.button`
 
 // ==================== Component Implementation ====================
 
-const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
+const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation, onSwitchToMessages }) => {
   const [activeTab, setActiveTab] = useState<ContactTabType>('contacts');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   // 使用联系人 store
   const {
-    contactGroups,
+    contacts,
     ownedGroups,
     joinedGroups,
     isLoading,
@@ -337,7 +346,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
       );
     }
 
-    if (contactGroups.length === 0) {
+    if (contacts.length === 0) {
       return (
         <ContactEmptyState>
           <FaUserFriends />
@@ -351,13 +360,17 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
     }
 
     return (
-      <>
-        {contactGroups.map(group => (
-          <ContactSection key={group.id}>
-            <ContactGroup group={group} onContactClick={setSelectedContact} />
-          </ContactSection>
-        ))}
-      </>
+      <ContactSection>
+        <ContactItemsWrapper>
+          {contacts.map(contact => (
+            <ContactItem
+              key={contact.contact_id}
+              contact={contact}
+              onClick={() => setSelectedContact(contact)}
+            />
+          ))}
+        </ContactItemsWrapper>
+      </ContactSection>
     );
   };
 
@@ -436,8 +449,23 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
 
   return (
     <ContactContainer>
-      {/* 二级导航 - 联系人分类 */}
-      <ContactVerticalNav>
+      {/* 页面头部 */}
+      <ContactHeader>
+        <ContactTitle>
+          {activeTab === 'contacts' && '联系人'}
+          {activeTab === 'groups' && '群组'}
+          {activeTab === 'tags' && '标签'}
+        </ContactTitle>
+        {activeTab === 'groups' && (
+          <ContactNewGroupButton onClick={handleCreateGroup}>
+            <FaPlus />
+            新建群组
+          </ContactNewGroupButton>
+        )}
+      </ContactHeader>
+
+      {/* 水平导航 - 联系人分类 */}
+      <ContactHorizontalNav>
         <ContactNavButton
           $active={activeTab === 'contacts'}
           onClick={() => setActiveTab('contacts')}
@@ -446,8 +474,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'contacts' ? '#6366f1' : '#9ca3af'}>
               <path d="M9 12a3 3 0 11-6 0 3 3 0 016 0zM17 12a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 17a5 5 0 016-5h2a5 5 0 016 5v1H6v-1z" />
             </svg>
-            <ContactNavLabel $active={activeTab === 'contacts'}>联系人</ContactNavLabel>
           </ContactNavIconWrapper>
+          <ContactNavLabel $active={activeTab === 'contacts'}>联系人</ContactNavLabel>
         </ContactNavButton>
 
         <ContactNavButton
@@ -458,8 +486,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'groups' ? '#6366f1' : '#9ca3af'}>
               <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
             </svg>
-            <ContactNavLabel $active={activeTab === 'groups'}>群组</ContactNavLabel>
           </ContactNavIconWrapper>
+          <ContactNavLabel $active={activeTab === 'groups'}>群组</ContactNavLabel>
         </ContactNavButton>
 
         <ContactNavButton
@@ -470,43 +498,30 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill={activeTab === 'tags' ? '#6366f1' : '#9ca3af'}>
               <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
-            <ContactNavLabel $active={activeTab === 'tags'}>标签</ContactNavLabel>
           </ContactNavIconWrapper>
+          <ContactNavLabel $active={activeTab === 'tags'}>标签</ContactNavLabel>
         </ContactNavButton>
-      </ContactVerticalNav>
+      </ContactHorizontalNav>
 
-      {/* 三级导航/内容区 */}
+      {/* 搜索栏 */}
+      <ContactSearchBar>
+        <ContactSearchInput
+          type="text"
+          placeholder={
+            activeTab === 'contacts' ? '搜索联系人...' : 
+            activeTab === 'groups' ? '搜索群组...' : 
+            '搜索标签...'
+          }
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
+        <ContactSearchButton>
+          <FaSearch />
+        </ContactSearchButton>
+      </ContactSearchBar>
+
+      {/* 主要内容区域 */}
       <ContactMainContent>
-        <ContactHeader>
-          <ContactTitle>
-            {activeTab === 'contacts' && '联系人'}
-            {activeTab === 'groups' && '群组'}
-            {activeTab === 'tags' && '标签'}
-          </ContactTitle>
-          {activeTab === 'groups' && (
-            <ContactNewGroupButton onClick={handleCreateGroup}>
-              <FaPlus />
-              新建群组
-            </ContactNewGroupButton>
-          )}
-        </ContactHeader>
-
-        <ContactSearchBar>
-          <ContactSearchInput
-            type="text"
-            placeholder={
-              activeTab === 'contacts' ? '搜索联系人...' : 
-              activeTab === 'groups' ? '搜索群组...' : 
-              '搜索标签...'
-            }
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
-          <ContactSearchButton>
-            <FaSearch />
-          </ContactSearchButton>
-        </ContactSearchBar>
-
         <ContactContentArea>
           {renderMainContent()}
         </ContactContentArea>
@@ -523,6 +538,10 @@ const ContactPage: React.FC<ContactPageProps> = ({ onSelectConversation }) => {
             setSelectedContact(null);
             if (convId && onSelectConversation) {
               onSelectConversation(convId);
+            }
+            // 切换到消息模式
+            if (onSwitchToMessages) {
+              onSwitchToMessages();
             }
           }}
           onVoiceCall={() => { /* TODO: 发起语音通话 */ setSelectedContact(null); }}

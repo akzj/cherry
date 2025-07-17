@@ -3,7 +3,6 @@ import Sidebar from './components/Sidebar';
 import ConversationContainer from './components/ConversationContainer';
 import WindowControls from './components/WindowControls';
 import SettingsPage from './components/settings/SettingsPage';
-import ContactPage from './components/ContactPage';
 import NotificationManager from './components/NotificationManager';
 import LoginForm from './components/login/login';
 import { User } from '@/types';
@@ -32,9 +31,9 @@ import {
   ActionButton,
   ActionIcon,
   MainContent,
+  MainContentArea,
   ModalOverlay,
   SettingsModalContainer,
-  ContactModalContainer,
 } from './App.styles';
 
 window.addEventListener('error', (e) => {
@@ -51,8 +50,9 @@ const App: React.FC = () => {
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [pendingConversationId, setPendingConversationId] = useState<string | null>(null);
+
+  // 主导航状态
+  const [activeMainNav, setActiveMainNav] = useState<'messages' | 'contacts'>('messages');
 
   // 模态窗口状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -74,8 +74,7 @@ const App: React.FC = () => {
     conversations,
     isLoading: conversationsLoading,
     error: conversationsError,
-    refreshConversations,
-    getConversationById
+    refreshConversations
   } = useConversationStore();
 
   // 消息接收
@@ -170,20 +169,6 @@ const App: React.FC = () => {
     status: 'online'
   };
 
-  // 处理会话选择
-  const handleSelectConversation = (id: string) => {
-    setIsContactModalOpen(false);
-    setPendingConversationId(id);
-  };
-
-  // 监听弹窗关闭后再切换会话，避免页面闪烁
-  useEffect(() => {
-    if (!isContactModalOpen && pendingConversationId) {
-      setSelectedConversation(pendingConversationId);
-      setPendingConversationId(null);
-    }
-  }, [isContactModalOpen, pendingConversationId]);
-
   // 如果正在加载认证状态，显示加载界面
   if (authLoading) {
     console.log('Showing loading screen - authLoading:', authLoading, 'forceUpdate:', forceUpdate);
@@ -270,17 +255,47 @@ const App: React.FC = () => {
           <Sidebar
             conversations={conversations}
             currentUser={currentUser}
-            onSelectConversation={handleSelectConversation}
+            onSelectConversation={setSelectedConversation}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenContacts={() => setIsContactModalOpen(true)}
+            activeMainNav={activeMainNav}
+            setActiveMainNav={setActiveMainNav}
           />
         ) : null}
-
-        <ConversationContainer
-          conversations={conversations}
-          selectedConversationId={selectedConversation}
-          currentUserId={currentUser.user_id}
-        />
+        
+        {/* 主内容区域 */}
+        <MainContentArea>
+          {activeMainNav === 'messages' ? (
+            !isMobile || selectedConversation ? (
+              <ConversationContainer
+                conversations={conversations}
+                selectedConversationId={selectedConversation}
+                currentUserId={currentUser.user_id}
+              />
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                height: '100%',
+                fontSize: '18px',
+                color: '#666'
+              }}>
+                选择一个对话开始聊天
+              </div>
+            )
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              height: '100%',
+              fontSize: '18px',
+              color: '#666'
+            }}>
+              选择一个联系人开始聊天
+            </div>
+          )}
+        </MainContentArea>
 
         {/* 临时添加消息测试组件 */}
         {/* <MessageTest /> */}
@@ -292,15 +307,6 @@ const App: React.FC = () => {
           <SettingsModalContainer onClick={(e) => e.stopPropagation()}>
             <SettingsPage />
           </SettingsModalContainer>
-        </ModalOverlay>
-      )}
-
-      {/* Contact Modal */}
-      {isContactModalOpen && (
-        <ModalOverlay onClick={() => setIsContactModalOpen(false)}>
-          <ContactModalContainer onClick={(e) => e.stopPropagation()}>
-            <ContactPage onSelectConversation={handleSelectConversation} />
-          </ContactModalContainer>
         </ModalOverlay>
       )}
 

@@ -263,6 +263,14 @@ export const MainContent = styled.div`
   z-index: 1;
 `;
 
+export const MainContentArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+`;
+
 // 模态窗口样式
 export const ModalOverlay = styled.div`
   position: fixed;

@@ -11,7 +11,8 @@ interface SidebarProps {
     currentUser: User;
     onSelectConversation: (id: string) => void;
     onOpenSettings: () => void;
-    onOpenContacts: () => void;
+    activeMainNav: MainNavType;
+    setActiveMainNav: (nav: MainNavType) => void;
 }
 
 // 一级导航类型
@@ -325,11 +326,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     conversations,
     onSelectConversation,
     onOpenSettings,
-    onOpenContacts
+    activeMainNav,
+    setActiveMainNav
 }) => {
-    // 一级导航状态
-    const [activeMainNav, setActiveMainNav] = useState<MainNavType>('messages');
-    
     // 向后兼容的活动标签状态
     const [activeTab, setActiveTab] = useState<TabType>('all');
     
@@ -358,7 +357,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
 
     const handleOpenContacts = () => {
-        onOpenContacts();
+        setActiveMainNav('contacts');
     };
 
     return (
@@ -556,7 +555,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </SecondaryContentContainer>
                         ) : (
                             <SecondaryContentContainer>
-                                <ContactPage onSelectConversation={onSelectConversation} />
+                                <ContactPage 
+                                    onSelectConversation={onSelectConversation}
+                                    onSwitchToMessages={() => setActiveMainNav('messages')}
+                                />
                             </SecondaryContentContainer>
                         )}
                     </div>

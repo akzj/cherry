@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { contactService } from '@/services/contactService';
-import { Contact, ContactGroup, Group } from '@/types';
+import { Contact, Group } from '@/types';
 
 // 联系人状态接口
 interface ContactState {
   // 数据状态
   contacts: Contact[];
-  contactGroups: ContactGroup[];
   ownedGroups: Group[];
   joinedGroups: Group[];
   
@@ -19,7 +18,6 @@ interface ContactState {
   
   // 方法
   setContacts: (contacts: Contact[]) => void;
-  setContactGroups: (groups: ContactGroup[]) => void;
   setOwnedGroups: (groups: Group[]) => void;
   setJoinedGroups: (groups: Group[]) => void;
   setLoading: (loading: boolean) => void;
@@ -39,7 +37,6 @@ interface ContactState {
 export const useContactStore = create<ContactState>((set, get) => ({
   // 初始状态
   contacts: [],
-  contactGroups: [],
   ownedGroups: [],
   joinedGroups: [],
   isLoading: false,
@@ -48,7 +45,6 @@ export const useContactStore = create<ContactState>((set, get) => ({
   
   // 设置方法
   setContacts: (contacts) => set({ contacts }),
-  setContactGroups: (contactGroups) => set({ contactGroups }),
   setOwnedGroups: (ownedGroups) => set({ ownedGroups }),
   setJoinedGroups: (joinedGroups) => set({ joinedGroups }),
   setLoading: (isLoading) => set({ isLoading }),
@@ -63,12 +59,13 @@ export const useContactStore = create<ContactState>((set, get) => ({
       // 获取联系人列表
       const contacts = await contactService.listAll();
       
-      // 将联系人按字母分组
-      const contactGroups = groupContactsByLetter(contacts);
+      // 按名字排序联系人
+      const sortedContacts = contacts.sort((a, b) => 
+        (a.remark_name || '').localeCompare(b.remark_name || '') || 0
+      );
       
       set({ 
-        contacts, 
-        contactGroups,
+        contacts: sortedContacts, 
         isLoading: false 
       });
     } catch (error) {
@@ -117,12 +114,13 @@ export const useContactStore = create<ContactState>((set, get) => ({
       // 搜索联系人
       const searchResults = await contactService.search(query);
       
-      // 将搜索结果按字母分组
-      const contactGroups = groupContactsByLetter(searchResults);
+      // 按名字排序搜索结果
+      const sortedResults = searchResults.sort((a, b) => 
+        (a.remark_name || '').localeCompare(b.remark_name || '') || 0
+      );
       
       set({ 
-        contacts: searchResults, 
-        contactGroups,
+        contacts: sortedResults, 
         isLoading: false 
       });
     } catch (error) {
@@ -189,31 +187,3 @@ export const useContactStore = create<ContactState>((set, get) => ({
     }
   },
 }));
-
-// 辅助函数：按字母分组联系人
-function groupContactsByLetter(contacts: Contact[]): ContactGroup[] {
-  const groups: { [key: string]: Contact[] } = {};
-  
-  contacts.forEach(contact => {
-    const firstLetter = contact.remark_name?.charAt(0).toUpperCase() || '#';
-    const groupKey = /[A-Z]/.test(firstLetter) ? firstLetter : '#';
-    
-    if (!groups[groupKey]) {
-      groups[groupKey] = [];
-    }
-    groups[groupKey].push(contact);
-  });
-  
-  // 转换为数组格式并排序
-  return Object.keys(groups)
-    .sort((a, b) => {
-      if (a === '#') return 1;
-      if (b === '#') return -1;
-      return a.localeCompare(b);
-    })
-    .map(letter => ({
-      id: letter,
-      title: letter,
-      contacts: groups[letter].sort((a, b) => (a.remark_name || '').localeCompare(b.remark_name || '') || 0)
-    }));
-} 
