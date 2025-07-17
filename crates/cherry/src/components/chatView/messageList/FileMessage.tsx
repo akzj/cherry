@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { getFileSvg } from '@/components/UI/fileIcon';
 
 const FileContainer = styled.div`
   display: flex;
@@ -25,7 +26,6 @@ const FileIcon = styled.div<{ $fileType: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   color: white;
   background: ${props => {
     switch (props.$fileType) {
@@ -41,6 +41,12 @@ const FileIcon = styled.div<{ $fileType: string }>`
       default: return '#AED6F1';
     }
   }};
+  
+  & > svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
 `;
 
 const FileInfo = styled.div`
@@ -107,18 +113,27 @@ const FileMessage: React.FC<FileMessageProps> = ({ fileUrl, filename, fileSize, 
     return ext || 'file';
   };
 
-  const getFileIcon = (fileType: string): string => {
+  const getMimeTypeFromFileType = (fileType: string): string => {
     switch (fileType) {
-      case 'pdf': return '📄';
-      case 'doc': case 'docx': return '📝';
-      case 'xls': case 'xlsx': return '📊';
-      case 'ppt': case 'pptx': return '📋';
-      case 'txt': return '📃';
-      case 'zip': case 'rar': case '7z': return '📦';
-      case 'mp3': case 'wav': case 'ogg': return '🎵';
-      case 'mp4': case 'avi': case 'mov': return '🎬';
-      case 'jpg': case 'jpeg': case 'png': case 'gif': return '🖼️';
-      default: return '📎';
+      case 'pdf': return 'application/pdf';
+      case 'doc': case 'docx': return 'application/msword';
+      case 'xls': case 'xlsx': return 'application/vnd.ms-excel';
+      case 'ppt': case 'pptx': return 'application/vnd.ms-powerpoint';
+      case 'txt': return 'text/plain';
+      case 'html': case 'htm': return 'text/html';
+      case 'zip': return 'application/zip';
+      case 'rar': return 'application/x-rar-compressed';
+      case '7z': return 'application/x-7z-compressed';
+      case 'mp3': return 'audio/mpeg';
+      case 'wav': return 'audio/wav';
+      case 'ogg': return 'audio/ogg';
+      case 'mp4': return 'video/mp4';
+      case 'avi': return 'video/x-msvideo';
+      case 'mov': return 'video/quicktime';
+      case 'jpg': case 'jpeg': return 'image/jpeg';
+      case 'png': return 'image/png';
+      case 'gif': return 'image/gif';
+      default: return 'application/octet-stream';
     }
   };
 
@@ -142,11 +157,13 @@ const FileMessage: React.FC<FileMessageProps> = ({ fileUrl, filename, fileSize, 
   };
 
   const fileType = getFileType(filename, mimeType);
+  const actualMimeType = mimeType || getMimeTypeFromFileType(fileType);
+  const FileSvgComponent = getFileSvg(actualMimeType);
 
   return (
     <FileContainer onClick={handleDownload}>
       <FileIcon $fileType={fileType}>
-        {getFileIcon(fileType)}
+        <FileSvgComponent />
       </FileIcon>
       <FileInfo>
         <FileName title={filename}>{filename}</FileName>
