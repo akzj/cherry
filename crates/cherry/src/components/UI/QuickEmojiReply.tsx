@@ -22,14 +22,9 @@ const EmojiReplyBar = styled.div<{ $isOwn: boolean }>`
   border: 1.5px solid #b1e6c7;
   min-height: 32px;
   z-index: 2;
-  opacity: 0;
-  pointer-events: none;
+  opacity: 1;
+  pointer-events: auto;
   transition: opacity 0.2s;
-  /* 只在 hover 消息气泡时显示 */
-  .message-container:hover & {
-    opacity: 1;
-    pointer-events: auto;
-  }
 `;
 const EmojiButton = styled.button`
   border: none;

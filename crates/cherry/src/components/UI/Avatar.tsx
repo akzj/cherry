@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import clsx from 'clsx'; 
 
 // 定义 status 的联合类型，确保类型安全
@@ -9,7 +9,11 @@ interface AvatarProps {
   alt: string;
   size?: 'sm' | 'md' | 'lg';
   status?: Status;
+  lazy?: boolean;
 }
+
+// 图片缓存
+const imageCache = new Map<string, { loaded: boolean; error: boolean }>();
 
 // 可维护的类名映射
 const sizeClasses = {
@@ -30,20 +34,66 @@ const Avatar: React.FC<AvatarProps> = ({
   src, 
   alt, 
   size = 'md', 
-  status 
+  status,
+  lazy = true
 }) => {
+  const [imageState, setImageState] = useState(() => {
+    const cached = imageCache.get(src);
+    return {
+      loaded: cached?.loaded || false,
+      error: cached?.error || false,
+      loading: !cached?.loaded && !cached?.error
+    };
+  });
+
+  const handleImageLoad = useCallback(() => {
+    imageCache.set(src, { loaded: true, error: false });
+    setImageState({ loaded: true, error: false, loading: false });
+  }, [src]);
+
+  const handleImageError = useCallback(() => {
+    imageCache.set(src, { loaded: false, error: true });
+    setImageState({ loaded: false, error: true, loading: false });
+  }, [src]);
+
   const statusColor = status ? statusColors[status] : 'bg-gray-500'; // 默认颜色
+
+  // 生成默认头像的简单方案
+  const defaultAvatar = useMemo(() => {
+    const firstChar = alt.charAt(0).toUpperCase() || '?';
+    return (
+      <div 
+        className={clsx(
+          sizeClasses[size],
+          'rounded-full bg-gray-400 flex items-center justify-center text-white font-medium'
+        )}
+        style={{ 
+          backgroundColor: `hsl(${alt.charCodeAt(0) * 7 % 360}, 50%, 50%)` 
+        }}
+      >
+        {firstChar}
+      </div>
+    );
+  }, [alt, size]);
 
   return (
     <div className="relative inline-block" role="img" aria-label={alt}>
-      <img 
-        className={clsx(
-          sizeClasses[size],
-          'rounded-full object-cover border border-gray-200'
-        )}
-        src={src} 
-        alt={alt} 
-      />
+      {imageState.error || !src ? (
+        defaultAvatar
+      ) : (
+        <img 
+          className={clsx(
+            sizeClasses[size],
+            'rounded-full object-cover border border-gray-200',
+            imageState.loading && 'opacity-50'
+          )}
+          src={src} 
+          alt={alt} 
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          loading={lazy ? 'lazy' : 'eager'}
+        />
+      )}
       {status && (
         <span 
           className={clsx(

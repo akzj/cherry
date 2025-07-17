@@ -22,7 +22,7 @@ import AsyncMessageImage from './AsyncMessageImage';
 import { Message, parseMessageContent } from '@/types';
 import { userService } from '@/services/userService';
 import SafeQuillContent from './SafeQuillContent';
-import { Avatar } from '@/components/UI';
+import CachedAvatar from '@/components/UI/CachedAvatar';
 
 
 
@@ -50,6 +50,7 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
 
   const [username, setUsername] = React.useState<string>('');
   const [userAvatar, setUserAvatar] = React.useState<string>('');
+  const [isHovered, setIsHovered] = React.useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -69,13 +70,23 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
   }, [message.user_id, groupId]);
 
   return (
-    <MessageContainer $isOwn={isOwn} data-message-id={message.conversation_id + message.id} className="message-container">
+    <MessageContainer 
+      $isOwn={isOwn} 
+      data-message-id={message.conversation_id + message.id} 
+      className="message-container"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
-        <QuickEmojiReply isOwn={isOwn}
-          onReply={emoji => onReactionClick(message, emoji)}
-          onReplyMessage={() => onReply(message)}
-          onCopyMessage={() => onCopyMessage && onCopyMessage(message)}
-        />
+        {/* 只在悬停时渲染 QuickEmojiReply */}
+        {isHovered && (
+          <QuickEmojiReply 
+            isOwn={isOwn}
+            onReply={emoji => onReactionClick(message, emoji)}
+            onReplyMessage={() => onReply(message)}
+            onCopyMessage={() => onCopyMessage && onCopyMessage(message)}
+          />
+        )}
 
         {/* 回复连接线 */}
         {message.isReply && <ReplyConnection $isOwn={isOwn} />}
@@ -83,7 +94,15 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
         <MessageHeader>
           <Timestamp>{formatTime(message.timestamp)}</Timestamp>
           <Username>{username}</Username>
-          {!!isOwn && (<Avatar src={userAvatar} alt='' />)}
+          {/* 只有自己的消息才显示头像，且只在有头像时渲染 */}
+          {isOwn && userAvatar && (
+            <CachedAvatar 
+              src={userAvatar} 
+              alt={username || 'User'} 
+              size="sm"
+              lazy={true}
+            />
+          )}
         </MessageHeader>
 
         {/* 新的回复引用显示 */}
