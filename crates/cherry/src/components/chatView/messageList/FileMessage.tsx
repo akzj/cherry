@@ -1,92 +1,14 @@
-import React from 'react';
-import styled from 'styled-components';
+import React, { useState } from 'react';
 import { getFileSvg } from '@/components/UI/fileIcon';
-
-const FileContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  max-width: 300px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-`;
-
-const FileIcon = styled.div<{ $fileType: string }>`
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  background: ${props => {
-    switch (props.$fileType) {
-      case 'pdf': return '#FF6B6B';
-      case 'doc': case 'docx': return '#4ECDC4';
-      case 'xls': case 'xlsx': return '#45B7D1';
-      case 'ppt': case 'pptx': return '#FFA07A';
-      case 'txt': return '#98D8C8';
-      case 'zip': case 'rar': case '7z': return '#F7DC6F';
-      case 'mp3': case 'wav': case 'ogg': return '#BB8FCE';
-      case 'mp4': case 'avi': case 'mov': return '#85C1E9';
-      case 'jpg': case 'jpeg': case 'png': case 'gif': return '#82E0AA';
-      default: return '#AED6F1';
-    }
-  }};
-  
-  & > svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-  }
-`;
-
-const FileInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
-
-const FileName = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  color: #ffffff;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const FileSize = styled.div`
-  font-size: 12px;
-  color: #b0b0b0;
-`;
-
-const DownloadIcon = styled.div`
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #b0b0b0;
-  transition: color 0.2s;
-
-  ${FileContainer}:hover & {
-    color: #ffffff;
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
+import { fileService } from '@/services/fileService';
+import {
+  FileContainer,
+  FileIcon,
+  FileInfo,
+  FileName,
+  FileSize,
+  DownloadIcon
+} from './FileMessage.styled';
 
 interface FileMessageProps {
   fileUrl: string;
@@ -145,15 +67,35 @@ const FileMessage: React.FC<FileMessageProps> = ({ fileUrl, filename, fileSize, 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const handleDownload = () => {
-    // 创建临时链接进行下载
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = filename;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      // 使用 fileService 下载文件
+      const downloadedPath = await fileService.downloadFile(fileUrl);
+      
+      // 根据不同平台处理下载后的文件
+      if (downloadedPath.startsWith('blob:')) {
+        // Web 平台 - 使用 blob URL
+        const link = document.createElement('a');
+        link.href = downloadedPath;
+        link.download = filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Tauri/Electron 平台 - 文件已经下载到本地，可以直接打开
+        console.log('文件已下载到: ' + downloadedPath);
+        // 可能需要使用特定平台 API 打开文件
+      }
+    } catch (error) {
+      console.error('下载文件失败:', error);
+      alert('下载文件失败，请重试');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const fileType = getFileType(filename, mimeType);
@@ -170,9 +112,16 @@ const FileMessage: React.FC<FileMessageProps> = ({ fileUrl, filename, fileSize, 
         <FileSize>{formatFileSize(fileSize)}</FileSize>
       </FileInfo>
       <DownloadIcon>
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-        </svg>
+        {isDownloading ? (
+          <svg viewBox="0 0 24 24" fill="currentColor" className="animate-spin">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.3"/>
+            <path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 12V8l5.5 4-5.5 4z"/>
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+        )}
       </DownloadIcon>
     </FileContainer>
   );

@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
 import { dialogService } from '@/services/dialogService';
+import { FileInfo } from '@/services/dialogService/types';
 
 // Types
 interface ImageUploaderProps {
-  onImageSelect: (filePath: string) => void;
+  onImageSelect: (fileInfo: FileInfo) => void;
   disabled?: boolean;
 }
 
@@ -44,12 +45,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageSelect,
   disabled = false
 }) => {
-  // 选择图片，获取真实路径
+  // 选择图片，获取真实路径及图片信息
   const handleSelectImage = useCallback(async () => {
     try {
-      const filePath = await dialogService.openImageDialog();
-      if (filePath) {
-        onImageSelect(filePath);
+      const fileInfo = await dialogService.openImageDialog();
+      if (fileInfo) {
+        onImageSelect(fileInfo);
       }
     } catch (error) {
       console.error('选择图片失败:', error);
@@ -69,4 +70,4 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   );
 };
 
-export default ImageUploader; 
+export default ImageUploader;

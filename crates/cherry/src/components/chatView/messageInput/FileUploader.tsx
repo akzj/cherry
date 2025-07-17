@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
 import { dialogService } from '@/services/dialogService';
+import { FileInfo } from '@/services/dialogService/types';
 
 // Types
 interface FileUploaderProps {
-  onFileSelect: (filePath: string) => void;
+  onFileSelect: (fileInfo: FileInfo) => void;
   disabled?: boolean;
 }
 
@@ -44,12 +45,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   onFileSelect,
   disabled = false
 }) => {
-  // 选择文件，获取真实路径
+  // 选择文件，获取真实路径及文件信息
   const handleSelectFile = useCallback(async () => {
     try {
-      const filePath = await dialogService.openFileDialog();
-      if (filePath) {
-        onFileSelect(filePath);
+      const fileInfo = await dialogService.openFileDialog();
+      if (fileInfo) {
+        onFileSelect(fileInfo);
       }
     } catch (error) {
       console.error('选择文件失败:', error);

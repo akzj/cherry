@@ -10,6 +10,7 @@ import 'react-quill/dist/quill.bubble.css'; // Quill气泡样式
 import editIcon from '@/assets/edit.svg';
 import { messageService } from '@/services/messageService';
 import { fileService } from '@/services/fileService';
+import { FileInfo } from '@/services/dialogService/types';
 import {
   Container,
   Form,
@@ -340,101 +341,65 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   // 选图片时获取图片信息
-  const handleImageSelect = async (filePath: string) => {
-    console.log('选中的图片路径:', filePath);
+  const handleImageSelect = async (fileInfo: FileInfo) => {
+    console.log('选中的图片信息:', fileInfo);
+    
     try {
-      // 获取文件信息
-      const fileInfo = await fileService.getFileInfo(filePath);
-
-      console.log('获取到的文件信息:', fileInfo);
-
       // 创建预览URL，兼容本地路径和blob URL
-      let previewUrl = filePath;
-      if (!filePath.startsWith('blob:') && !filePath.startsWith('http')) {
-        previewUrl = `file://${filePath}`;
+      let previewUrl = fileInfo.path;
+      if (!fileInfo.path.startsWith('blob:') && !fileInfo.path.startsWith('http')) {
+        previewUrl = `file://${fileInfo.path}`;
       }
+      
       setSelectedImage({
-        path: filePath,
+        path: fileInfo.path,
         name: fileInfo.name,
         size: fileInfo.size,
         preview: previewUrl
       });
     } catch (error) {
-      console.error('获取文件信息失败:', error);
-      // 如果获取信息失败，仍然设置基本路径
+      console.error('处理图片信息失败:', error);
+      // 如果处理失败，设置基本信息
       setSelectedImage({
-        path: filePath,
-        name: filePath.split('/').pop() || 'image',
-        size: 0,
-        preview: `file://${filePath}`
+        path: fileInfo.path,
+        name: fileInfo.name || fileInfo.path.split('/').pop() || 'image',
+        size: fileInfo.size || 0,
+        preview: fileInfo.path.startsWith('blob:') ? fileInfo.path : `file://${fileInfo.path}`
       });
     }
   };
 
   // 选文件时获取文件信息
-  const handleFileSelect = async (filePath: string) => {
-    console.log('选中的文件路径:', filePath);
+  const handleFileSelect = async (fileInfo: FileInfo) => {
+    console.log('选中的文件信息:', fileInfo);
+    
     try {
-      // 获取文件信息
-      const fileInfo = await fileService.getFileInfo(filePath);
-
-      console.log('获取到的文件信息:', fileInfo);
-
       // 创建预览URL，兼容本地路径和blob URL
-      let previewUrl = filePath;
-      if (!filePath.startsWith('blob:') && !filePath.startsWith('http')) {
-        previewUrl = `file://${filePath}`;
+      let previewUrl = fileInfo.path;
+      if (!fileInfo.path.startsWith('blob:') && !fileInfo.path.startsWith('http')) {
+        previewUrl = `file://${fileInfo.path}`;
       }
       
-      // 根据文件类型设置不同的信息
-      const fileExtension = filePath.split('.').pop()?.toLowerCase() || '';
-      const mimeType = getMimeType(fileExtension);
-      
+      // 设置文件信息
       setSelectedFile({
-        path: filePath,
+        path: fileInfo.path,
         name: fileInfo.name,
         size: fileInfo.size,
-        type: mimeType,
+        type: fileInfo.type,
         preview: previewUrl
       });
     } catch (error) {
-      console.error('获取文件信息失败:', error);
-      // 如果获取信息失败，仍然设置基本路径
-      const fileName = filePath.split('/').pop() || 'file';
-      const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
-      const mimeType = getMimeType(fileExtension);
+      console.error('处理文件信息失败:', error);
       
+      // 如果处理失败，设置基本信息
       setSelectedFile({
-        path: filePath,
-        name: fileName,
-        size: 0,
-        type: mimeType,
-        preview: `file://${filePath}`
+        path: fileInfo.path,
+        name: fileInfo.name || fileInfo.path.split('/').pop() || 'file',
+        size: fileInfo.size || 0,
+        type: fileInfo.type || 'application/octet-stream',
+        preview: fileInfo.path.startsWith('blob') ? fileInfo.path : `file://${fileInfo.path}`
       });
     }
-  };
-
-  // 简单的 MIME 类型映射
-  const getMimeType = (extension: string): string => {
-    const mimeTypes: { [key: string]: string } = {
-      'pdf': 'application/pdf',
-      'doc': 'application/msword',
-      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xls': 'application/vnd.ms-excel',
-      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'ppt': 'application/vnd.ms-powerpoint',
-      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'txt': 'text/plain',
-      'json': 'application/json',
-      'zip': 'application/zip',
-      'rar': 'application/vnd.rar',
-      '7z': 'application/x-7z-compressed',
-      'mp3': 'audio/mpeg',
-      'mp4': 'video/mp4',
-      'avi': 'video/x-msvideo',
-      'mov': 'video/quicktime'
-    };
-    return mimeTypes[extension] || 'application/octet-stream';
   };
 
   // 移除图片
