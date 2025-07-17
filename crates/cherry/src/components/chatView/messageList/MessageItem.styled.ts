@@ -119,6 +119,24 @@ export const ReplyQuoteContent = styled.div`
     color: #6b7280;
     flex-shrink: 0;
   }
+  .file-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+  .file-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background-color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
 `;
 
 export const ReplyConnection = styled.div<{ $isOwn: boolean }>`

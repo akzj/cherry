@@ -30,6 +30,11 @@ const ReplyMessage: React.FC<ReplyMessageProps> = ({ message, onCancel }) => {
             <div className="image-icon">📷</div>
             <span>{parsedContent.text || '图片'}</span>
           </div>
+        ) : parsedContent.type === 'file' ? (
+          <div className="file-preview">
+            <div className="file-icon">📎</div>
+            <span>{parsedContent.filename || '文件'}</span>
+          </div>
         ) : (
           parsedContent.text && (parsedContent.text.length > 50 
             ? `${parsedContent.text.substring(0, 50)}...` 

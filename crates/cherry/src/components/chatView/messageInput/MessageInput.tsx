@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReplyMessage from './ReplyMessage';
 import EmojiPicker from './EmojiPicker';
 import ImageUploader from './ImageUploader';
-import { ImageContent, Message, MessageContentType, QuillContent } from '@/types';
+import FileUploader from './FileUploader';
+import { ImageContent, Message, MessageContentType, QuillContent, FileContent } from '@/types';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // Quill样式
 import 'react-quill/dist/quill.bubble.css'; // Quill气泡样式
@@ -41,6 +42,14 @@ interface SelectedImageInfo {
   preview?: string;
 }
 
+interface SelectedFileInfo {
+  path: string;
+  name: string;
+  size: number;
+  type: string;
+  preview?: string;
+}
+
 
 // ==================== Component Implementation ====================
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -54,6 +63,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageInfo | null>(null);
+  const [selectedFile, setSelectedFile] = useState<SelectedFileInfo | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isQuillMode, setIsQuillMode] = useState(false);
   const [quillValue, setQuillValue] = useState('');
@@ -102,8 +112,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
       if (selectedImage && selectedImage.path.startsWith('blob:')) {
         URL.revokeObjectURL(selectedImage.path);
       }
+      if (selectedFile && selectedFile.path.startsWith('blob:')) {
+        URL.revokeObjectURL(selectedFile.path);
+      }
     };
-  }, [selectedImage]);
+  }, [selectedImage, selectedFile]);
 
   // 为 Quill 编辑器处理粘贴事件
   const handleQuillPaste = (e: any) => {
@@ -222,7 +235,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     console.log(quillValue);
     e.preventDefault();
-    if ((message.trim() || selectedImage || !quillIsEmpty) && !isSending && !disabled) {
+    if ((message.trim() || selectedImage || selectedFile || !quillIsEmpty) && !isSending && !disabled) {
       setIsSending(true);
       try {
         let finalMessage = message;
@@ -252,6 +265,34 @@ const MessageInput: React.FC<MessageInputProps> = ({
             setSelectedImage(null);
           } catch (uploadError) {
             console.error('图片上传失败:', uploadError);
+          }
+        }
+
+        if (selectedFile) {
+          try {
+            const response = await fileService.uploadFile(conversationId, selectedFile.path);
+            console.log('文件上传成功:', response);
+            
+            // 如果是 blob URL，清理它
+            if (selectedFile.path.startsWith('blob:')) {
+              URL.revokeObjectURL(selectedFile.path);
+            }
+            
+            // 创建文件消息内容
+            const fileContent: FileContent = {
+              url: response.url,
+              filename: selectedFile.name,
+              size: selectedFile.size,
+              mime_type: selectedFile.type,
+              thumbnail_url: response.image_metadata?.thumbnail_url // 如果是图片文件可能有缩略图
+            };
+
+            // 发送文件消息
+            finalMessage = JSON.stringify(fileContent);
+            messageType = 'file';
+            setSelectedFile(null);
+          } catch (uploadError) {
+            console.error('文件上传失败:', uploadError);
           }
         }
 
@@ -330,6 +371,72 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  // 选文件时获取文件信息
+  const handleFileSelect = async (filePath: string) => {
+    console.log('选中的文件路径:', filePath);
+    try {
+      // 获取文件信息
+      const fileInfo = await fileService.getFileInfo(filePath);
+
+      console.log('获取到的文件信息:', fileInfo);
+
+      // 创建预览URL，兼容本地路径和blob URL
+      let previewUrl = filePath;
+      if (!filePath.startsWith('blob:') && !filePath.startsWith('http')) {
+        previewUrl = `file://${filePath}`;
+      }
+      
+      // 根据文件类型设置不同的信息
+      const fileExtension = filePath.split('.').pop()?.toLowerCase() || '';
+      const mimeType = getMimeType(fileExtension);
+      
+      setSelectedFile({
+        path: filePath,
+        name: fileInfo.name,
+        size: fileInfo.size,
+        type: mimeType,
+        preview: previewUrl
+      });
+    } catch (error) {
+      console.error('获取文件信息失败:', error);
+      // 如果获取信息失败，仍然设置基本路径
+      const fileName = filePath.split('/').pop() || 'file';
+      const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
+      const mimeType = getMimeType(fileExtension);
+      
+      setSelectedFile({
+        path: filePath,
+        name: fileName,
+        size: 0,
+        type: mimeType,
+        preview: `file://${filePath}`
+      });
+    }
+  };
+
+  // 简单的 MIME 类型映射
+  const getMimeType = (extension: string): string => {
+    const mimeTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'txt': 'text/plain',
+      'json': 'application/json',
+      'zip': 'application/zip',
+      'rar': 'application/vnd.rar',
+      '7z': 'application/x-7z-compressed',
+      'mp3': 'audio/mpeg',
+      'mp4': 'video/mp4',
+      'avi': 'video/x-msvideo',
+      'mov': 'video/quicktime'
+    };
+    return mimeTypes[extension] || 'application/octet-stream';
+  };
+
   // 移除图片
   const handleRemoveImage = () => {
     if (selectedImage && selectedImage.path.startsWith('blob:')) {
@@ -337,6 +444,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
       URL.revokeObjectURL(selectedImage.path);
     }
     setSelectedImage(null);
+  };
+
+  // 移除文件
+  const handleRemoveFile = () => {
+    if (selectedFile && selectedFile.path.startsWith('blob:')) {
+      // 清理 blob URL 以释放内存
+      URL.revokeObjectURL(selectedFile.path);
+    }
+    setSelectedFile(null);
   };
 
   const handleCancelReply = () => {
@@ -366,7 +482,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const isInputDisabled = disabled || isSending;
-  const hasContent = message.trim().length > 0 || selectedImage || !quillIsEmpty;
+  const hasContent = message.trim().length > 0 || selectedImage || selectedFile || !quillIsEmpty;
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -413,6 +529,35 @@ const MessageInput: React.FC<MessageInputProps> = ({
             </ImageThumbnailContainer>
           )}
 
+          {/* 文件缩略图显示 */}
+          {selectedFile && (
+            <ImageThumbnailContainer>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '8px', 
+                backgroundColor: '#f3f4f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6b7280'
+              }}>
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <ImageInfo>
+                <ImageName>{selectedFile.name}</ImageName>
+                <ImageSize>{formatFileSize(selectedFile.size)}</ImageSize>
+              </ImageInfo>
+              <RemoveImageButton onClick={handleRemoveFile} title="移除文件">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </RemoveImageButton>
+            </ImageThumbnailContainer>
+          )}
+
           <InputField
             ref={textareaRef}
             placeholder={selectedImage ? "Type a message... (Ctrl+Enter to send)" : "Type a message... (Ctrl+Enter to send)"}
@@ -438,11 +583,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
           )}
           <InputRow>
             <RightButtons>
-              <ActionButton type="button" disabled={isInputDisabled} >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49" />
-                </svg>
-              </ActionButton>
+              <FileUploader
+                onFileSelect={handleFileSelect}
+                disabled={isInputDisabled || !!selectedFile || !!selectedImage}
+              />
 
               {/* 表情按钮 */}
               <ActionButton
@@ -462,7 +606,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               {/* 图片上传按钮 */}
               <ImageUploader
                 onImageSelect={handleImageSelect}
-                disabled={isInputDisabled || !!selectedImage}
+                disabled={isInputDisabled || !!selectedImage || !!selectedFile}
               />
 
               {/* 语音按钮 */}

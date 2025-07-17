@@ -23,6 +23,7 @@ import { Message, parseMessageContent } from '@/types';
 import { userService } from '@/services/userService';
 import SafeQuillContent from './SafeQuillContent';
 import CachedAvatar from '@/components/UI/CachedAvatar';
+import FileMessage from './FileMessage';
 
 
 
@@ -130,6 +131,13 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
                       <span>{replyContent.text || '图片'}</span>
                     </div>
                   );
+                } else if (replyContent.type === 'file') {
+                  return (
+                    <div className="file-preview">
+                      <div className="file-icon">📎</div>
+                      <span>{replyContent.filename || '文件'}</span>
+                    </div>
+                  );
                 } else {
                   return replyContent.text || '';
                 }
@@ -148,6 +156,13 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
               />
               {parsedContent.text && <ImageText>{parsedContent.text}</ImageText>}
             </ImageContainer>
+          ) : parsedContent.type === 'file' ? (
+            <FileMessage
+              fileUrl={parsedContent.fileUrl!}
+              filename={parsedContent.filename!}
+              fileSize={parsedContent.fileSize!}
+              mimeType={parsedContent.mimeType}
+            />
           ) : parsedContent.type === 'quill' && parsedContent.html ? (
             <SafeQuillContent html={parsedContent.html} />
           ) : (

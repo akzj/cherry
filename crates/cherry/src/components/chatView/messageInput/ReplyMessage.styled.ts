@@ -90,4 +90,25 @@ export const ReplyContent = styled.div`
     color: #6b7280;
     flex-shrink: 0;
   }
+
+  /* 支持文件预览的样式 */
+  .file-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+  
+  .file-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background-color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
 `; 

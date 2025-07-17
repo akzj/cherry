@@ -20,5 +20,26 @@ export const mockDialogService: DialogService = {
       };
       input.click();
     });
+  },
+
+  async openFileDialog() {
+    return new Promise<string | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '*/*'; // 接受所有文件类型
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          console.log('Selected file:', file);
+          // 返回本地文件路径或DataURL
+          const localUrl = URL.createObjectURL(file);
+          console.log('Selected file URL:', localUrl);
+          resolve(localUrl);
+        } else {
+          resolve(null);
+        }
+      };
+      input.click();
+    });
   }
 };
