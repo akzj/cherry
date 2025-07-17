@@ -80,6 +80,7 @@ export const mockMessageService: MessageService = {
       return; // no need to create a new message for reactions
     }
 
+
     const message = {
       content: content,
       conversation_id: conversationId,
@@ -88,8 +89,22 @@ export const mockMessageService: MessageService = {
       id: window.__AUTO_INCREMENT_ID__++,
       timestamp: new Date().toISOString(),
       user_id: userId,
-    }
+    } as Message
 
+    if (replyTo) {
+      // 如果是回复消息，确保reply_to是一个有效的ID
+      if (!replyTo || typeof replyTo !== 'number') {
+        throw new Error(`Invalid reply_to ID: ${replyTo}`);
+      }
+      // 检查回复的消息是否存在
+      const repliedMessage = data.messagesMap[conversationId].find((msg: Message) => msg.id === replyTo);
+      if (!repliedMessage) {
+        throw new Error(`Replied message with ID ${replyTo} not found in conversation ${conversationId}`);
+      }
+      message.reply_to = replyTo;
+      message.replyToMessage = repliedMessage;
+      message.isReply = true; // 标记为回复消息
+    }
     data.messagesMap[conversationId].push(message);
     await messageDb.write(data);
     listenerService.trigger!(NewMessageEvent(conversationId), message);

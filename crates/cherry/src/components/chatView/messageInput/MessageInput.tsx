@@ -311,7 +311,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         if (messageType == 'text') {
           const messages = finalMessage.split("\n");
           for (const message of messages) {
-            await messageService.sendMessage(conversationId, message, messageType, replyingTo?.id);
+            await messageService.sendMessage(conversationId, message, messageType, replyingTo ? replyingTo.id : undefined);
             if (onSendMessage) {
               onSendMessage();
             }
@@ -321,7 +321,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         }
 
         if (finalMessage.trim()) {
-          await messageService.sendMessage(conversationId, finalMessage, messageType, replyingTo?.id);
+          await messageService.sendMessage(conversationId, finalMessage, messageType, replyingTo ? replyingTo.id : undefined);
           if (onSendMessage) {
             onSendMessage();
           }
