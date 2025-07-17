@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Conversation, User } from '@/types';
 import ContactList from '../ContactList';
 import ContactPage from '../ContactPage';
-import Header from './Header';
+import SearchBar from './SearchBar';
 import MainNavigation, { MainNavType } from './MainNavigation';
 import SecondaryNavigation, { TabType } from './SecondaryNavigation';
 import EmptyState from './EmptyState';
@@ -77,10 +77,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     });
 
-    const handleOpenContacts = () => {
-        setActiveMainNav('contacts');
-    };
-
     const handleMainNavChange = (nav: MainNavType) => {
         setActiveMainNav(nav);
         if (nav === 'messages') {
@@ -94,16 +90,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     return (
         <SidebarContainer>
-            {/* 只在消息模式下显示 Header */}
-            {activeMainNav === 'messages' && (
-                <Header
-                    searchQuery={searchQuery}
-                    onSearchChange={handleSearchChange}
-                    onOpenContacts={handleOpenContacts}
-                    onOpenSettings={onOpenSettings}
-                />
-            )}
-
             <ContentContainer>
                 <MainNavigation
                     activeMainNav={activeMainNav}
@@ -125,6 +111,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                             />
 
                             <MainContent>
+                                {/* 搜索框放在聊天列表的正上方 */}
+                                <SearchBar
+                                    searchQuery={searchQuery}
+                                    onSearchChange={handleSearchChange}
+                                    placeholder="搜索会话..."
+                                />
+                                
                                 {filteredConversations.length > 0 ? (
                                     <ContactList
                                         conversations={filteredConversations}
@@ -137,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </SecondaryContentContainer>
                     ) : (
                         <SecondaryContentContainer>
-                            <ContactPage 
+                            <ContactPage
                                 onSelectConversation={onSelectConversation}
                                 onSwitchToMessages={() => setActiveMainNav('messages')}
                             />
