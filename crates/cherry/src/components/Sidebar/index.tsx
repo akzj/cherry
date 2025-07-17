@@ -94,12 +94,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     return (
         <SidebarContainer>
-            <Header
-                searchQuery={searchQuery}
-                onSearchChange={handleSearchChange}
-                onOpenContacts={handleOpenContacts}
-                onOpenSettings={onOpenSettings}
-            />
+            {/* 只在消息模式下显示 Header */}
+            {activeMainNav === 'messages' && (
+                <Header
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    onOpenContacts={handleOpenContacts}
+                    onOpenSettings={onOpenSettings}
+                />
+            )}
 
             <ContentContainer>
                 <MainNavigation

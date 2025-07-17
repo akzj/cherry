@@ -7,6 +7,9 @@ import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 interface ContactGroupProps {
   group: ContactGroup;
   onContactClick?: (contact: Contact) => void;
+  onMessage?: (contact: Contact) => void;
+  onVoiceCall?: (contact: Contact) => void;
+  onVideoCall?: (contact: Contact) => void;
 }
 
 // ==================== Styled Components ====================
@@ -99,7 +102,13 @@ const ContactListContainer = styled.div<{ $expanded: boolean }>`
 `;
 
 // ==================== Component Implementation ====================
-const ContactGroup: React.FC<ContactGroupProps> = ({ group, onContactClick }) => {
+const ContactGroup: React.FC<ContactGroupProps> = ({ 
+  group, 
+  onContactClick, 
+  onMessage, 
+  onVoiceCall, 
+  onVideoCall 
+}) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
@@ -124,6 +133,9 @@ const ContactGroup: React.FC<ContactGroupProps> = ({ group, onContactClick }) =>
             key={contact.contact_id}
             contact={contact}
             onClick={() => onContactClick && onContactClick(contact)}
+            onMessage={onMessage}
+            onVoiceCall={onVoiceCall}
+            onVideoCall={onVideoCall}
           />
         ))}
       </ContactListContainer>
