@@ -53,12 +53,25 @@ const ContactStatus = styled.div`
 `;
 
 const ContactItem: React.FC<ContactItemProps> = ({ contact, onClick }) => {
+  // 将contact.status转换为Avatar组件接受的Status类型
+  const getValidStatus = (status: string): 'online' | 'offline' | 'busy' | 'away' => {
+    switch (status) {
+      case 'online':
+      case 'offline':
+      case 'busy':
+      case 'away':
+        return status;
+      default:
+        return 'online';
+    }
+  };
+
   return (
     <ContactItemContainer onClick={onClick}>
       <Avatar 
         src={contact.avatar_url || ''} 
         alt={contact.remark_name || ''} 
-        status={contact.status || 'online'} 
+        status={getValidStatus(contact.status || 'online')} 
         size="md"
       />
       <ContactInfo>

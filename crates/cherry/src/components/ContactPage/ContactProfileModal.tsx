@@ -107,11 +107,24 @@ const ActionButton = styled.button`
 `;
 
 const ContactProfileModal: React.FC<ContactProfileModalProps> = ({ contact, onClose, onMessage, onVoiceCall, onVideoCall }) => {
+  // 将contact.status转换为Avatar组件接受的Status类型
+  const getValidStatus = (status: string): 'online' | 'offline' | 'busy' | 'away' => {
+    switch (status) {
+      case 'online':
+      case 'offline':
+      case 'busy':
+      case 'away':
+        return status;
+      default:
+        return 'online';
+    }
+  };
+
   return (
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
         <CloseButton onClick={onClose} title="关闭">×</CloseButton>
-        <Avatar src={contact.avatar_url || ''} alt={contact.remark_name || ''} size="lg" status={contact.status || 'online'} />
+        <Avatar src={contact.avatar_url || ''} alt={contact.remark_name || ''} size="lg" status={getValidStatus(contact.status || 'online')} />
         <Name>{contact.remark_name}</Name>
         <Status>{contact.status || ''}</Status>
         <InfoRow>

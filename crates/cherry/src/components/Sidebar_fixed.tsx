@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Conversation, User } from '@/types';
 import ContactList from './ContactList.tsx';
-import ContactPage from './ContactPage';
-import { FaUserFriends, FaComment, FaBookmark } from 'react-icons/fa';
+import { FaUserFriends, FaComment, FaUsers, FaBookmark } from 'react-icons/fa';
 
 interface SidebarProps {
     conversations: Conversation[];
@@ -16,6 +15,10 @@ interface SidebarProps {
 
 // 一级导航类型
 type MainNavType = 'messages' | 'contacts';
+
+// 二级导航类型
+type MessageTabType = 'all' | 'unread' | 'mentions' | 'direct' | 'group';
+type ContactTabType = 'contacts' | 'groups' | 'tags';
 
 // 兼容原有类型
 type TabType = 'all' | 'unread' | 'mentions' | 'direct' | 'group';
@@ -330,6 +333,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 一级导航状态
     const [activeMainNav, setActiveMainNav] = useState<MainNavType>('messages');
     
+    // 二级导航状态 - 消息
+    const [activeMessageTab, setActiveMessageTab] = useState<MessageTabType>('all');
+    
+    // 二级导航状态 - 联系人
+    const [activeContactTab, setActiveContactTab] = useState<ContactTabType>('contacts');
+    
     // 向后兼容的活动标签状态
     const [activeTab, setActiveTab] = useState<TabType>('all');
     
@@ -399,7 +408,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             $active={activeMainNav === 'messages'} 
                             onClick={() => {
                                 setActiveMainNav('messages');
-                                setActiveTab('all');
+                                setActiveTab(activeMessageTab);
                             }}
                         >
                             <FaComment />
@@ -556,7 +565,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </SecondaryContentContainer>
                         ) : (
                             <SecondaryContentContainer>
-                                <ContactPage onSelectConversation={onSelectConversation} />
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                                    <EmptyText>联系人功能开发中...</EmptyText>
+                                </div>
                             </SecondaryContentContainer>
                         )}
                     </div>
