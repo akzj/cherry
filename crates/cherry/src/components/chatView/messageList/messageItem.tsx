@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   MessageContainer,
   MessageBubble,
@@ -23,6 +23,7 @@ import { Message, parseMessageContent } from '@/types';
 import { userService } from '@/services/userService';
 import SafeQuillContent from './SafeQuillContent';
 import CachedAvatar from '@/components/UI/CachedAvatar';
+import UserInfoCard from '@/components/UI/UserInfoCard';
 import FileMessage from './FileMessage';
 
 
@@ -49,9 +50,18 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
     });
   };
 
-  const [username, setUsername] = React.useState<string>('');
-  const [userAvatar, setUserAvatar] = React.useState<string>('');
-  const [isHovered, setIsHovered] = React.useState(false);
+  const [username, setUsername] = useState<string>('');
+  const [userAvatar, setUserAvatar] = useState<string>('');
+  const [isHovered, setIsHovered] = useState(false);
+  const [showUserCard, setShowUserCard] = useState(false);
+  const [userCardPosition, setUserCardPosition] = useState({ top: 0, left: 0 });
+  const [userInfo, setUserInfo] = useState<{
+    id: string;
+    name: string;
+    avatar: string;
+    email?: string;
+    status?: 'online' | 'offline' | 'away' | 'busy';
+  }>({ id: '', name: '', avatar: '' });
 
   React.useEffect(() => {
     let isMounted = true;
@@ -59,16 +69,93 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
       if (isMounted) setUsername(name);
     });
 
-
     userService.getUserInfo(message.user_id).then(user => {
       if (isMounted && user) {
         setUserAvatar(user.avatar_url || user.avatar || '');
+        
+        // Update userInfo state with available user data
+        setUserInfo({
+          id: message.user_id,
+          name: user.name || username || message.user_id,
+          avatar: user.avatar_url || user.avatar || '',
+          email: user.email,
+          status: user.status as any || 'offline'
+        });
       }
     });
 
-
     return () => { isMounted = false; };
-  }, [message.user_id, groupId]);
+  }, [message.user_id, groupId, username]);
+
+  // Handle avatar click to show user info card
+  const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
+    console.log(`Avatar clicked for user: ${message.user_id}`);
+    // Prevent event from bubbling up to parent elements
+    event.stopPropagation();
+    event.preventDefault();
+    
+    // Get position for the user info card
+    const rect = event.currentTarget.getBoundingClientRect();
+    
+    // Position the card relative to the avatar
+    // If it's the user's own message (right side), position to the left of avatar
+    // Otherwise (left side messages), position to the right of avatar
+    const windowWidth = window.innerWidth;
+    
+    // Adjust position to keep card visible within viewport
+    let leftPos;
+    if (isOwn) {
+      // For own messages (right side), position to left of avatar
+      leftPos = rect.left - 300;
+      // Ensure it's not off-screen to the left
+      leftPos = Math.max(10, leftPos);
+    } else {
+      // For others' messages (left side), position to right of avatar
+      leftPos = rect.right + 10;
+      // Ensure it's not off-screen to the right
+      if (leftPos + 280 > windowWidth) {
+        leftPos = rect.left - 290; // Place on left side instead
+      }
+    }
+    
+    // Get vertical position, ensuring the card isn't placed too high or low
+    const windowHeight = window.innerHeight;
+    let topPos = rect.top;
+    
+    // If card would be too low, place it higher
+    if (topPos + 350 > windowHeight) {
+      topPos = Math.max(10, windowHeight - 350);
+    }
+    
+    console.log('Setting card position:', { top: topPos, left: leftPos });
+    
+    setUserCardPosition({
+      top: topPos,
+      left: leftPos
+    });
+    
+    // Show the card
+    setShowUserCard(true);
+  };
+
+  // Handle closing the user info card
+  const handleCloseUserCard = () => {
+    setShowUserCard(false);
+  };
+
+  // Handle sending a direct message to the user
+  const handleSendMessage = (userId: string) => {
+    console.log(`Send message to user: ${userId}`);
+    // Implementation depends on your app's messaging functionality
+    handleCloseUserCard();
+  };
+
+  // Handle viewing the user's profile
+  const handleViewProfile = (userId: string) => {
+    console.log(`View profile of user: ${userId}`);
+    // Implementation depends on your app's profile viewing functionality
+    handleCloseUserCard();
+  };
 
   return (
     <MessageContainer 
@@ -77,6 +164,7 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
       className="message-container"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={{ position: 'relative' }}
     >
       <MessageBubble $isOwn={isOwn} $isReply={message.isReply}>
         {/* 只在悬停时渲染 QuickEmojiReply */}
@@ -95,14 +183,24 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
         <MessageHeader>
           <Timestamp>{formatTime(message.timestamp)}</Timestamp>
           <Username>{username}</Username>
-          {/* 只有自己的消息才显示头像，且只在有头像时渲染 */}
-          {isOwn && userAvatar && (
-            <CachedAvatar 
-              src={userAvatar} 
-              alt={username || 'User'} 
-              size="sm"
-              lazy={true}
-            />
+          {/* 显示用户头像，并添加点击事件显示用户卡片 */}
+          {userAvatar && (
+            <div 
+              onClick={handleAvatarClick} 
+              style={{ 
+                cursor: 'pointer',
+                position: 'relative',
+                zIndex: 50
+              }}
+              title={`查看 ${username || 'User'} 的信息`}
+            >
+              <CachedAvatar 
+                src={userAvatar} 
+                alt={username || 'User'} 
+                size="sm"
+                lazy={true}
+              />
+            </div>
           )}
         </MessageHeader>
 
@@ -189,6 +287,31 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
         )}
 
       </MessageBubble>
+      
+      {/* User info card popup - rendered at document root for better positioning */}
+      {showUserCard && (
+        <React.Fragment>
+          {/* Overlay to capture clicks outside the card */}
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1400
+            }}
+            onClick={handleCloseUserCard}
+          />
+          <UserInfoCard
+            user={userInfo}
+            position={userCardPosition}
+            onClose={handleCloseUserCard}
+            onSendMessage={handleSendMessage}
+            onViewProfile={handleViewProfile}
+          />
+        </React.Fragment>
+      )}
     </MessageContainer>
   );
 }, (prevProps, nextProps) => {
@@ -200,7 +323,9 @@ const MessageItem = React.memo<MessageItemProps>(({ message, currentUserId, grou
     prevProps.message.type_ === nextProps.message.type_ &&
     prevProps.currentUserId === nextProps.currentUserId &&
     prevProps.groupId === nextProps.groupId &&
-    JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions)
+    JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions) &&
+    prevProps.message.isReply === nextProps.message.isReply &&
+    (prevProps.message.replyToMessage?.id === nextProps.message.replyToMessage?.id)
   );
 });
 
