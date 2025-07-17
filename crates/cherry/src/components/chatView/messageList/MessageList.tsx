@@ -49,6 +49,9 @@ const onCopyMessage = (message: Message) => {
 
 const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, ref) => {
   const { currentUserId, conversationId, setReplyingTo } = props;
+  
+  const scrollURef = useRef<ScrollURef>(null);
+
   useImperativeHandle(ref, () => ({
     onSendMessageEvent: () => {
       //  console.log('MessageList: onSendMessageEvent called');
@@ -57,11 +60,47 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
     }
   }));
 
+  const handleReply = useCallback((message: Message) => {
+    setReplyingTo(message);
+  }, [setReplyingTo]);
+
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    // 滚动到被回复的消息
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 添加高亮效果
+      messageElement.classList.add('highlight');
+      setTimeout(() => {
+        messageElement.classList.remove('highlight');
+      }, 2000);
+    }
+  }, []);
+
+  // reaction 处理
+  const handleReactionClick = useCallback((msg: Message, emoji: string) => {
+    if (!conversationId) return;
+
+    // 检查当前用户是否已经点击过这个 emoji
+    const existingReaction = msg.reactions?.find(r => r.emoji === emoji);
+    const hasUserReacted = existingReaction?.users.includes(currentUserId);
+
+    if (hasUserReacted) {
+      // 如果用户已经点击过，则删除反应
+      removeReaction(conversationId, msg.id, emoji, currentUserId);
+    } else {
+      // 如果用户没有点击过，则添加反应
+      addReaction(conversationId, msg.id, emoji, currentUserId);
+    }
+  }, [conversationId, currentUserId]);
+
   const mewMessageHandler = useCallback((message: Message) => {
     console.log('MessageList: New message received', message);
     if (message.conversation_id === conversationId) {
+      console.log('MessageList: Message for current conversation, updating elements');
       if (scrollURef.current) {
         scrollURef.current.updateElements((elements: ElementWithKey[]): ElementWithKey[] => {
+          console.log('MessageList: Current elements count:', elements.length);
           let replaced = false;
           
           // 先检查是否已存在，如果存在则更新
@@ -105,18 +144,23 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
           }
 
           // 如果是新消息，添加到末尾
-          return [
+          console.log('MessageList: Adding new message to end');
+          const newElements = [
             ...elements,
-            React.createElement(MessageItem, {
-              key: message.conversation_id + message.id,
-              message: message,
-              currentUserId: currentUserId,
-              onReply: handleReply,
-              onReactionClick: handleReactionClick,
-              onScrollToMessage: handleScrollToMessage,
-              onCopyMessage: onCopyMessage,
-            }) as ElementWithKey,
+            (
+              <MessageItem
+                key={message.conversation_id + message.id}
+                currentUserId={currentUserId}
+                message={message}
+                onReactionClick={handleReactionClick}
+                onReply={handleReply}
+                onScrollToMessage={handleScrollToMessage}
+                onCopyMessage={onCopyMessage}
+              />
+            ) as ElementWithKey,
           ];
+          console.log('MessageList: New elements count:', newElements.length);
+          return newElements;
         });
       }
     } else {
@@ -125,7 +169,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
         currentConversationId: conversationId,
       });
     }
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
   // 添加监听器
   React.useEffect(() => {
@@ -136,9 +180,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
       listenerService.off(makeNewMessageEvent(conversationId), mewMessageHandler);
       console.log('MessageList: Listener removed for conversation', conversationId);
     };
-  }, [conversationId]);
-
-  const scrollURef = useRef<ScrollURef>(null);
+  }, [conversationId, mewMessageHandler]);
 
   //初始化，尝试获取新的消息列表
   const fetchMessages = React.useCallback(async () => {
@@ -161,47 +203,11 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>((props, r
         ) as ElementWithKeyArr;
       });
     }
-  }, [conversationId]);
+  }, [conversationId, currentUserId, handleReply, handleReactionClick, handleScrollToMessage]);
 
   React.useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
-
-  const handleReply = useCallback((message: Message) => {
-    setReplyingTo(message);
-  }, [setReplyingTo])
-
-  //初始化，尝试获取新的消息列表
-
-  const handleScrollToMessage = useCallback((messageId: string) => {
-    // 滚动到被回复的消息
-    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // 添加高亮效果
-      messageElement.classList.add('highlight');
-      setTimeout(() => {
-        messageElement.classList.remove('highlight');
-      }, 2000);
-    }
-  }, []);
-
-  // reaction 处理
-  const handleReactionClick = (msg: Message, emoji: string) => {
-    if (!conversationId) return;
-
-    // 检查当前用户是否已经点击过这个 emoji
-    const existingReaction = msg.reactions?.find(r => r.emoji === emoji);
-    const hasUserReacted = existingReaction?.users.includes(currentUserId);
-
-    if (hasUserReacted) {
-      // 如果用户已经点击过，则删除反应
-      removeReaction(conversationId, msg.id, emoji, currentUserId);
-    } else {
-      // 如果用户没有点击过，则添加反应
-      addReaction(conversationId, msg.id, emoji, currentUserId);
-    }
-  };
 
 
 
