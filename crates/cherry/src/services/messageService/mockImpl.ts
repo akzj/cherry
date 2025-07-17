@@ -92,6 +92,7 @@ export const mockMessageService: MessageService = {
 
     data.messagesMap[conversationId].push(message);
     await messageDb.write(data);
+    listenerService.trigger!(NewMessageEvent(conversationId), message);
   },
   loadMessages: async (conversationId, messageId, direction, limit) => {
     const data = await messageDb.read();

@@ -72,14 +72,25 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   }, [message]);
 
-  // 为 Quill 编辑器添加粘贴事件监听
+  // 为 Quill 编辑器添加粘贴事件监听和快捷键监听
   useEffect(() => {
     if (isQuillMode) {
       const quillContainer = document.querySelector('.ql-editor');
       if (quillContainer) {
+        const handleQuillKeyDown = (e: Event) => {
+          const keyboardEvent = e as KeyboardEvent;
+          // Ctrl+Enter 快捷键发送消息
+          if (keyboardEvent.ctrlKey && keyboardEvent.key === 'Enter') {
+            keyboardEvent.preventDefault();
+            handleSubmit(keyboardEvent as any);
+          }
+        };
+
         quillContainer.addEventListener('paste', handleQuillPaste);
+        quillContainer.addEventListener('keydown', handleQuillKeyDown);
         return () => {
           quillContainer.removeEventListener('paste', handleQuillPaste);
+          quillContainer.removeEventListener('keydown', handleQuillKeyDown);
         };
       }
     }
@@ -197,6 +208,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
         }
         break;
       }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl+Enter 快捷键发送消息
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit(e as any);
     }
   };
 
@@ -396,10 +415,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
           <InputField
             ref={textareaRef}
-            placeholder={selectedImage ? "Type a message..." : "Type a message..."}
+            placeholder={selectedImage ? "Type a message... (Ctrl+Enter to send)" : "Type a message... (Ctrl+Enter to send)"}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
             disabled={isInputDisabled}
             rows={1}
             style={{ display: isQuillMode ? 'none' : undefined }}
